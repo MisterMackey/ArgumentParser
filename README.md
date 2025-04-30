@@ -1,4 +1,5 @@
 # ArgumentParser
+Licensed under the Apache License, Version 2.0
 
 ## About
 ArgumentParser provides functionality to parse commandline arguments without the use of Reflection. It is therefore compatible with AOT publishing.
@@ -125,7 +126,7 @@ namespace ExampleConsole
             new ArgumentParser.PositionalAttribute(0, "the amount of times to repeat"),
         };
         private static readonly ArgumentParser.FlagAttribute[] flags = new ArgumentParser.FlagAttribute[] {
-            new ArgumentParser.FlagAttribute("v", "Enable verbose output"),
+            new ArgumentParser.FlagAttribute("v", "Verbose", "Enable verbose output"),
         };
         private static readonly Dictionary<string,bool> requiredProperties = new Dictionary<string, bool>() {
             { "Output", false },
