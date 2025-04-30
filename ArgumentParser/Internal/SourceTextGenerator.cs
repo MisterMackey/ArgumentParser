@@ -88,7 +88,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.Indent++;
 		foreach (var flag in Flags)
 		{
-			writer.WriteLine($"new ArgumentParser.FlagAttribute(\"{flag.Attribute.ShortName}\", \"{flag.Attribute.Description}\"),");
+			writer.WriteLine($"new ArgumentParser.FlagAttribute(\"{flag.Attribute.ShortName}\", \"{flag.Attribute.LongName}\", \"{flag.Attribute.Description}\"),");
 		}
 		writer.Indent--;
 		writer.WriteLine("};");
