@@ -1,0 +1,12 @@
+[*.cs]
+indent_size = 8
+indent_style = tab
+tab_width = 8
+
+end_of_line = lf
+insert_final_newline = false
+
+dotnet_seperate_import_directive_groups = true
+dotnet_sort_system_directives_first = true
+
+csharp_preferred_modifier_order = public,private,protected,internal,file,static,extern,new,abstract,virtual,sealed,override,readonly,unsafe,required,volatile,async
