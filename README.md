@@ -108,7 +108,8 @@ Simply add the following properties to your .csproj file:
   </PropertyGroup>
 ```
 
-In the example case given above, something similar to this will be generated:
+In the example case given above, something similar to the following code will be generated.
+Since this code is essentially peanuts and free of any using directives it should play nice with just about any target framework and user code.
 
 *ExampleConsole/obj/net9.0/Generated/ArgumentParser/ArgumentParser.Internal.ParserGenerator/MyCommandLineArguments_Parser.g.cs*
 ```C#
