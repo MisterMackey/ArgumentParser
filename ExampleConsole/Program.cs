@@ -1,13 +1,13 @@
-﻿// See https://aka.ms/new-console-template for more information
-using ExampleConsole;
+﻿using ExampleConsole;
 
 Console.WriteLine("Hello, World!");
 
-var opts = Options.Parse(args);
-Console.WriteLine($"Input: {opts.result.Input}");
-Console.WriteLine($"Output: {opts.result.Output}");
-Console.WriteLine($"Verbose: {opts.result.Verbose}");
-foreach (var error in opts.errors)
+var (myArgs, err) = MyCommandLineArguments.Parse(args);
+Console.WriteLine($"Repeat: {myArgs.RepeatTimes}");
+Console.WriteLine($"Output: {myArgs.Output}");
+Console.WriteLine($"Verbose: {myArgs.Verbose}");
+foreach (var error in err)
 {
 	Console.WriteLine($"Error: {error.Message}");
 }
+

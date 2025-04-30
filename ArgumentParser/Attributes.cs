@@ -42,7 +42,7 @@ namespace ArgumentParser
 			if (string.IsNullOrEmpty(shortName) && string.IsNullOrEmpty(longName))
 				throw new ArgumentException("Either shortName or longName must be provided.");
 
-			if (shortName.Length != 1)
+			if ( shortName.Length > 1)
 				throw new ArgumentException("ShortName must be a single character.");
 
 			ShortName = shortName;
