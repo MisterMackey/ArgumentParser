@@ -1,9 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <ItemGroup>
-    <ProjectReference Include="..\ArgumentParser\ArgumentParser.csproj" OutputItemType="Analyzer"/>
-  </ItemGroup>
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
@@ -13,5 +9,9 @@
     <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)$(TargetFramework)/Generated</CompilerGeneratedFilesOutputPath>
     <PublishAot>true</PublishAot>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ArgumentParser" Version="1.0.0" />
+  </ItemGroup>
 
 </Project>
