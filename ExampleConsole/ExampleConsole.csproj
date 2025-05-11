@@ -11,7 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ArgumentParser" Version="1.0.0" />
+    <PackageReference Include="AoT.ArgumentParser" Version="1.0.0" />
   </ItemGroup>
+
 
 </Project>

@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <AssemblyName>Aot.ArgumentParser</AssemblyName>
     <TargetFrameworks>netstandard2.0;net9.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
@@ -16,14 +17,14 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 
     <!-- Package metadata -->
-    <PackageId>ArgumentParser</PackageId>
+    <PackageId>Aot.ArgumentParser</PackageId>
     <Version>1.0.0</Version>
     <Authors>Jasper Ris</Authors>
     <Description>A source generator that creates an AoT compatible Parse method to handle your string[] args</Description>
     <PackageTags>source-generator;analyzer;CLI;arguments;commandline;parser</PackageTags>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/MisterMackey/ArgumentParser</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/MisterMackey/ArgumentParser</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/MisterMackey/Aot.ArgumentParser</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/MisterMackey/Aot.ArgumentParser</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Copyright>Copyright 2025</Copyright>
@@ -40,8 +41,8 @@
 
   <ItemGroup>
     <None Include="../README.md" Pack="true" PackagePath="" />
-    <None Include="bin/Release/netstandard2.0/ArgumentParser.dll" Pack="true" PackagePath="analyzers/dotnet/cs/ArgumentParser.dll" />
-    <None Include="bin/Release/netstandard2.0/ArgumentParser.xml" Pack="true" PackagePath="analyzers/dotnet/cs/ArgumentParser.xml" />
+    <None Include="bin/Release/netstandard2.0/Aot.ArgumentParser.dll" Pack="true" PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.dll" />
+    <None Include="bin/Release/netstandard2.0/Aot.ArgumentParser.xml" Pack="true" PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.xml" />
   </ItemGroup>
 
 
