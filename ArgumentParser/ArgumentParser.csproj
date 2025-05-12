@@ -36,13 +36,17 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0">
+      <PrivateAssets>all</PrivateAssets>
      </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
     <None Include="../README.md" Pack="true" PackagePath="" />
-    <None Include="bin/Release/netstandard2.0/Aot.ArgumentParser.dll" Pack="true" PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.dll" />
-    <None Include="bin/Release/netstandard2.0/Aot.ArgumentParser.xml" Pack="true" PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.xml" />
+    <None Include="../LICENSE.txt" Pack="true" PackagePath="" />
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" Pack="true" PackagePath="" />
+    <AdditionalFiles Include="AnalyzerReleases.UnShipped.md" Pack="true" PackagePath="" />
+    <None Include="bin/Release/netstandard2.0/Aot.ArgumentParser.dll" Pack="true" PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.dll" Visible="false"/>
+    <None Include="bin/Release/netstandard2.0/Aot.ArgumentParser.xml" Pack="true" PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.xml"/>
   </ItemGroup>
 
 

@@ -4,17 +4,22 @@ Licensed under the Apache License, Version 2.0
 ## About
 ArgumentParser provides functionality to parse commandline arguments without the use of Reflection. It is therefore compatible with AOT publishing.
 
-It works by providing a roslyn analyzer, a compiler plugin which will augment a user provided partial class with a static Parse(string[] args) method.
-This method will take the raw arguments from the commandline (in the form of a string[]) and return an instance of the partial class, and any accumulated errors as a tuple.The properties on the class are set to what was specified on the commandline.
+It works by providing a roslyn analyzer, which will augment a user provided partial class with a static Parse(string[] args) method.
+This method will take the raw arguments from the commandline (in the form of a string[]) and return an instance of the partial class, and any accumulated errors as a tuple. The properties on the class are set to what was specified on the commandline.
 
 The method is generated during compilation, which allows the generated code to be very simple and not rely on Reflection. By being very simple it will compile fine when publishing an AOT executable.
+
+This is essentially an MVP at this point, so there no support (as of yet) for some nice to haves like:
+- Make arguments required via the required keyword
+- Specific types (like FileInfo)
+- Overloading the behaviour of the parser (how to handle certain errors for example)
 
 ## Quickstart
 *For an example, check out the ExampleConsole project in this repository*
 
 First, add ArgumentParser to your project: 
 ```
-dotnet add package ArgumentParser
+dotnet add package Aot.ArgumentParser
 ```
 
 Next, create a public partial class and annotate it with the ParameterCollection Attribute.
@@ -178,6 +183,11 @@ namespace ExampleConsole
 
 ```
 
+## Default behaviour
+The string[] parameter is tokenized and then the tokens are evaluated in a loop to determine which properties on the class to change. During tokenization, errors are collected when something doesn't tokenize correctly or when arguments are encountered that have no corresponding property in the class. These errors are nonfatal and will bubble up in the returned tuple, letting the user handle them as they see fit.
+
+Parameters marked as required are tracked and checked off when found. At the end of the parse method, if any required properties are missing an AggregateException is thrown. The innerExceptions property is set to a list of Exceptions, one for each missing property.
+
 ## Diagnostics and Errors
 
-see AnalyzerRelease.Shipped.md
+see [AnalyzerRelease.Shipped.md](ArgumentParser/AnalyzerReleases.Shipped.md)
