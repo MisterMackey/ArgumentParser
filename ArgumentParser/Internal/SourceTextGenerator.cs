@@ -194,7 +194,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		// standard behaviour for now if there are missing required properties
 		// is to just throw an exception at this point
 		// TODO: add some property on the collection attribute to override this behaviour
-		writer.WriteLine("if (errors.Count > 0)");
+		writer.WriteLine("if (missingRequired.Count > 0)");
 		writer.WriteLine("{");
 		writer.Indent++;
 		writer.WriteLine("System.AggregateException ae = new System.AggregateException(message:\"One or more required arguments missing\", innerExceptions: missingRequired);");
