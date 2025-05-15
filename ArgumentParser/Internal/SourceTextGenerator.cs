@@ -134,7 +134,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine($"if (optionToken.Name == \"{option.Attribute.ShortName}\" || optionToken.Name == \"{option.Attribute.LongName}\")");
 			writer.WriteLine("{");
 			writer.Indent++;
-			writer.WriteLine($"instance.{option.PropertyName} = {GetValueParseCode(option.PropertyType, "optionToken")};");
+			WriteValueParseCode(option.PropertyType, "optionToken", option.PropertyName, writer);
 			if (option.Attribute.Required)
 			{
 				writer.WriteLine($"requiredProperties[\"{option.PropertyName}\"] = true;");
@@ -152,7 +152,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine($"if (positionalToken.Position == {positional.Attribute.Position})");
 			writer.WriteLine("{");
 			writer.Indent++;
-			writer.WriteLine($"instance.{positional.PropertyName} = {GetValueParseCode(positional.PropertyType, "positionalToken")};");
+			WriteValueParseCode(positional.PropertyType, "positionalToken", positional.PropertyName, writer);
 			if (positional.Attribute.Required)
 			{
 				writer.WriteLine($"requiredProperties[\"{positional.PropertyName}\"] = true;");
@@ -221,50 +221,262 @@ public class SourceTextGenerator : ISourceTextGenerator
 	/// Gets the appropriate code to parse a string value into the specified property type.
 	/// </summary>
 	/// <param name="propertyType">The type of the property to parse to.</param>
-	/// <param name="propertyName">The name of the token property to read the value from.</param>
+	/// <param name="localVariableName">The name of the token property to read the value from.</param>
+	/// <param name="propertyName">The name of the property in the partial class to set.</param>
+	/// <param name="writer">The writer to write the code to.</param>
 	/// <returns>A string containing the code needed to parse the value.</returns>
-	private static string GetValueParseCode(string propertyType, string propertyName)
+	private static void WriteValueParseCode(string propertyType, string localVariableName, string propertyName, IndentedTextWriter writer)
 	{
 		switch (propertyType)
 		{
 			case "int":
-				return $"int.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!int.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "double":
-				return $"double.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!double.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "float":
-				return $"float.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!float.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "long":
-				return $"long.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!long.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "short":
-				return $"short.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!short.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "decimal":
-				return $"decimal.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!decimal.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "byte":
-				return $"byte.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!byte.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "sbyte":
-				return $"sbyte.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!sbyte.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "char":
-				return $"char.Parse({propertyName}.Value)";
-			case "string":
-				return $"{propertyName}.Value";
+				writer.WriteLine($"if (!char.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "uint":
-				return $"uint.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!uint.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "ulong":
-				return $"ulong.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!ulong.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "ushort":
-				return $"ushort.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!ushort.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "Guid":
-				return $"Guid.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!Guid.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "Uri":
-				return $"new Uri({propertyName}.Value)";
+				writer.WriteLine($"if (!Uri.TryCreate({localVariableName}.Value, UriKind.RelativeOrAbsolute, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "TimeSpan":
-				return $"TimeSpan.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!TimeSpan.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "bool":
-				return $"bool.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!bool.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
 			case "DateTime":
-				return $"DateTime.Parse({propertyName}.Value)";
+				writer.WriteLine($"if (!DateTime.TryParse({localVariableName}.Value, out var parsedValue))");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+				writer.Indent--;
+				writer.WriteLine("}");
+				writer.WriteLine("else");
+				writer.WriteLine("{");
+				writer.Indent++;
+				writer.WriteLine($"instance.{propertyName} = parsedValue;");
+				writer.Indent--;
+				writer.WriteLine("}");
+				break;
+			case "string":
+				writer.WriteLine($"instance.{propertyName} = {localVariableName}.Value;");
+				break;
+			case "string?":
+				writer.WriteLine($"instance.{propertyName} = {localVariableName}.Value;");
+				break;
 			default:
-				return $"{propertyName}.Value";
+				writer.WriteLine($"// Unsupported property type: {propertyType}");
+				// TODO: put diagnostic for this case
+				break;
 		}
 	}
 }

@@ -194,4 +194,5 @@ see [AnalyzerRelease.Shipped.md](ArgumentParser/AnalyzerReleases.Shipped.md)
 
 ## Known bugs
 
-- AggregateException is always thrown when any parse error is encountered
+v1.0.0:
+	- AggregateException is always thrown when any parse error is encountered

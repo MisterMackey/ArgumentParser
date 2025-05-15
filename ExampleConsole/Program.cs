@@ -10,4 +10,3 @@ foreach (var error in err)
 {
 	Console.WriteLine($"Error: {error.Message}");
 }
-
