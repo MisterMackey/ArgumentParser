@@ -100,7 +100,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		{
 			if (option.Attribute.Required)
 			{
-				writer.WriteLine($"{{ \"{option.PropertyName}\", false }},");
+				writer.WriteLine($"{{ \"{option.Attribute.ShortName} | {option.Attribute.LongName}\", false }},");
 			}
 		}
 		foreach (var positional in Positionals)
@@ -137,7 +137,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			WriteValueParseCode(option.PropertyType, "optionToken", option.PropertyName, writer);
 			if (option.Attribute.Required)
 			{
-				writer.WriteLine($"requiredProperties[\"{option.PropertyName}\"] = true;");
+				writer.WriteLine($"requiredProperties[\"{option.Attribute.ShortName} | {option.Attribute.LongName}\"] = true;");
 			}
 			writer.Indent--;
 			writer.WriteLine("}");
@@ -187,7 +187,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.WriteLine("var missingRequired = requiredProperties");
 		writer.Indent++;
 		writer.WriteLine(".Where(kvp => !kvp.Value).Select(kvp => kvp.Key)");
-		writer.WriteLine(".Select(k => new ArgumentParser.MissingRequiredArgumentException($\"Missing required property: {k}\"))");
+		writer.WriteLine(".Select(k => new ArgumentParser.MissingRequiredArgumentException($\"Missing required argument: {k}\"))");
 		writer.WriteLine(".ToList();");
 		writer.Indent--;
 		writer.WriteLine("errors.AddRange(missingRequired);");
