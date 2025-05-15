@@ -20,8 +20,8 @@
     <PackageId>Aot.ArgumentParser</PackageId>
     <Version>1.0.1</Version>
     <Authors>Jasper Ris</Authors>
-    <Description>A source generator that generates a Parse method for an annotated class containing CLI arguments.</Description>
-    <PackageTags>source-generator;analyzer;CLI;arguments;commandline;parser</PackageTags>
+    <Description>A source generator that generates an AoT-Friendly Parse method for an annotated class containing CLI arguments.</Description>
+    <PackageTags>source-generator;analyzer;CLI;arguments;commandline;parser;AoT</PackageTags>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/MisterMackey/ArgumentParser</PackageProjectUrl>
     <RepositoryUrl>https://github.com/MisterMackey/ArgumentParser</RepositoryUrl>
