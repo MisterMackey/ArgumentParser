@@ -18,6 +18,42 @@ namespace ArgumentParser
 	[AttributeUsage(AttributeTargets.Class, Inherited = false)]
 	public sealed class ParameterCollectionAttribute : Attribute
 	{
+		/// <summary>
+		/// Gets how help text is generated and displayed.
+		/// </summary>
+		public HelpTextGeneration HelpTextGeneration { get; }
+		/// <summary>
+		/// Gets the short name for the help argument (e.g., 'h' for '-h').
+		/// </summary>
+		public string HelpArgumentShortName { get; }
+		/// <summary>
+		/// Gets the long name for the help argument (e.g., 'Help' for '--Help').
+		/// </summary>
+		public string HelpArgumentLongName { get; }
+		/// <summary>
+		/// Gets the behavior of the parser when errors are encountered during argument parsing.
+		/// </summary>
+		public BehaviourOnError BehaviourOnError { get; }
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="ParameterCollectionAttribute"/> class.
+		/// </summary>
+		/// <param name="helpTextGeneration">Specifies how help text is generated and displayed.</param>
+		/// <param name="helpArgumentShortName">The short name for the help argument (e.g., 'h' for '-h').</param>
+		/// <param name="helpArgumentLongName">The long name for the help argument (e.g., 'Help' for '--Help').</param>
+		/// <param name="behaviourOnError">Specifies the behavior of the parser when errors are encountered during argument parsing.</param>
+		public ParameterCollectionAttribute(
+			HelpTextGeneration helpTextGeneration = HelpTextGeneration.GenerateAll,
+			string helpArgumentShortName = "h",
+			string helpArgumentLongName = "Help",
+			BehaviourOnError behaviourOnError = BehaviourOnError.ThrowIfMissingRequired
+		)
+		{
+			HelpTextGeneration = helpTextGeneration;
+			HelpArgumentShortName = helpArgumentShortName;
+			HelpArgumentLongName = helpArgumentLongName;
+			BehaviourOnError = behaviourOnError;
+		}
 	}
 
 	/// <summary>
