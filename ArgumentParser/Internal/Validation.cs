@@ -72,9 +72,9 @@ public static class Validation
 	/// <param name="classDeclarationSyntax"></param>
 	/// <returns>List of diagnostics if validation fails, empty list if validation passes.</returns>
 	public static ReadOnlyCollection<Diagnostic> ValidateAttributes(
-		ReadOnlyCollection<PropertyAndAttributeInfo<OptionAttribute>> options,
-		ReadOnlyCollection<PropertyAndAttributeInfo<PositionalAttribute>> positionals,
-		ReadOnlyCollection<PropertyAndAttributeInfo<FlagAttribute>> flags,
+		ReadOnlyCollection<PropertyAndAttributeInfo> options,
+		ReadOnlyCollection<PropertyAndAttributeInfo> positionals,
+		ReadOnlyCollection<PropertyAndAttributeInfo> flags,
 		ClassDeclarationSyntax classDeclarationSyntax
 	)
 	{
@@ -176,12 +176,11 @@ public static class Validation
 		return diagnostics.AsReadOnly();
 	}
 
-	private static Location? GetLocation<T>(PropertyAndAttributeInfo<T> shortNameInfo, ClassDeclarationSyntax classDeclarationSyntax)
-		where T : Attribute
+	private static Location? GetLocation(PropertyAndAttributeInfo info, ClassDeclarationSyntax classDeclarationSyntax)
 	{
 		var property = classDeclarationSyntax.DescendantNodes()
 		    .OfType<PropertyDeclarationSyntax>()
-		    .FirstOrDefault(p => p.Identifier.Text == shortNameInfo.PropertyName);
+		    .FirstOrDefault(p => p.Identifier.Text == info.PropertyName);
 		if (property != null)
 		{
 			return property.GetLocation();

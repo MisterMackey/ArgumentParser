@@ -14,9 +14,9 @@ namespace ArgumentParser.Internal;
 public class SourceTextGenerator : ISourceTextGenerator
 {
 	private readonly ClassDeclarationSyntax ClassDeclaration;
-	private readonly ReadOnlyCollection<PropertyAndAttributeInfo<OptionAttribute>> Options;
-	private readonly ReadOnlyCollection<PropertyAndAttributeInfo<PositionalAttribute>> Positionals;
-	private readonly ReadOnlyCollection<PropertyAndAttributeInfo<FlagAttribute>> Flags;
+	private readonly ReadOnlyCollection<PropertyAndAttributeInfo> Options;
+	private readonly ReadOnlyCollection<PropertyAndAttributeInfo> Positionals;
+	private readonly ReadOnlyCollection<PropertyAndAttributeInfo> Flags;
 	private readonly ISymbol Symbol;
 
 	/// <summary>
@@ -29,9 +29,9 @@ public class SourceTextGenerator : ISourceTextGenerator
 	/// <param name="symbol">The symbol representing the class.</param>
 	public SourceTextGenerator(
 		ClassDeclarationSyntax classDeclaration,
-		ReadOnlyCollection<PropertyAndAttributeInfo<OptionAttribute>> options,
-		ReadOnlyCollection<PropertyAndAttributeInfo<PositionalAttribute>> positionals,
-		ReadOnlyCollection<PropertyAndAttributeInfo<FlagAttribute>> flags,
+		ReadOnlyCollection<PropertyAndAttributeInfo> options,
+		ReadOnlyCollection<PropertyAndAttributeInfo> positionals,
+		ReadOnlyCollection<PropertyAndAttributeInfo> flags,
 		ISymbol symbol
 	)
 	{

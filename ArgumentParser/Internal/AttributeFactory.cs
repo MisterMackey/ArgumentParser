@@ -38,7 +38,7 @@ public class AttributeFactory
 	/// Gets all properties with OptionAttributes and creates PropertyAndAttributeInfo instances for them.
 	/// </summary>
 	/// <returns>A list of PropertyAndAttributeInfo instances for OptionAttributes.</returns>
-	public IList<PropertyAndAttributeInfo<OptionAttribute>> GetOptionAttributes()
+	public IList<PropertyAndAttributeInfo> GetOptionAttributes()
 	{
 		return _properties
 			.Where(p => p.AttributeLists
@@ -57,7 +57,7 @@ public class AttributeFactory
 	/// Gets all properties with PositionalAttributes and creates PropertyAndAttributeInfo instances for them.
 	/// </summary>
 	/// <returns>A list of PropertyAndAttributeInfo instances for PositionalAttributes.</returns>
-	public IList<PropertyAndAttributeInfo<PositionalAttribute>> GetPositionalAttributes()
+	public IList<PropertyAndAttributeInfo> GetPositionalAttributes()
 	{
 		return _properties
 			.Where(p => p.AttributeLists
@@ -68,7 +68,7 @@ public class AttributeFactory
 						return false;
 					return symbol.ContainingType.ToDisplayString().Contains("PositionalAttribute");
 				}))
-			.Select(p => CreatePositionalAttribute(p))
+			.Select(p => CreatePositionalInfo(p))
 			.ToList();
 	}
 
@@ -76,7 +76,7 @@ public class AttributeFactory
 	/// Gets all properties with FlagAttributes and creates PropertyAndAttributeInfo instances for them.
 	/// </summary>
 	/// <returns>A list of PropertyAndAttributeInfo instances for FlagAttributes.</returns>
-	public IList<PropertyAndAttributeInfo<FlagAttribute>> GetFlagAttributes()
+	public IList<PropertyAndAttributeInfo> GetFlagAttributes()
 	{
 		return _properties
 			.Where(p => p.AttributeLists
@@ -96,7 +96,7 @@ public class AttributeFactory
 	/// </summary>
 	/// <param name="property">The property declaration syntax.</param>
 	/// <returns>A PropertyAndAttributeInfo instance for the FlagAttribute.</returns>
-	private PropertyAndAttributeInfo<FlagAttribute> CreateFlagAttribute(PropertyDeclarationSyntax property)
+	private PropertyAndAttributeInfo CreateFlagAttribute(PropertyDeclarationSyntax property)
 	{
 		var flagAttributeData = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
 		    .FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("FlagAttribute") == true);
@@ -143,9 +143,9 @@ public class AttributeFactory
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
 		var propertyType = propertySymbol?.Type.ToDisplayString() ?? "string"; //default, no parsing
 
-		return new PropertyAndAttributeInfo<FlagAttribute>
+		return new PropertyAndAttributeInfo
 		{
-			Attribute = new FlagAttribute(shortName, longName, description),
+			Attribute = new AttributeInfo(shortName, longName, description, false, -1),
 			PropertyName = propertyName,
 			PropertyType = propertyType
 		};
@@ -156,7 +156,7 @@ public class AttributeFactory
 	/// </summary>
 	/// <param name="property">The property declaration syntax.</param>
 	/// <returns>A PropertyAndAttributeInfo instance for the OptionAttribute.</returns>
-	private PropertyAndAttributeInfo<OptionAttribute> CreateOptionAttribute(PropertyDeclarationSyntax property)
+	private PropertyAndAttributeInfo CreateOptionAttribute(PropertyDeclarationSyntax property)
 	{
 		var optionAttributeData = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
 		    .FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("OptionAttribute") == true);
@@ -220,9 +220,9 @@ public class AttributeFactory
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
 		var propertyType = propertySymbol?.Type.ToDisplayString() ?? "string"; //default, no parsing
 
-		return new PropertyAndAttributeInfo<OptionAttribute>
+		return new PropertyAndAttributeInfo
 		{
-			Attribute = new OptionAttribute(shortName, longName, description, required),
+			Attribute = new AttributeInfo(shortName, longName, description, required, -1),
 			PropertyName = propertyName,
 			PropertyType = propertyType
 		};
@@ -233,7 +233,7 @@ public class AttributeFactory
 	/// </summary>
 	/// <param name="property">The property declaration syntax.</param>
 	/// <returns>A PropertyAndAttributeInfo instance for the PositionalAttribute.</returns>
-	private PropertyAndAttributeInfo<PositionalAttribute> CreatePositionalAttribute(PropertyDeclarationSyntax property)
+	private PropertyAndAttributeInfo CreatePositionalInfo(PropertyDeclarationSyntax property)
 	{
 		var positionalAttributeData = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
 		    .FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("PositionalAttribute") == true);
@@ -288,9 +288,9 @@ public class AttributeFactory
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
 		var propertyType = propertySymbol?.Type.ToDisplayString() ?? "string"; //default, no parsing
 
-		return new PropertyAndAttributeInfo<PositionalAttribute>
+		return new PropertyAndAttributeInfo
 		{
-			Attribute = new PositionalAttribute(int.Parse(position, CultureInfo.InvariantCulture), description, required),
+			Attribute = new AttributeInfo("", "", description, required, int.Parse(position, CultureInfo.InvariantCulture)),
 			PropertyName = propertyName,
 			PropertyType = propertyType
 		};
@@ -300,12 +300,12 @@ public class AttributeFactory
 /// <summary>
 /// Represents an attribute and its associated property information.
 /// </summary>
-public struct PropertyAndAttributeInfo<T> : IEquatable<PropertyAndAttributeInfo<T>> where T : Attribute
+public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 {
 	/// <summary>
 	/// The attribute instance.
 	/// </summary>
-	public T Attribute { get; set; }
+	public AttributeInfo Attribute { get; set; }
 
 	/// <summary>
 	/// The name of the property.
@@ -324,7 +324,7 @@ public struct PropertyAndAttributeInfo<T> : IEquatable<PropertyAndAttributeInfo<
 	/// <returns></returns>
 	public override bool Equals(object obj)
 	{
-		if (obj is PropertyAndAttributeInfo<T> other)
+		if (obj is PropertyAndAttributeInfo other)
 		{
 			return Equals(other);
 		}
@@ -343,21 +343,79 @@ public struct PropertyAndAttributeInfo<T> : IEquatable<PropertyAndAttributeInfo<
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
-	public static bool operator ==(PropertyAndAttributeInfo<T> left, PropertyAndAttributeInfo<T> right)
+	public static bool operator ==(PropertyAndAttributeInfo left, PropertyAndAttributeInfo right)
 	{
 		return left.Equals(right);
 	}
 
-	public static bool operator !=(PropertyAndAttributeInfo<T> left, PropertyAndAttributeInfo<T> right)
+	public static bool operator !=(PropertyAndAttributeInfo left, PropertyAndAttributeInfo right)
 	{
 		return !(left == right);
 	}
 
-	public bool Equals(PropertyAndAttributeInfo<T> other)
+	public bool Equals(PropertyAndAttributeInfo other)
 	{
 		return PropertyName == other.PropertyName &&
 			PropertyType == other.PropertyType &&
 			Attribute.GetType() == other.Attribute.GetType();
 	}
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }
+
+/// <summary>
+/// Represents an attribute and its associated property information
+/// </summary> 
+public struct AttributeInfo : IEquatable<AttributeInfo>
+{
+	public string ShortName { get; set; }
+	public string LongName { get; set; }
+	public string Description { get; set; }
+	public bool Required { get; set; }
+	public int Position { get; set; }
+
+	public AttributeInfo(string shortName, string longName, string description, bool required, int position)
+	{
+		ShortName = shortName;
+		LongName = longName;
+		Description = description;
+		Required = required;
+		Position = position;
+	}
+
+	public override bool Equals(object? obj)
+	{
+		if (obj is AttributeInfo other)
+		{
+			return Equals(other);
+		}
+		return false;
+	}
+
+	public bool Equals(AttributeInfo other)
+	{
+		return string.Equals(ShortName, other.ShortName, StringComparison.Ordinal) &&
+			string.Equals(LongName, other.LongName, StringComparison.Ordinal) &&
+			string.Equals(Description, other.Description, StringComparison.Ordinal) &&
+			Required == other.Required;
+	}
+
+	public override int GetHashCode()
+	{
+		int hash = 17;
+		hash = hash * 23 + (ShortName != null ? ShortName.GetHashCode() : 0);
+		hash = hash * 23 + (LongName != null ? LongName.GetHashCode() : 0);
+		hash = hash * 23 + (Description != null ? Description.GetHashCode() : 0);
+		hash = hash * 23 + Required.GetHashCode();
+		return hash;
+	}
+
+	public static bool operator ==(AttributeInfo left, AttributeInfo right)
+	{
+		return left.Equals(right);
+	}
+
+	public static bool operator !=(AttributeInfo left, AttributeInfo right)
+	{
+		return !(left == right);
+	}
+}
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
