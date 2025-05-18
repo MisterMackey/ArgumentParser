@@ -2,9 +2,8 @@
 
   <PropertyGroup>
     <AssemblyName>Aot.ArgumentParser</AssemblyName>
-    <TargetFrameworks>netstandard2.0;net9.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net7.0;net8.0;net9.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
-    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
 
     <Nullable>enable</Nullable>
     <AnalysisLevel>latest</AnalysisLevel>
@@ -18,7 +17,7 @@
 
     <!-- Package metadata -->
     <PackageId>Aot.ArgumentParser</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Authors>Jasper Ris</Authors>
     <Description>A source generator that generates an AoT-Friendly Parse method for an annotated class containing CLI arguments.</Description>
     <PackageTags>source-generator;analyzer;CLI;arguments;commandline;parser;AoT</PackageTags>
@@ -30,23 +29,19 @@
     <Copyright>Copyright 2025</Copyright>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0">
-      <PrivateAssets>all</PrivateAssets>
-     </PackageReference>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <ProjectReference Include="..\ArgumentParser.Analyzer\ArgumentParser.Analyzer.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="../README.md" Pack="true" PackagePath="" />
     <None Include="../LICENSE.txt" Pack="true" PackagePath="" />
-    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" Pack="true" PackagePath="" />
-    <AdditionalFiles Include="AnalyzerReleases.UnShipped.md" Pack="true" PackagePath="" />
-    <None Include="bin/Release/netstandard2.0/Aot.ArgumentParser.dll" Pack="true" PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.dll" Visible="false"/>
-    <None Include="bin/Release/netstandard2.0/Aot.ArgumentParser.xml" Pack="true" PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.xml"/>
+    <AdditionalFiles Include="../ArgumentParser.Analyzer/AnalyzerReleases.Shipped.md" Pack="true" PackagePath="" />
+    <AdditionalFiles Include="../ArgumentParser.Analyzer/AnalyzerReleases.UnShipped.md" Pack="true" PackagePath="" />
+    <None Include="../ArgumentParser.Analyzer/bin/Release/netstandard2.0/Aot.ArgumentParser.Analyzer.dll" Pack="true"
+    	PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.Analyzer.dll" Visible="false"/>
+    <None Include="../ArgumentParser.Analyzer/bin/Release/netstandard2.0/Aot.ArgumentParser.Analyzer.xml" Pack="true"
+    	PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.Analyzer.xml"/>
   </ItemGroup>
 
 
