@@ -4,8 +4,19 @@ using System.Text;
 
 namespace ArgumentParser.Internal;
 
-public class HelpTextGenerator
+/// <summary>
+/// Provides functionality to generate help text for command-line argument parsers, including required and optional arguments, flags, and options.
+/// </summary>
+public class DefaultHelptextProvider : IHelpTextProvider
 {
+	/// <summary>
+	/// Generates help text for the specified program, including required and optional arguments, flags, and options.
+	/// </summary>
+	/// <param name="programName">The name of the program or command.</param>
+	/// <param name="options">A collection of option parameters and their metadata.</param>
+	/// <param name="flags">A collection of flag parameters and their metadata.</param>
+	/// <param name="positionals">A collection of positional parameters and their metadata.</param>
+	/// <returns>A formatted help text string describing the usage, required, and optional arguments.</returns>
 	public static string GenerateHelpText(
 		string programName,
 		ReadOnlyCollection<PropertyAndAttributeInfo> options,
