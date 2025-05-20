@@ -1,11 +1,5 @@
-﻿using System;
-using System.CodeDom.Compiler;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
+﻿using System.Linq;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace ArgumentParser.Internal
@@ -52,13 +46,10 @@ namespace ArgumentParser.Internal
 			var semanticModel = generatorContext.SemanticModel;
 			var properties = classDeclaration.Members.OfType<PropertyDeclarationSyntax>().ToList().AsReadOnly();
 			var attributeFactory = new AttributeFactory(semanticModel, properties);
+			var argumentProvider = new UserSpecifiedArgumentProvider(attributeFactory);
 			
-			var options = attributeFactory.GetOptionAttributes().ToList().AsReadOnly();
-			var positionals = attributeFactory.GetPositionalAttributes().ToList().AsReadOnly();
-			var flags = attributeFactory.GetFlagAttributes().ToList().AsReadOnly();
-				
 			// check validity of attributes and stop processing if any are invalid
-			var err = Validation.ValidateAttributes(options, positionals, flags, classDeclaration);
+			var err = Validation.ValidateAttributes(argumentProvider, classDeclaration);
 			if (err.Count > 0)
 			{
 				Validation.ReportDiagnostics(context, err);
@@ -67,9 +58,7 @@ namespace ArgumentParser.Internal
 
 			var textGenerator = new SourceTextGenerator(
 				classDeclaration,
-				options,
-				positionals,
-				flags,
+				argumentProvider,
 				generatorContext.TargetSymbol
 			);
 			var sourceText = textGenerator.GenerateSourceText();

@@ -66,15 +66,11 @@ public static class Validation
 	/// <summary>
 	/// Validates that the attributes don't have conflicting values.
 	/// </summary>
-	/// <param name="options">The option attributes to validate.</param>
-	/// <param name="positionals">The positional attributes to validate.</param>
-	/// <param name="flags">The flag attributes to validate.</param>
-	/// <param name="classDeclarationSyntax"></param>
+	/// <param name="provider">The argument provider to validate.</param>
+	/// /// <param name="classDeclarationSyntax"></param>
 	/// <returns>List of diagnostics if validation fails, empty list if validation passes.</returns>
 	public static ReadOnlyCollection<Diagnostic> ValidateAttributes(
-		ReadOnlyCollection<PropertyAndAttributeInfo> options,
-		ReadOnlyCollection<PropertyAndAttributeInfo> positionals,
-		ReadOnlyCollection<PropertyAndAttributeInfo> flags,
+		IArgumentProvider provider,
 		ClassDeclarationSyntax classDeclarationSyntax
 	)
 	{
@@ -82,6 +78,13 @@ public static class Validation
 		{
 			throw new ArgumentNullException(nameof(classDeclarationSyntax));
 		}
+		if (provider is null)
+		{
+			throw new ArgumentNullException(nameof(provider));
+		}
+		var options = provider.GetOptionArguments();
+		var flags = provider.GetFlagArguments();
+		var positionals = provider.GetPositionalArguments();
 		var diagnostics = new List<Diagnostic>();
 
 		// Check for duplicate short names

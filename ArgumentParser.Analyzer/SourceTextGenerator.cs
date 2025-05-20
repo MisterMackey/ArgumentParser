@@ -23,22 +23,22 @@ public class SourceTextGenerator : ISourceTextGenerator
 	/// Initializes a new instance of the <see cref="SourceTextGenerator"/> class.
 	/// </summary>
 	/// <param name="classDeclaration">The class declaration syntax to generate parsing code for.</param>
-	/// <param name="options">Collection of option attributes and their associated properties.</param>
-	/// <param name="positionals">Collection of positional attributes and their associated properties.</param>
-	/// <param name="flags">Collection of flag attributes and their associated properties.</param>
+	/// <param name="argumentProvider">The argument provider to retrieve argument information from.</param>
 	/// <param name="symbol">The symbol representing the class.</param>
 	public SourceTextGenerator(
 		ClassDeclarationSyntax classDeclaration,
-		ReadOnlyCollection<PropertyAndAttributeInfo> options,
-		ReadOnlyCollection<PropertyAndAttributeInfo> positionals,
-		ReadOnlyCollection<PropertyAndAttributeInfo> flags,
+		IArgumentProvider argumentProvider,
 		ISymbol symbol
 	)
 	{
+		if (argumentProvider == null)
+		{
+			throw new ArgumentNullException(nameof(argumentProvider));
+		}
 		ClassDeclaration = classDeclaration;
-		Options = options;
-		Positionals = positionals;
-		Flags = flags;
+		Options = argumentProvider.GetOptionArguments();
+		Positionals = argumentProvider.GetPositionalArguments();
+		Flags = argumentProvider.GetFlagArguments();
 		Symbol = symbol;
 	}
 
