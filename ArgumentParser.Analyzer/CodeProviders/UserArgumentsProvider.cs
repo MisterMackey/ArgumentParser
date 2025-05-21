@@ -7,15 +7,15 @@ namespace ArgumentParser.Internal
     /// <summary>
     /// Provides argument information by delegating to an underlying AttributeFactory.
     /// </summary>
-    public class UserSpecifiedArgumentProvider : IArgumentProvider
+    public class UserArgumentsProvider : IArgumentProvider
     {
         private readonly AttributeFactory _attributeFactory;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="UserSpecifiedArgumentProvider"/> class.
+        /// Initializes a new instance of the <see cref="UserArgumentsProvider"/> class.
         /// </summary>
         /// <param name="attributeFactory">The <see cref="AttributeFactory"/> used to provide argument information.</param>
-        public UserSpecifiedArgumentProvider(AttributeFactory attributeFactory)
+        public UserArgumentsProvider(AttributeFactory attributeFactory)
         {
             _attributeFactory = attributeFactory ?? throw new ArgumentNullException(nameof(attributeFactory));
         }

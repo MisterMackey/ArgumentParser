@@ -1,0 +1,105 @@
+using System;
+using System.Linq;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+namespace ArgumentParser.Internal.Utilities;
+
+/// <summary>
+/// Represents the configuration settings for the ArgumentParser.
+/// </summary>
+public class Configuration
+{
+	/// <summary>
+	/// Gets or sets the help text generation mode.
+	/// </summary>
+	public string? HelpTextGenerationMode { get; set; }
+	/// <summary>
+	/// Gets or sets the short name for the help argument (e.g., 'h' for '-h').
+	/// </summary>
+	public string? HelpArgumentShortName { get; set; }
+	/// <summary>
+	/// Gets or sets the long name for the help argument (e.g., 'Help' for '--Help').
+	/// </summary>
+	public string? HelpArgumentLongName { get; set; }
+	/// <summary>
+	/// Gets or sets the behavior of the parser when errors are encountered during argument parsing.
+	/// </summary>
+	public string? BehaviourOnError { get; set; }
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="Configuration"/> class by extracting configuration values from the <see cref="ClassDeclarationSyntax"/>.
+	/// </summary>
+	/// <param name="classDeclaration">The class declaration syntax node containing the ParameterCollection attribute.</param>
+	/// <param name="semanticModel">The semantic model used to resolve symbols.</param>
+	public Configuration(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
+	{
+		// set defaults
+		HelpTextGenerationMode = "GenerateAll";
+		HelpArgumentShortName = "h";
+		HelpArgumentLongName = "Help";
+		BehaviourOnError = "ThrowIfMissingRequired";
+		if (classDeclaration == null)
+		{
+			throw new ArgumentNullException(nameof(classDeclaration));
+		}
+
+		// get the ParameterCollection attribute from the class
+		var attribute = classDeclaration.AttributeLists
+			.SelectMany(list => list.Attributes)
+			.FirstOrDefault(attr =>
+				semanticModel.GetSymbolInfo(attr).Symbol is IMethodSymbol methodSymbol &&
+				methodSymbol.ContainingType.ToDisplayString() == "ArgumentParser.ParameterCollectionAttribute");
+		if (attribute == null)
+		{
+			throw new InvalidOperationException("Configuration could not be created. No ParameterCollection attribute found.");
+		}
+		// get the named and positional arguments used in the attribute
+		var namedArguments = attribute.ArgumentList?.Arguments
+			.Where(arg => arg.NameEquals != null)
+			.ToDictionary(arg => arg.NameEquals!.Name.ToString(), arg => arg.GetFirstToken().ValueText);
+		var positionalArguments = attribute.ArgumentList?.Arguments
+			.Where(arg => arg.NameEquals == null)
+			.Select(arg => arg.GetFirstToken().ValueText)
+			.ToList();
+		// make sure to update this part if the attribute changes
+		for (int i = 0; i < positionalArguments?.Count; i++)
+		{
+			switch (i)
+			{
+				case 0:
+					HelpTextGenerationMode = positionalArguments[i];
+					break;
+				case 1:
+					HelpArgumentShortName = positionalArguments[i];
+					break;
+				case 2:
+					HelpArgumentLongName = positionalArguments[i];
+					break;
+				case 3:
+					BehaviourOnError = positionalArguments[i];
+					break;
+			}
+		}
+		// deal with named arguments
+		if (namedArguments != null)
+		{
+			if (namedArguments.TryGetValue("HelpTextGeneration", out string? textGen))
+			{
+				HelpTextGenerationMode = textGen;
+			}
+			if (namedArguments.TryGetValue("HelpArgumentShortName", out string? shortName))
+			{
+				HelpArgumentShortName = shortName;
+			}
+			if (namedArguments.TryGetValue("HelpArgumentLongName", out string? longName))
+			{
+				HelpArgumentLongName = longName;
+			}
+			if (namedArguments.TryGetValue("BehaviourOnError", out string? errBehaviour))
+			{
+				BehaviourOnError = errBehaviour;
+			}
+		}
+	}
+}

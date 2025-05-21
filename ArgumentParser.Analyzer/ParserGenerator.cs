@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using ArgumentParser.Internal.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -41,12 +42,13 @@ namespace ArgumentParser.Internal
 		private static void RunCodeGeneration(SourceProductionContext context, GeneratorAttributeSyntaxContext generatorContext)
 		{
 			var classDeclaration = (ClassDeclarationSyntax)generatorContext.TargetNode;
+			var semanticModel = generatorContext.SemanticModel;
+			var config = new Configuration(classDeclaration, semanticModel);
 
 			// instantiate all attribute properties with their respective arguments
-			var semanticModel = generatorContext.SemanticModel;
 			var properties = classDeclaration.Members.OfType<PropertyDeclarationSyntax>().ToList().AsReadOnly();
 			var attributeFactory = new AttributeFactory(semanticModel, properties);
-			var argumentProvider = new UserSpecifiedArgumentProvider(attributeFactory);
+			var argumentProvider = new UserArgumentsProvider(attributeFactory);
 			
 			// check validity of attributes and stop processing if any are invalid
 			var err = Validation.ValidateAttributes(argumentProvider, classDeclaration);
