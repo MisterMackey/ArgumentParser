@@ -48,7 +48,7 @@ namespace ArgumentParser.Internal
 			// instantiate all attribute properties with their respective arguments
 			var properties = classDeclaration.Members.OfType<PropertyDeclarationSyntax>().ToList().AsReadOnly();
 			var attributeFactory = new AttributeFactory(semanticModel, properties);
-			var argumentProvider = new UserArgumentsProvider(attributeFactory);
+			var argumentProvider = new ArgumentProvider(attributeFactory, config);
 			
 			// check validity of attributes and stop processing if any are invalid
 			var err = Validation.ValidateAttributes(argumentProvider, classDeclaration);

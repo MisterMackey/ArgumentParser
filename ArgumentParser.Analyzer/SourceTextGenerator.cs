@@ -27,7 +27,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 	/// <param name="symbol">The symbol representing the class.</param>
 	public SourceTextGenerator(
 		ClassDeclarationSyntax classDeclaration,
-		IArgumentProvider argumentProvider,
+		ArgumentProvider argumentProvider,
 		ISymbol symbol
 	)
 	{

@@ -7,7 +7,7 @@ namespace ArgumentParser.Internal;
 /// <summary>
 /// Provides functionality to generate help text for command-line argument parsers, including required and optional arguments, flags, and options.
 /// </summary>
-public class DefaultHelptextProvider : IHelpTextProvider
+public static class HelptextProvider
 {
 	/// <summary>
 	/// Generates help text for the specified program, including required and optional arguments, flags, and options.

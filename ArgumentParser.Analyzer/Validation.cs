@@ -67,10 +67,10 @@ public static class Validation
 	/// Validates that the attributes don't have conflicting values.
 	/// </summary>
 	/// <param name="provider">The argument provider to validate.</param>
-	/// /// <param name="classDeclarationSyntax"></param>
+	/// <param name="classDeclarationSyntax"></param>
 	/// <returns>List of diagnostics if validation fails, empty list if validation passes.</returns>
 	public static ReadOnlyCollection<Diagnostic> ValidateAttributes(
-		IArgumentProvider provider,
+		ArgumentProvider provider,
 		ClassDeclarationSyntax classDeclarationSyntax
 	)
 	{
