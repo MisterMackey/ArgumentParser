@@ -42,6 +42,8 @@
     	PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.Analyzer.dll" Visible="false"/>
     <None Include="../ArgumentParser.Analyzer/bin/Release/netstandard2.0/Aot.ArgumentParser.Analyzer.xml" Pack="true"
     	PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.Analyzer.xml"/>
+    <None Include="bin/Release/netstandard2.0/Aot.ArgumentParser.xml" Pack="true"
+    	PackagePath="analyzers/dotnet/cs/Aot.ArgumentParser.xml"/>
   </ItemGroup>
 
 

@@ -219,12 +219,12 @@ public class SourceTextGenerator : ISourceTextGenerator
 
 		if (Config.HelpTextShouldDisplayOnRequest())
 		{
-			HelpDisplayGenerator.GenerateDisplayHelpText(writer);
+			HelpDisplayGenerator.GenerateDisplayHelpText(writer, className);
 		}
 		
 		if (Config.HelpTextShouldDisplayOnError())
 		{
-			HelpDisplayGenerator.GenerateDisplayHelpTextWithError(writer);
+			HelpDisplayGenerator.GenerateDisplayHelpTextWithError(writer, className);
 		}
 		if (Config.ShouldThrowIfMissingRequired())
 		{
@@ -241,7 +241,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine("if (errors.Count > 0)");
 			writer.WriteLine("{");
 			writer.Indent++;
-			writer.WriteLine("throw new ArgumentParser.ArgumentParserException(\"One or more errors occurred while parsing arguments.\", errors);");
+			writer.WriteLine("System.AggregateException ae = new System.AggregateException(message:\"One or more errors occurred during parsing\", innerExceptions: errors);");
 			writer.Indent--;
 			writer.WriteLine("}");
 		}

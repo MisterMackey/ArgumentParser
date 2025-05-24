@@ -14,6 +14,12 @@ public class HelptextProvider
 	private readonly ArgumentProvider _argumentProvider;
 	private readonly string ProgramName;
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="HelptextProvider"/> class.
+	/// </summary>
+	/// <param name="config">The configuration settings for help text generation.</param>
+	/// <param name="argumentProvider">The argument provider for retrieving argument information.</param>
+	/// <param name="programName">The name of the program for which help text is generated.</param>
 	public HelptextProvider(Configuration config,
 		ArgumentProvider argumentProvider, string programName)
 	{

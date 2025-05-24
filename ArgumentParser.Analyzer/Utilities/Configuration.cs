@@ -138,6 +138,10 @@ public class Configuration
 			|| HelpTextGenerationMode.Equals("GenerateArgumentOnly", StringComparison.OrdinalIgnoreCase);
 	}
 
+	/// <summary>
+	/// Determines if help text should be generated based on the help text generation mode.
+	/// </summary>
+	/// <returns>True if help text should be generated; otherwise, false.</returns>
 	public bool HelpTextShouldBeGenerated()
 	{
 		if (HelpTextGenerationMode == null)
@@ -149,6 +153,10 @@ public class Configuration
 			|| mode.Equals("GenerateTextOnly", StringComparison.OrdinalIgnoreCase);
 	}
 
+	/// <summary>
+	/// Determines if help text should be displayed when an error occurs, based on the behavior on error setting.
+	/// </summary>
+	/// <returns>True if help text should be displayed on error; otherwise, false.</returns>
 	public bool HelpTextShouldDisplayOnError()
 	{
 		if (BehaviourOnError == null)
@@ -158,6 +166,10 @@ public class Configuration
 		return BehaviourOnError.Equals("DisplayHelpAndExit", StringComparison.OrdinalIgnoreCase);
 	}
 
+	/// <summary>
+	/// Determines if help text should be displayed on request, based on the help text generation mode.
+	/// </summary>
+	/// <returns>True if help text should be displayed on request; otherwise, false.</returns>
 	public bool HelpTextShouldDisplayOnRequest()
 	{
 		if (HelpTextGenerationMode == null)
@@ -168,6 +180,10 @@ public class Configuration
 			|| HelpTextGenerationMode.Equals("GenerateArgumentAndHandler", StringComparison.OrdinalIgnoreCase);
 	}
 
+	/// <summary>
+	/// Determines if an exception should be thrown if required arguments are missing, based on the behavior on error setting.
+	/// </summary>
+	/// <returns>True if an exception should be thrown for missing required arguments; otherwise, false.</returns>
 	public bool ShouldThrowIfMissingRequired()
 	{
 		if (BehaviourOnError == null)
@@ -177,6 +193,11 @@ public class Configuration
 		return BehaviourOnError.Equals("ThrowIfMissingRequired", StringComparison.OrdinalIgnoreCase)
 			|| BehaviourOnError.Equals("ThrowIfAnyError", StringComparison.OrdinalIgnoreCase);
 	}
+
+	/// <summary>
+	/// Determines if an exception should be thrown if any error occurs during parsing, based on the behavior on error setting.
+	/// </summary>
+	/// <returns>True if an exception should be thrown for any error; otherwise, false.</returns>
 	public bool ShouldThrowIfAnyError()
 	{
 		if (BehaviourOnError == null)
