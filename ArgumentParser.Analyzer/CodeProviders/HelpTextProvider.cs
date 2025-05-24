@@ -30,7 +30,7 @@ public class HelptextProvider
 	/// <returns>A formatted help text string or an empty string if help text generation is disabled.</returns>
 	public string GenerateHelpText()
 	{
-		if (_config.ShouldGenerateHelpText())
+		if (_config.HelpTextShouldBeGenerated())
 		{
 			return GenerateHelpTextInternal(
 				ProgramName,

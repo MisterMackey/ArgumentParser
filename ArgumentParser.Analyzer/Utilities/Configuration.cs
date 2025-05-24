@@ -57,10 +57,30 @@ public class Configuration
 		// get the named and positional arguments used in the attribute
 		var namedArguments = attribute.ArgumentList?.Arguments
 			.Where(arg => arg.NameEquals != null)
-			.ToDictionary(arg => arg.NameEquals!.Name.ToString(), arg => arg.GetFirstToken().ValueText);
+			.ToDictionary(arg => arg.NameEquals!.Name.ToString(), arg =>
+			{
+				if (arg.Expression is MemberAccessExpressionSyntax memberAccess)
+				{
+					return memberAccess.Name.Identifier.ValueText;
+				}
+				else
+				{
+					return arg.GetFirstToken().ValueText;
+				}
+			});
 		var positionalArguments = attribute.ArgumentList?.Arguments
 			.Where(arg => arg.NameEquals == null)
-			.Select(arg => arg.GetFirstToken().ValueText)
+			.Select(arg =>
+			{
+				if (arg.Expression is MemberAccessExpressionSyntax memberAccess)
+				{
+					return memberAccess.Name.Identifier.ValueText;
+				}
+				else
+				{
+					return arg.GetFirstToken().ValueText;
+				}
+			})
 			.ToList();
 		// make sure to update this part if the attribute changes
 		for (int i = 0; i < positionalArguments?.Count; i++)
@@ -120,7 +140,7 @@ public class Configuration
 			|| HelpTextGenerationMode.Equals("GenerateHandlersOnly", StringComparison.OrdinalIgnoreCase);
 	}
 
-	public bool ShouldGenerateHelpText()
+	public bool HelpTextShouldBeGenerated()
 	{
 		if (HelpTextGenerationMode == null)
 		{
