@@ -2,7 +2,7 @@ using ArgumentParser;
 
 namespace ExampleConsole;
 
-[ParameterCollection(HelpTextGeneration.GenerateArgumentHandlerOnly, "h", "Help", BehaviourOnError.ThrowIfMissingRequired)]
+[ParameterCollection(HelpTextGeneration.GenerateAll, "h", "Help", BehaviourOnError.ThrowIfMissingRequired)]
 public partial class MyCommandLineArguments
 {
 	// flag attributes are designed as true/false values

@@ -6,6 +6,7 @@ using System.IO;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using ArgumentParser.Internal.Utilities;
+using ArgumentParser.Analyzer;
 
 namespace ArgumentParser.Internal;
 
@@ -123,16 +124,19 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.WriteLine("};");
 
 		// help text field (provider may return empty string if no help text is needed)
-		var helpText = HelptextProvider.GenerateHelpText();
-		writer.Write(helpText);
-		writer.WriteLine();
-
-		// add DisplayHelp property if needed
-		if (Config.HelpArgumentShouldBeGenerated())
+		if (Config.HelpTextShouldBeGenerated())
 		{
-			writer.WriteLine("public bool DisplayHelp { get; set; } = false;");
+			var helpText = HelptextProvider.GenerateHelpText();
+			writer.Write(helpText);
 			writer.WriteLine();
 		}
+
+		// add DisplayHelp property if needed
+			if (Config.HelpArgumentShouldBeGenerated())
+			{
+				writer.WriteLine("public bool DisplayHelp { get; set; } = false;");
+				writer.WriteLine();
+			}
 
 		// Parse method
 		writer.WriteLine($"public static ({className} result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)");
@@ -212,16 +216,35 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.WriteLine(".ToList();");
 		writer.Indent--;
 		writer.WriteLine("errors.AddRange(missingRequired);");
-		// standard behaviour for now if there are missing required properties
-		// is to just throw an exception at this point
-		// TODO: add some property on the collection attribute to override this behaviour
-		writer.WriteLine("if (missingRequired.Count > 0)");
-		writer.WriteLine("{");
-		writer.Indent++;
-		writer.WriteLine("System.AggregateException ae = new System.AggregateException(message:\"One or more required arguments missing\", innerExceptions: missingRequired);");
-		writer.WriteLine("throw ae;");
-		writer.Indent--;
-		writer.WriteLine("}");
+
+		if (Config.HelpTextShouldDisplayOnRequest())
+		{
+			HelpDisplayGenerator.GenerateDisplayHelpText(writer);
+		}
+		
+		if (Config.HelpTextShouldDisplayOnError())
+		{
+			HelpDisplayGenerator.GenerateDisplayHelpTextWithError(writer);
+		}
+		if (Config.ShouldThrowIfMissingRequired())
+		{
+			writer.WriteLine("if (missingRequired.Count > 0)");
+			writer.WriteLine("{");
+			writer.Indent++;
+			writer.WriteLine("System.AggregateException ae = new System.AggregateException(message:\"One or more required arguments missing\", innerExceptions: missingRequired);");
+			writer.WriteLine("throw ae;");
+			writer.Indent--;
+			writer.WriteLine("}");
+		}
+		if (Config.ShouldThrowIfAnyError())
+		{
+			writer.WriteLine("if (errors.Count > 0)");
+			writer.WriteLine("{");
+			writer.Indent++;
+			writer.WriteLine("throw new ArgumentParser.ArgumentParserException(\"One or more errors occurred while parsing arguments.\", errors);");
+			writer.Indent--;
+			writer.WriteLine("}");
+		}
 		writer.WriteLine("return (instance, errors);");
 		writer.Indent--;
 		writer.WriteLine("}");

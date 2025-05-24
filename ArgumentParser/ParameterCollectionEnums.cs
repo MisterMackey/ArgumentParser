@@ -10,57 +10,33 @@ public enum HelpTextGeneration
 {
 	/// <summary>
 	/// Help Text will be generated.
-	/// Help text will be displayed automatically if there is an error in parsing.
 	/// Argument will be generated to display help text.
+	/// Help argument triggers help display and exits the program.
 	/// </summary>
 	GenerateAll = 0, //default
 
 	/// <summary>
-	/// No help text will be generated.
-	/// No help text will be displayed.
-	/// /// </summary>
+	/// Nothing is generated.
+	/// </summary>
 	None,
 
 	/// <summary>
 	/// Help Text will be generated.
-	/// Help text will not be displayed automatically.
-	/// /// </summary>
+	/// </summary>
 	GenerateTextOnly,
 
 	/// <summary>
-	/// Help Text will be generated.
-	/// Help text will be displayed automatically if there is an error in parsing.
-	/// No argument will be generated to display help text.
-	/// /// </summary>
-	GenerateTextAndErrorHandler,
-
-	/// <summary>
-	/// Help Text will be generated.
-	/// Help text will not be displayed automatically if there is an error in parsing.
+	/// Help Text will not be generated.
 	/// Argument will be generated to display help text.
 	/// </summary>
-	GenerateTextAndArgumentHandler,
+	GenerateArgumentOnly,
 
 	/// <summary>
 	/// Help Text will not be generated.
-	/// Help text will be displayed automatically if there is an error in parsing.
-	/// No argument will be generated to display help text.
-	/// </summary>
-	GenerateErrorHandlerOnly,
-
-	/// <summary>
-	/// Help Text will not be generated.
-	/// Help text will not be displayed automatically if there is an error in parsing.
 	/// Argument will be generated to display help text.
+	/// Help argument triggers help display and exits the program.
 	/// </summary>
-	GenerateArgumentHandlerOnly,
-
-	/// <summary>
-	/// Help Text will not be generated.
-	/// Help text will be displayed automatically if there is an error in parsing.
-	/// Argument will be generated to display help text.
-	/// </summary>
-	GenerateHandlersOnly
+	GenerateArgumentAndHandler
 }
 
 /// <summary>
@@ -81,5 +57,10 @@ public enum BehaviourOnError
 	/// <summary>
 	/// Never throw an exception for parsing errors; all errors must be handled by the caller.
 	/// </summary>
-	ThrowNever
+	ThrowNever,
+
+	/// <summary>
+	/// Display help text and exit the program if any error occurs during parsing.
+	/// </summary>
+	DisplayHelpAndExit // this is used to display help text and exit the program
 }

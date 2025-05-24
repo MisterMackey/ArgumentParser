@@ -133,11 +133,9 @@ public class Configuration
 		{
 			return false;
 		}
-		// Generate if mode is GenerateAll, GenerateTextAndArgumentHandler, GenerateArgumentHandlerOnly, or GenerateHandlersOnly
 		return HelpTextGenerationMode.Equals("GenerateAll", StringComparison.OrdinalIgnoreCase)
-			|| HelpTextGenerationMode.Equals("GenerateTextAndArgumentHandler", StringComparison.OrdinalIgnoreCase)
-			|| HelpTextGenerationMode.Equals("GenerateArgumentHandlerOnly", StringComparison.OrdinalIgnoreCase)
-			|| HelpTextGenerationMode.Equals("GenerateHandlersOnly", StringComparison.OrdinalIgnoreCase);
+			|| HelpTextGenerationMode.Equals("GenerateArgumentAndHandler", StringComparison.OrdinalIgnoreCase)
+			|| HelpTextGenerationMode.Equals("GenerateArgumentOnly", StringComparison.OrdinalIgnoreCase);
 	}
 
 	public bool HelpTextShouldBeGenerated()
@@ -148,7 +146,44 @@ public class Configuration
 		}
 		var mode = HelpTextGenerationMode;
 		return mode.Equals("GenerateAll", StringComparison.OrdinalIgnoreCase)
-			|| mode.IndexOf("GenerateText", StringComparison.OrdinalIgnoreCase) >= 0;
+			|| mode.Equals("GenerateTextOnly", StringComparison.OrdinalIgnoreCase);
+	}
+
+	public bool HelpTextShouldDisplayOnError()
+	{
+		if (BehaviourOnError == null)
+		{
+			return false;
+		}
+		return BehaviourOnError.Equals("DisplayHelpAndExit", StringComparison.OrdinalIgnoreCase);
+	}
+
+	public bool HelpTextShouldDisplayOnRequest()
+	{
+		if (HelpTextGenerationMode == null)
+		{
+			return false;
+		}
+		return HelpTextGenerationMode.Equals("GenerateAll", StringComparison.OrdinalIgnoreCase)
+			|| HelpTextGenerationMode.Equals("GenerateArgumentAndHandler", StringComparison.OrdinalIgnoreCase);
+	}
+
+	public bool ShouldThrowIfMissingRequired()
+	{
+		if (BehaviourOnError == null)
+		{
+			return true; // default behavior is to throw if missing required arguments
+		}
+		return BehaviourOnError.Equals("ThrowIfMissingRequired", StringComparison.OrdinalIgnoreCase)
+			|| BehaviourOnError.Equals("ThrowIfAnyError", StringComparison.OrdinalIgnoreCase);
+	}
+	public bool ShouldThrowIfAnyError()
+	{
+		if (BehaviourOnError == null)
+		{
+			return true; // default behavior is to throw if any error occurs
+		}
+		return BehaviourOnError.Equals("ThrowIfAnyError", StringComparison.OrdinalIgnoreCase);
 	}
 
 }
