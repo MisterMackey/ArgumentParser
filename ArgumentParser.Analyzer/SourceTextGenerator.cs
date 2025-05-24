@@ -5,6 +5,7 @@ using System.CodeDom.Compiler;
 using System.IO;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using ArgumentParser.Internal.Utilities;
 
 namespace ArgumentParser.Internal;
 
@@ -17,18 +18,24 @@ public class SourceTextGenerator : ISourceTextGenerator
 	private readonly ReadOnlyCollection<PropertyAndAttributeInfo> Options;
 	private readonly ReadOnlyCollection<PropertyAndAttributeInfo> Positionals;
 	private readonly ReadOnlyCollection<PropertyAndAttributeInfo> Flags;
+	private readonly HelptextProvider HelptextProvider;
 	private readonly ISymbol Symbol;
+	private readonly Configuration Config;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="SourceTextGenerator"/> class.
 	/// </summary>
 	/// <param name="classDeclaration">The class declaration syntax to generate parsing code for.</param>
 	/// <param name="argumentProvider">The argument provider to retrieve argument information from.</param>
+	/// <param name="helptextProvider">The help text provider to generate help text if needed.</param>
 	/// <param name="symbol">The symbol representing the class.</param>
+	/// <param name="config">The configuration settings for code generation and help text.</param>
 	public SourceTextGenerator(
 		ClassDeclarationSyntax classDeclaration,
 		ArgumentProvider argumentProvider,
-		ISymbol symbol
+		HelptextProvider helptextProvider,
+		ISymbol symbol,
+		Configuration config
 	)
 	{
 		if (argumentProvider == null)
@@ -39,7 +46,9 @@ public class SourceTextGenerator : ISourceTextGenerator
 		Options = argumentProvider.GetOptionArguments();
 		Positionals = argumentProvider.GetPositionalArguments();
 		Flags = argumentProvider.GetFlagArguments();
+		HelptextProvider = helptextProvider ?? throw new ArgumentNullException(nameof(helptextProvider));
 		Symbol = symbol;
+		Config = config ?? throw new ArgumentNullException(nameof(config));
 	}
 
 	/// <summary>
@@ -112,6 +121,18 @@ public class SourceTextGenerator : ISourceTextGenerator
 		}
 		writer.Indent--;
 		writer.WriteLine("};");
+
+		// help text field (provider may return empty string if no help text is needed)
+		var helpText = HelptextProvider.GenerateHelpText();
+		writer.Write(helpText);
+		writer.WriteLine();
+
+		// add DisplayHelp property if needed
+		if (Config.HelpArgumentShouldBeGenerated())
+		{
+			writer.WriteLine("public bool DisplayHelp { get; set; } = false;");
+			writer.WriteLine();
+		}
 
 		// Parse method
 		writer.WriteLine($"public static ({className} result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)");

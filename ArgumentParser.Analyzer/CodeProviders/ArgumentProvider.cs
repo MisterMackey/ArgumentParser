@@ -31,14 +31,9 @@ namespace ArgumentParser.Internal
 		private void InitializeArguments()
 		{
 			// add help arg if needed
-			if (
-				_config.HelpTextGenerationMode == "GenerateAll" ||
-				_config.HelpTextGenerationMode == "GenerateTextAndArgumentHandler" ||
-				_config.HelpTextGenerationMode == "GenerateArgumentHandlerOnly" ||
-				_config.HelpTextGenerationMode == "GenerateHandlersOnly"
-			)
+			if (_config.HelpArgumentShouldBeGenerated())
 			{
-				_optionArguments.Add(new PropertyAndAttributeInfo
+				_flagArguments.Add(new PropertyAndAttributeInfo
 				{
 					Attribute = new AttributeInfo(
 						_config.HelpArgumentShortName ?? "",

@@ -44,11 +44,17 @@ namespace ArgumentParser.Internal
 			var classDeclaration = (ClassDeclarationSyntax)generatorContext.TargetNode;
 			var semanticModel = generatorContext.SemanticModel;
 			var config = new Configuration(classDeclaration, semanticModel);
+			var programName = semanticModel.Compilation.Assembly.Name ?? "";
 
 			// instantiate all attribute properties with their respective arguments
 			var properties = classDeclaration.Members.OfType<PropertyDeclarationSyntax>().ToList().AsReadOnly();
 			var attributeFactory = new AttributeFactory(semanticModel, properties);
 			var argumentProvider = new ArgumentProvider(attributeFactory, config);
+			var helptextProvider = new HelptextProvider(
+				config,
+				argumentProvider,
+				programName
+			);
 			
 			// check validity of attributes and stop processing if any are invalid
 			var err = Validation.ValidateAttributes(argumentProvider, classDeclaration);
@@ -61,7 +67,9 @@ namespace ArgumentParser.Internal
 			var textGenerator = new SourceTextGenerator(
 				classDeclaration,
 				argumentProvider,
-				generatorContext.TargetSymbol
+				helptextProvider,
+				generatorContext.TargetSymbol,
+				config
 			);
 			var sourceText = textGenerator.GenerateSourceText();
 			context.AddSource($"{classDeclaration.Identifier.Text}_Parser.g.cs", sourceText);

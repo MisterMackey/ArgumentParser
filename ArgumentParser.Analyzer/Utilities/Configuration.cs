@@ -102,4 +102,33 @@ public class Configuration
 			}
 		}
 	}
+
+	/// <summary>
+	/// Determines if the help argument should be generated based on the help text generation mode.
+	/// </summary>
+	/// <returns>True if the help argument should be generated; otherwise, false.</returns>
+	public bool HelpArgumentShouldBeGenerated()
+	{
+		if (HelpTextGenerationMode == null)
+		{
+			return false;
+		}
+		// Generate if mode is GenerateAll, GenerateTextAndArgumentHandler, GenerateArgumentHandlerOnly, or GenerateHandlersOnly
+		return HelpTextGenerationMode.Equals("GenerateAll", StringComparison.OrdinalIgnoreCase)
+			|| HelpTextGenerationMode.Equals("GenerateTextAndArgumentHandler", StringComparison.OrdinalIgnoreCase)
+			|| HelpTextGenerationMode.Equals("GenerateArgumentHandlerOnly", StringComparison.OrdinalIgnoreCase)
+			|| HelpTextGenerationMode.Equals("GenerateHandlersOnly", StringComparison.OrdinalIgnoreCase);
+	}
+
+	public bool ShouldGenerateHelpText()
+	{
+		if (HelpTextGenerationMode == null)
+		{
+			return false;
+		}
+		var mode = HelpTextGenerationMode;
+		return mode.Equals("GenerateAll", StringComparison.OrdinalIgnoreCase)
+			|| mode.IndexOf("GenerateText", StringComparison.OrdinalIgnoreCase) >= 0;
+	}
+
 }
