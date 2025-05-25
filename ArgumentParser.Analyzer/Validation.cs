@@ -176,7 +176,54 @@ public static class Validation
 			    position.Attribute.Position));
 		}
 
+		// Check for unsupported property types
+		var allProperties = options.Concat(positionals).Concat(flags).ToList();
+		foreach (var prop in allProperties)
+		{
+			if (!IsSupportedPropertyType(prop.PropertyType))
+			{
+				var location = GetLocation(prop, classDeclarationSyntax);
+				diagnostics.Add(Diagnostic.Create(
+					GeneratorDiagnostics.ARG010,
+					location,
+					prop.PropertyType));
+			}
+		}
+
 		return diagnostics.AsReadOnly();
+	}
+
+	/// <summary>
+	/// Determines if a property type is supported by the argument parser generator.
+	/// </summary>
+	/// <param name="propertyType">The property type to check.</param>
+	/// <returns>True if the property type is supported; otherwise, false.</returns>
+	private static bool IsSupportedPropertyType(string propertyType)
+	{
+		// Match the types supported in SourceTextGenerator.WriteValueParseCode
+		return propertyType switch
+		{
+			"int" => true,
+			"double" => true,
+			"float" => true,
+			"long" => true,
+			"short" => true,
+			"decimal" => true,
+			"byte" => true,
+			"sbyte" => true,
+			"char" => true,
+			"uint" => true,
+			"ulong" => true,
+			"ushort" => true,
+			"Guid" => true,
+			"Uri" => true,
+			"TimeSpan" => true,
+			"bool" => true,
+			"DateTime" => true,
+			"string" => true,
+			"string?" => true,
+			_ => false
+		};
 	}
 
 	private static Location? GetLocation(PropertyAndAttributeInfo info, ClassDeclarationSyntax classDeclarationSyntax)

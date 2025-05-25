@@ -52,7 +52,7 @@ public static class GeneratorDiagnostics
 
 	private const string ARG010_Id = "ARG010";
 	private const string ARG010_Title = "Specified property type is not supported";
-	private const string ARG010_Message = "Specified property type '{{0}}' is not supported for argument parsing";
+	private const string ARG010_Message = "Specified property type '{0}' is not supported for argument parsing";
 
 	private const string ARG011_Id = "ARG011";
 	private const string ARG011_Title = "DisplayHelp property specified but generator is supplying it";
