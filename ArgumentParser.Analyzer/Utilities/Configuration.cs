@@ -38,7 +38,7 @@ public class Configuration
 		HelpTextGenerationMode = "GenerateAll";
 		HelpArgumentShortName = "h";
 		HelpArgumentLongName = "Help";
-		BehaviourOnError = "ThrowIfMissingRequired";
+		BehaviourOnError = "DisplayHelpAndExit";
 		if (classDeclaration == null)
 		{
 			throw new ArgumentNullException(nameof(classDeclaration));

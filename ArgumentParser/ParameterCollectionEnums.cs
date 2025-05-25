@@ -45,9 +45,9 @@ public enum HelpTextGeneration
 public enum BehaviourOnError
 {
 	/// <summary>
-	/// Throw an exception only if required arguments are missing.
+	/// Display help text and exit the program if any error occurs during parsing.
 	/// </summary>
-	ThrowIfMissingRequired = 0,
+	DisplayHelpAndExit = 0, // this is used to display help text and exit the program
 
 	/// <summary>
 	/// Throw an exception if any error occurs during parsing (including missing required arguments or invalid values).
@@ -60,7 +60,7 @@ public enum BehaviourOnError
 	ThrowNever,
 
 	/// <summary>
-	/// Display help text and exit the program if any error occurs during parsing.
+	/// Throw an exception only if required arguments are missing.
 	/// </summary>
-	DisplayHelpAndExit // this is used to display help text and exit the program
+	ThrowIfMissingRequired
 }
