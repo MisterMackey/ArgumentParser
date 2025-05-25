@@ -23,3 +23,4 @@
 ### Improved
 - Improved the project structure to allow better packaging
 - Various changes to internal structure to make changes / features easier.
+- Added generated code attribute to generated code
