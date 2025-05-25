@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using ArgumentParser.Internal.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -184,10 +185,95 @@ public static class Validation
 			{
 				var location = GetLocation(prop, classDeclarationSyntax);
 				diagnostics.Add(Diagnostic.Create(
-					GeneratorDiagnostics.ARG010,
+					GeneratorDiagnostics.ARG007,
 					location,
 					prop.PropertyType));
 			}
+		}
+
+		return diagnostics.AsReadOnly();
+	}
+
+	public static ReadOnlyCollection<Diagnostic> ValidateGenerationOptions(
+		Configuration config,
+		ArgumentProvider provider,
+		ClassDeclarationSyntax classDeclarationSyntax
+	)
+	{
+		if (config is null)
+		{
+			throw new ArgumentNullException(nameof(config));
+		}
+		if (provider is null)
+		{
+			throw new ArgumentNullException(nameof(provider));
+		}
+		if (classDeclarationSyntax is null)
+		{
+			throw new ArgumentNullException(nameof(classDeclarationSyntax));
+		}
+
+		var diagnostics = new List<Diagnostic>();
+
+		 // Find the ParameterCollectionAttribute location
+		var parameterCollectionAttribute = classDeclarationSyntax.AttributeLists
+			.SelectMany(list => list.Attributes)
+			.FirstOrDefault(attr => attr.Name.ToString().Contains("ParameterCollection"));
+		var attributeLocation = parameterCollectionAttribute?.GetLocation() ?? classDeclarationSyntax.GetLocation();
+
+		// Check if helptext argument names are specified but argument generation is disabled (ARG008)
+		if (!config.HelpArgumentShouldBeGenerated() && 
+			(config.HelpArgumentShortName != "h" || 
+			 config.HelpArgumentLongName != "Help"))
+		{
+			diagnostics.Add(Diagnostic.Create(
+				GeneratorDiagnostics.ARG008,
+				attributeLocation));
+		}
+
+		// Check if helptext property should be displayed
+		bool hasHelpTextConst = classDeclarationSyntax.Members
+			.OfType<FieldDeclarationSyntax>()
+			.Any(f => f.Modifiers.Any(SyntaxKind.ConstKeyword) && 
+				 f.Declaration.Variables.Any(v => v.Identifier.Text == "HelpText"));
+
+		// Check for missing HelpText property when argument handler is generated (ARG009)
+		if (config.HelpArgumentShouldBeGenerated() && config.HelpTextShouldDisplayOnRequest() && !hasHelpTextConst && !config.HelpTextShouldBeGenerated())
+		{
+			diagnostics.Add(Diagnostic.Create(
+				GeneratorDiagnostics.ARG009,
+				attributeLocation));
+		}
+
+		// Check for missing HelpText property when display help on error is enabled (ARG010)
+		if (config.HelpTextShouldDisplayOnError() && !hasHelpTextConst && !config.HelpTextShouldBeGenerated())
+		{
+			diagnostics.Add(Diagnostic.Create(
+				GeneratorDiagnostics.ARG010,
+				attributeLocation));
+		}
+
+		// Check for user-defined DisplayHelp property when generator is creating one (ARG011)
+		if (config.HelpArgumentShouldBeGenerated())
+		{
+			bool hasDisplayHelpProperty = classDeclarationSyntax.Members
+				.OfType<PropertyDeclarationSyntax>()
+				.Any(p => p.Identifier.Text == "DisplayHelp");
+
+			if (hasDisplayHelpProperty)
+			{
+				diagnostics.Add(Diagnostic.Create(
+					GeneratorDiagnostics.ARG011,
+					attributeLocation));
+			}
+		}
+
+		// Check for user-defined HelpText const string when generator is creating one (ARG012)
+		if (config.HelpTextShouldBeGenerated() && hasHelpTextConst)
+		{
+			diagnostics.Add(Diagnostic.Create(
+				GeneratorDiagnostics.ARG012,
+				attributeLocation));
 		}
 
 		return diagnostics.AsReadOnly();

@@ -56,12 +56,23 @@ namespace ArgumentParser.Internal
 				programName
 			);
 			
-			// check validity of attributes and stop processing if any are invalid
-			var err = Validation.ValidateAttributes(argumentProvider, classDeclaration);
-			if (err.Count > 0)
+			// check for errors
+			var attributeDiagnostics = Validation.ValidateAttributes(argumentProvider, classDeclaration);
+			if (attributeDiagnostics.Count > 0)
 			{
-				Validation.ReportDiagnostics(context, err);
+				Validation.ReportDiagnostics(context, attributeDiagnostics);
 				return;
+			}
+			var helptextDiagnostics = Validation.ValidateGenerationOptions(config, argumentProvider, classDeclaration);
+			// not all helptext diags are errors, some are warnings
+			if (helptextDiagnostics.Count > 0)
+			{
+				Validation.ReportDiagnostics(context, helptextDiagnostics);
+				// if there are errors, we stop here
+				if (helptextDiagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+				{
+					return;
+				}
 			}
 
 			var textGenerator = new SourceTextGenerator(

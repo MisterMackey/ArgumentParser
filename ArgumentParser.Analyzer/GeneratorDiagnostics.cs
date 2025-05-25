@@ -39,20 +39,20 @@ public static class GeneratorDiagnostics
 	private const string ARG006_Message = "Class '{0}' must have a constructor with no parameters to use the ArgumentParser generator";
 
 	private const string ARG007_Id = "ARG007";
-	private const string ARG007_Title = "Helptext argument names specified but argument generation disabled";
-	private const string ARG007_Message = "Helptext argument names are specified, but argument generation is disabled. These settings will be ignored.";
+	private const string ARG007_Title = "Specified property type is not supported";
+	private const string ARG007_Message = "Specified property type '{0}' is not supported for argument parsing";
 
 	private const string ARG008_Id = "ARG008";
-	private const string ARG008_Title = "HelpText property is missing but argument handler is generated";
-	private const string ARG008_Message = "HelpText property is missing, but argument handler is generated. Please provide a HelpText property or disable handler generation.";
+	private const string ARG008_Title = "Helptext argument names specified but argument generation disabled";
+	private const string ARG008_Message = "Helptext argument names are specified, but argument generation is disabled. These settings will be ignored.";
 
 	private const string ARG009_Id = "ARG009";
-	private const string ARG009_Title = "HelpText property is missing but display help on error handler is generated";
-	private const string ARG009_Message = "HelpText property is missing, but display help on error handler is generated. Please provide a HelpText property or disable this handler.";
+	private const string ARG009_Title = "HelpText property is missing but argument handler is generated";
+	private const string ARG009_Message = "HelpText property is missing, but argument handler is generated. Please provide a HelpText property or disable handler generation.";
 
 	private const string ARG010_Id = "ARG010";
-	private const string ARG010_Title = "Specified property type is not supported";
-	private const string ARG010_Message = "Specified property type '{0}' is not supported for argument parsing";
+	private const string ARG010_Title = "HelpText property is missing but display help on error handler is generated";
+	private const string ARG010_Message = "HelpText property is missing, but display help on error handler is generated. Please provide a HelpText property or disable this handler.";
 
 	private const string ARG011_Id = "ARG011";
 	private const string ARG011_Title = "DisplayHelp property specified but generator is supplying it";
@@ -147,8 +147,8 @@ public static class GeneratorDiagnostics
 	    ARG007_Id,
 	    ARG007_Title,
 	    ARG007_Message,
-	    GenerationOptionsCategory,
-	    DiagnosticSeverity.Warning,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
 	    true,
 	    helpLinkUri: "https://github.com/yourusername/ArgumentParser/blob/main/docs/rules/ARG007.md"
 	);
@@ -161,7 +161,7 @@ public static class GeneratorDiagnostics
 	    ARG008_Title,
 	    ARG008_Message,
 	    GenerationOptionsCategory,
-	    DiagnosticSeverity.Error,
+	    DiagnosticSeverity.Warning,
 	    true,
 	    helpLinkUri: "https://github.com/yourusername/ArgumentParser/blob/main/docs/rules/ARG008.md"
 	);
@@ -186,7 +186,7 @@ public static class GeneratorDiagnostics
 	    ARG010_Id,
 	    ARG010_Title,
 	    ARG010_Message,
-	    AttributeErrorCategory,
+	    GenerationOptionsCategory,
 	    DiagnosticSeverity.Error,
 	    true,
 	    helpLinkUri: "https://github.com/yourusername/ArgumentParser/blob/main/docs/rules/ARG010.md"
