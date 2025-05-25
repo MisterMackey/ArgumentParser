@@ -10,7 +10,7 @@ namespace ArgumentParser.Internal;
 /// </summary>
 public class HelptextProvider
 {
-	private readonly Configuration _config;
+	private readonly GeneratorConfiguration _config;
 	private readonly ArgumentProvider _argumentProvider;
 	private readonly string ProgramName;
 
@@ -20,7 +20,7 @@ public class HelptextProvider
 	/// <param name="config">The configuration settings for help text generation.</param>
 	/// <param name="argumentProvider">The argument provider for retrieving argument information.</param>
 	/// <param name="programName">The name of the program for which help text is generated.</param>
-	public HelptextProvider(Configuration config,
+	public HelptextProvider(GeneratorConfiguration config,
 		ArgumentProvider argumentProvider, string programName)
 	{
 		_config = config ?? throw new ArgumentNullException(nameof(config));

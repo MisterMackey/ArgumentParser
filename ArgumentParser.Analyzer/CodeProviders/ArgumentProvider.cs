@@ -11,7 +11,7 @@ namespace ArgumentParser.Internal
 	public class ArgumentProvider
 	{
 		private readonly AttributeFactory _attributeFactory;
-		private readonly Configuration _config;
+		private readonly GeneratorConfiguration _config;
 		private List<PropertyAndAttributeInfo> _optionArguments = [];
 		private List<PropertyAndAttributeInfo> _flagArguments = [];
 		private List<PropertyAndAttributeInfo> _positionalArguments = [];
@@ -20,8 +20,8 @@ namespace ArgumentParser.Internal
 		/// Initializes a new instance of the <see cref="ArgumentProvider"/> class.
 		/// </summary>
 		/// <param name="attributeFactory">The <see cref="AttributeFactory"/> used to provide argument information.</param>
-		/// <param name="config">The <see cref="Configuration"/> object containing configuration settings.</param>
-		public ArgumentProvider(AttributeFactory attributeFactory, Configuration config)
+		/// <param name="config">The <see cref="GeneratorConfiguration"/> object containing configuration settings.</param>
+		public ArgumentProvider(AttributeFactory attributeFactory, GeneratorConfiguration config)
 		{
 			_attributeFactory = attributeFactory ?? throw new ArgumentNullException(nameof(attributeFactory));
 			_config = config ?? throw new ArgumentNullException(nameof(config));

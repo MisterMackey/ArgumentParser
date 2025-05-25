@@ -43,7 +43,7 @@ namespace ArgumentParser.Internal
 		{
 			var classDeclaration = (ClassDeclarationSyntax)generatorContext.TargetNode;
 			var semanticModel = generatorContext.SemanticModel;
-			var config = new Configuration(classDeclaration, semanticModel);
+			var config = new GeneratorConfiguration(classDeclaration, semanticModel);
 			var programName = semanticModel.Compilation.Assembly.Name ?? "";
 
 			// instantiate all attribute properties with their respective arguments

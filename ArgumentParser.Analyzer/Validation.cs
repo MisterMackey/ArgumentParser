@@ -194,8 +194,16 @@ public static class Validation
 		return diagnostics.AsReadOnly();
 	}
 
+	/// <summary>
+	/// Inspect the generation options in combination with the arguments and the class declaration.
+	/// </summary>
+	/// <param name="config"></param>
+	/// <param name="provider"></param>
+	/// <param name="classDeclarationSyntax"></param>
+	/// <returns></returns>
+	/// <exception cref="ArgumentNullException"></exception>
 	public static ReadOnlyCollection<Diagnostic> ValidateGenerationOptions(
-		Configuration config,
+		GeneratorConfiguration config,
 		ArgumentProvider provider,
 		ClassDeclarationSyntax classDeclarationSyntax
 	)

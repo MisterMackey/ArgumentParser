@@ -21,7 +21,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 	private readonly ReadOnlyCollection<PropertyAndAttributeInfo> Flags;
 	private readonly HelptextProvider HelptextProvider;
 	private readonly ISymbol Symbol;
-	private readonly Configuration Config;
+	private readonly GeneratorConfiguration Config;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="SourceTextGenerator"/> class.
@@ -36,7 +36,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		ArgumentProvider argumentProvider,
 		HelptextProvider helptextProvider,
 		ISymbol symbol,
-		Configuration config
+		GeneratorConfiguration config
 	)
 	{
 		if (argumentProvider == null)

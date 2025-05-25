@@ -8,7 +8,7 @@ namespace ArgumentParser.Internal.Utilities;
 /// <summary>
 /// Represents the configuration settings for the ArgumentParser.
 /// </summary>
-public class Configuration
+public class GeneratorConfiguration
 {
 	/// <summary>
 	/// Gets or sets the help text generation mode.
@@ -28,11 +28,11 @@ public class Configuration
 	public string? BehaviourOnError { get; set; }
 
 	/// <summary>
-	/// Initializes a new instance of the <see cref="Configuration"/> class by extracting configuration values from the <see cref="ClassDeclarationSyntax"/>.
+	/// Initializes a new instance of the <see cref="GeneratorConfiguration"/> class by extracting configuration values from the <see cref="ClassDeclarationSyntax"/>.
 	/// </summary>
 	/// <param name="classDeclaration">The class declaration syntax node containing the ParameterCollection attribute.</param>
 	/// <param name="semanticModel">The semantic model used to resolve symbols.</param>
-	public Configuration(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
+	public GeneratorConfiguration(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
 	{
 		// set defaults
 		HelpTextGenerationMode = "GenerateAll";
