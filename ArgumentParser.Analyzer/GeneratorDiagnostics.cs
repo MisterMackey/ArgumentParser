@@ -72,7 +72,7 @@ public static class GeneratorDiagnostics
 	    ClassErrorCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser.Analyzer/docs/rules/ARG001.md"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG001.md"
 	);
 
 	/// <summary>
@@ -85,7 +85,7 @@ public static class GeneratorDiagnostics
 	    ClassErrorCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser.Analyzer/docs/rules/ARG002.md"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG002.md"
 	);
 
 	/// <summary>
@@ -98,7 +98,7 @@ public static class GeneratorDiagnostics
 	    AttributeErrorCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser.Analyzer/docs/rules/ARG003.md"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG003.md"
 	);
 
 	/// <summary>
@@ -111,7 +111,7 @@ public static class GeneratorDiagnostics
 	    AttributeErrorCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser.Analyzer/docs/rules/ARG004.md"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG004.md"
 	);
 
 	/// <summary>
@@ -124,7 +124,7 @@ public static class GeneratorDiagnostics
 	    AttributeErrorCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser.Analyzer/docs/rules/ARG005.md"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG005.md"
 	);
 
 	/// <summary>
@@ -150,7 +150,7 @@ public static class GeneratorDiagnostics
 	    AttributeErrorCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser.Analyzer/docs/rules/ARG007.md"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG007.md"
 	);
 
 	/// <summary>
@@ -163,7 +163,7 @@ public static class GeneratorDiagnostics
 	    GenerationOptionsCategory,
 	    DiagnosticSeverity.Warning,
 	    true,
-	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser.Analyzer/docs/rules/ARG008.md"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG008.md"
 	);
 
 	/// <summary>
@@ -176,7 +176,7 @@ public static class GeneratorDiagnostics
 	    GenerationOptionsCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser.Analyzer/docs/rules/ARG009.md"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG009.md"
 	);
 
 	/// <summary>
@@ -189,7 +189,7 @@ public static class GeneratorDiagnostics
 	    GenerationOptionsCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser.Analyzer/docs/rules/ARG010.md"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG010.md"
 	);
 
 	/// <summary>
@@ -202,7 +202,7 @@ public static class GeneratorDiagnostics
 	    GenerationOptionsCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser.Analyzer/docs/rules/ARG011.md"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG011.md"
 	);
 
 	/// <summary>
@@ -215,6 +215,6 @@ public static class GeneratorDiagnostics
 	    GenerationOptionsCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser.Analyzer/docs/rules/ARG012.md"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG012.md"
 	);
 }
