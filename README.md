@@ -9,10 +9,10 @@ This method will take the raw arguments from the commandline (in the form of a s
 
 The method is generated during compilation, which allows the generated code to be very simple and not rely on Reflection. By being very simple it will compile fine when publishing an AOT executable.
 
-This is essentially an MVP at this point, so there no support (as of yet) for some nice to haves like:
+This library is in an early version, some features are not there yet like:
 - Make arguments required via the required keyword
 - Specific types (like FileInfo)
-- Overloading the behaviour of the parser (how to handle certain errors for example)
+- Custom parsers for types
 
 ## Quickstart
 *For an example, check out the ExampleConsole project in this repository*
@@ -80,6 +80,19 @@ if (err.Any())
 // use myArgs object
 ```
 
+### Overriding the default behaviour
+It is possible to change the behaviour of the generator when it comes to the helptext and the behaviour on error. This is done by providing arguments to the constructor of the ParameterCollection attribute. The following parameters correspond to the default values if nothing is specified:
+```C#
+[ParameterCollection(HelpTextGeneration.GenerateAll, 
+	helpArgumentShortName: "h", 
+	helpArgumentLongName: "Help", 
+	behaviourOnError: BehaviourOnError.DisplayHelpAndExit)]
+```
+It is possible to prevent generation of the HelpText, its corresponding arguments, or to change the value of the parameter long/short name.
+The behaviour when a parsing error is encountered can also be configured.
+
+*Some combinations may not be valid, an error diagnostic is displayed with more info in that case. Example: preventing helptext from generating but still asking for generated code to display the helptext. In this case the helptext must be supplied by the user*
+
 ### Supported types for argument properties
 All types are parsed with their respective .Parse method from the BCL.
 ```C#
@@ -103,7 +116,7 @@ TimeSpan
 DateTime
 ```
 
-### Inspecting the generated code
+## Inspecting the generated code
 
 Simply add the following properties to your .csproj file:
 *(The outputPath can be customized to your liking)*
@@ -131,11 +144,30 @@ namespace ExampleConsole
             new ArgumentParser.PositionalAttribute(0, "the amount of times to repeat"),
         };
         private static readonly ArgumentParser.FlagAttribute[] flags = new ArgumentParser.FlagAttribute[] {
+            new ArgumentParser.FlagAttribute("helpArgumentShortName", "helpArgumentLongName", "Display help text"),
             new ArgumentParser.FlagAttribute("v", "Verbose", "Enable verbose output"),
         };
         private static readonly Dictionary<string,bool> requiredProperties = new Dictionary<string, bool>() {
-            { "Output", false },
+            { " | Target", false },
         };
+        public const string HelpText = """
+ExampleConsole
+
+Example usage: 
+	ExampleConsole [optional args] (required args)
+
+Required arguments: 
+	Option: --Target : 
+
+Optional arguments: 
+	Position: 0: the amount of times to repeat
+	Flag: -helpArgumentShortName | --helpArgumentLongName : Display help text
+	Flag: -v | --Verbose : Enable verbose output
+
+""";
+
+        public bool DisplayHelp { get; set; } = false;
+        
         public static (MyCommandLineArguments result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)
         {
             var tokenizer = new ArgumentParser.ArgumentTokenizer();
@@ -149,16 +181,24 @@ namespace ExampleConsole
                         if (optionToken.Name == "" || optionToken.Name == "Target")
                         {
                             instance.Output = optionToken.Value;
-                            requiredProperties["Output"] = true;
+                            requiredProperties[" | Target"] = true;
                         }
                         break;
                     case ArgumentParser.PositionalToken positionalToken:
                         if (positionalToken.Position == 0)
                         {
-                            instance.RepeatTimes = int.Parse(positionalToken.Value);
+                            if (!int.TryParse(positionalToken.Value, out var parsedValue))
+                            {
+                                errors.Add(new ArgumentParser.InvalidArgumentValueException($"Invalid value for RepeatTimes: { positionalToken.Value }"));
+                            }
+                            else
+                            {
+                                instance.RepeatTimes = parsedValue;
+                            }
                         }
                         break;
                     case ArgumentParser.FlagToken flagToken:
+                        if (flagToken.Name == "helpArgumentShortName" || flagToken.Name == "helpArgumentLongName") { instance.DisplayHelp = true; }
                         if (flagToken.Name == "v" || flagToken.Name == "Verbose") { instance.Verbose = true; }
                         break;
                     default:
@@ -168,31 +208,43 @@ namespace ExampleConsole
             }
             var missingRequired = requiredProperties
                 .Where(kvp => !kvp.Value).Select(kvp => kvp.Key)
-                .Select(k => new ArgumentParser.MissingRequiredArgumentException($"Missing required property: {k}"))
+                .Select(k => new ArgumentParser.MissingRequiredArgumentException($"Missing required argument: {k}"))
                 .ToList();
             errors.AddRange(missingRequired);
-            if (errors.Count > 0)
+            if (instance.DisplayHelp)
             {
-                System.AggregateException ae = new System.AggregateException(message:"One or more required arguments missing", innerExceptions: missingRequired);
-                throw ae;
+                System.Console.WriteLine(MyCommandLineArguments.HelpText);
+                Environment.Exit(0);
+            }
+            if (errors.Any())
+            {
+                foreach (var error in errors)
+                {
+                    System.Console.WriteLine(error);
+                }
+                System.Console.WriteLine();
+                System.Console.WriteLine(MyCommandLineArguments.HelpText);
+                Environment.Exit(2);
             }
             return (instance, errors);
         }
     }
 }
-
 ```
 
 ## Default behaviour
-The string[] parameter is tokenized and then the tokens are evaluated in a loop to determine which properties on the class to change. During tokenization, errors are collected when something doesn't tokenize correctly or when arguments are encountered that have no corresponding property in the class. These errors are nonfatal and will bubble up in the returned tuple, letting the user handle them as they see fit.
+The string[] parameter is tokenized and then the tokens are evaluated in a loop to determine which properties on the class to change. During tokenization, errors are collected when something doesn't tokenize correctly or when arguments are encountered that have no corresponding property in the class.
 
-Parameters marked as required are tracked and checked off when found. At the end of the parse method, if any required properties are missing an AggregateException is thrown. The innerExceptions property is set to a list of Exceptions, one for each missing property.
+Parameters marked as required are tracked and checked off when found. At the end of the parse method, if any required properties are missing an Exception is added to the error list.
+
+By default, if any error is encountered during the parsing, the help text is displayed and the program exits via a call to Environment.Exit(2)
+Also by default, if the help argument is specified on the command line, the help text is displayed and the program exits via a call to Environment.Exit(0)
 
 ## Diagnostics and Errors
 
 see [AnalyzerRelease.Shipped.md](ArgumentParser/AnalyzerReleases.Shipped.md)
 
-## Known bugs
+## Known bugs (past and present)
 
 v1.0.0:
 	- AggregateException is always thrown when any parse error is encountered

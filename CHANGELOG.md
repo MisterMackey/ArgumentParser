@@ -1,6 +1,8 @@
 # This document will track changes starting in v1.1.0
 
-## UnReleased changes (v1.1.0)
+## UnReleased changes
+
+## v1.1.0
 ### Added
 - Added a way for users to influence the code generation via the ParameterCollection attribute constructor
 - Added Helptext generation

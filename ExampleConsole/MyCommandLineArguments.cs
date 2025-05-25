@@ -2,7 +2,7 @@ using ArgumentParser;
 
 namespace ExampleConsole;
 
-[ParameterCollection()]
+[ParameterCollection]
 public partial class MyCommandLineArguments
 {
 	// flag attributes are designed as true/false values
