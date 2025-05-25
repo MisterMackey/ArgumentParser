@@ -191,6 +191,20 @@ public static class Validation
 			}
 		}
 
+		// Check that Flag attributes are only applied to boolean properties
+		foreach (var flag in flags)
+		{
+			if (flag.PropertyType != "bool")
+			{
+				var location = GetLocation(flag, classDeclarationSyntax);
+				diagnostics.Add(Diagnostic.Create(
+					GeneratorDiagnostics.ARG013,
+					location,
+					flag.PropertyName,
+					flag.PropertyType));
+			}
+		}
+
 		return diagnostics.AsReadOnly();
 	}
 

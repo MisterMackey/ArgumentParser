@@ -62,6 +62,10 @@ public static class GeneratorDiagnostics
 	private const string ARG012_Title = "HelpText const string specified but generator is supplying it";
 	private const string ARG012_Message = "HelpText const string is specified by the user, but the generator is supplying it. Remove the const string from your class.";
 
+	private const string ARG013_Id = "ARG013";
+	private const string ARG013_Title = "Flag attributes should only be applied to boolean properties";
+	private const string ARG013_Message = "Flag attribute is applied to property '{0}' of type '{1}', but flags can only be applied to boolean properties";
+
 	/// <summary>
 	/// Diagnostic descriptor for ARG001: Classes with ParameterCollection attribute must be partial.
 	/// </summary>
@@ -216,5 +220,18 @@ public static class GeneratorDiagnostics
 	    DiagnosticSeverity.Error,
 	    true,
 	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG012.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG013: Flag attributes should only be applied to boolean properties.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG013 = new DiagnosticDescriptor(
+	    ARG013_Id,
+	    ARG013_Title,
+	    ARG013_Message,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG013.md"
 	);
 }
