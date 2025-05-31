@@ -442,7 +442,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 				writer.Indent--;
 				writer.WriteLine("}");
 				break;
-			case "Guid":
+			case "System.Guid":
 				writer.WriteLine($"if (!Guid.TryParse({localVariableName}.Value, out var parsedValue))");
 				writer.WriteLine("{");
 				writer.Indent++;
@@ -456,7 +456,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 				writer.Indent--;
 				writer.WriteLine("}");
 				break;
-			case "Uri":
+			case "System.Uri":
 				writer.WriteLine($"if (!Uri.TryCreate({localVariableName}.Value, UriKind.RelativeOrAbsolute, out var parsedValue))");
 				writer.WriteLine("{");
 				writer.Indent++;
@@ -470,7 +470,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 				writer.Indent--;
 				writer.WriteLine("}");
 				break;
-			case "TimeSpan":
+			case "System.TimeSpan":
 				writer.WriteLine($"if (!TimeSpan.TryParse({localVariableName}.Value, out var parsedValue))");
 				writer.WriteLine("{");
 				writer.Indent++;
@@ -498,7 +498,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 				writer.Indent--;
 				writer.WriteLine("}");
 				break;
-			case "DateTime":
+			case "System.DateTime":
 				writer.WriteLine($"if (!DateTime.TryParse({localVariableName}.Value, out var parsedValue))");
 				writer.WriteLine("{");
 				writer.Indent++;
