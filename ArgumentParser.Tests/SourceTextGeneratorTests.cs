@@ -90,5 +90,74 @@ namespace ArgumentParser.Tests
 			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 			Assert.Contains($"TestProperty = ", output);
 		}
+
+		[Fact]
+		public void Generator_CreatesFlagHandler()
+		{
+			// Arrange
+			using var builder = new SourceCodeBuilder();
+			builder.AddImports(null)
+				.AddFlagParameter(new PropertyAndAttributeInfo
+				{
+					PropertyName = "Verbose",
+					PropertyType = "bool",
+					Attribute = new AttributeInfo("v", "Verbose", "Enable verbose output", false, -1)
+				}, null);
+			var source = builder.ToString();
+
+			// Act
+			var (diagnostics, output) = TestHelper.GetGeneratedOutput(source);
+
+			// Assert
+			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+			Assert.Contains("Verbose = ", output);
+			Assert.Contains("if (flagToken.Name == \"v\" || flagToken.Name == \"Verbose\")", output);
+		}
+
+		[Fact]
+		public void Generator_CreatesOptionHandler()
+		{
+			// Arrange
+			using var builder = new SourceCodeBuilder();
+			builder.AddImports(null)
+				.AddOptionParameter(new PropertyAndAttributeInfo
+				{
+					PropertyName = "ConfigFile",
+					PropertyType = "string",
+					Attribute = new AttributeInfo("c", "Config", "Path to config file", false, -1)
+				}, null);
+			var source = builder.ToString();
+
+			// Act
+			var (diagnostics, output) = TestHelper.GetGeneratedOutput(source);
+
+			// Assert
+			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+			Assert.Contains("ConfigFile = ", output);
+			Assert.Contains("if (optionToken.Name == \"c\" || optionToken.Name == \"Config\")", output);
+		}
+
+		[Fact]
+		public void Generator_HandlesPositionalArguments()
+		{
+			// Arrange
+			using var builder = new SourceCodeBuilder();
+			builder.AddImports(null)
+				.AddPositionalParameter(new PropertyAndAttributeInfo
+				{
+					PropertyName = "InputFile",
+					PropertyType = "string",
+					Attribute = new AttributeInfo("", "", "Input file path", false, 0)
+				}, null);
+			var source = builder.ToString();
+
+			// Act
+			var (diagnostics, output) = TestHelper.GetGeneratedOutput(source);
+
+			// Assert
+			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+			Assert.Contains("InputFile = ", output);
+			Assert.Contains("if (positionalToken.Position == 0)", output);
+		}
 	}
 }

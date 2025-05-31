@@ -96,7 +96,7 @@ public class SourceCodeBuilder : IDisposable
 	{
 		if (string.IsNullOrWhiteSpace(modifiers))
 			modifiers = "public";
-		classMembers.Add($"[Flag(\"{info.Attribute.ShortName}\", \"{info.Attribute.LongName}\", \"{info.Attribute.Description}\", {info.Attribute.Required.ToString().ToLower()}]");
+		classMembers.Add($"[Flag(\"{info.Attribute.ShortName}\", \"{info.Attribute.LongName}\", \"{info.Attribute.Description}\")]");
 		classMembers.Add($"{modifiers} {info.PropertyType} {info.PropertyName} {{ get; set; }}");
 		classMembers.Add(Environment.NewLine);
 		return this;
