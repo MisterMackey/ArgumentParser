@@ -24,6 +24,7 @@ namespace ArgumentParser.Tests
 			var neededPlatformAssemblies = new[] {
 				"System.Runtime",
 				"System.Private.CoreLib",
+				"System.Private.Uri"
 			};
 			foreach (var assemblyPath in trustedAssembliesPaths ?? Array.Empty<string>())
 			{
