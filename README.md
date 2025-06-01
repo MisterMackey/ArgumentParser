@@ -68,6 +68,12 @@ public partial class MyCommandLineArguments
 	// Positional argument positions must form a sequence from 0..n-1
 	[Positional(0, "the amount of times to repeat")]
 	public int RepeatTimes {get; set;}
+
+	// To pass a value here, use the default format that .net expects
+	// example: 2025-05-05T12:00:00Z or "2025-05-05T12:00:00 +02:00"
+	// make sure to quote the value if it contains spaces or special characters
+	[Option(shortName: "t", longName: "TimeStamp", description: "The timestamp to use", required: false)]
+	public DateTime TimeStamp { get; set; }
 }
 ```
 
