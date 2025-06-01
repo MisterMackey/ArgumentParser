@@ -245,6 +245,8 @@ Also by default, if the help argument is specified on the command line, the help
 see [AnalyzerRelease.Shipped.md](ArgumentParser/AnalyzerReleases.Shipped.md)
 
 ## Known bugs (past and present)
+v1.1.0
+	-DateTime, TimeStamp, Guid, and Uri types not working
 
 v1.0.0:
 	- AggregateException is always thrown when any parse error is encountered

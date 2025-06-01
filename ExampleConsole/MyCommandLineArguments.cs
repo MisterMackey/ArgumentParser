@@ -11,7 +11,7 @@ public partial class MyCommandLineArguments
 	// Flag cannot be used on other types than bool
 	// Flags do not have a 'required' property (a required flag is just a true value)
 	[Flag(shortName: "v", longName: "Verbose", description: "Enable verbose output")]
-	public bool Verbose {get; set;}
+	public bool Verbose { get; set; }
 
 	// Option attributes are designed to be passed as a sort of kv pair
 	// Options may be passed either via their longName or shortName
@@ -23,7 +23,7 @@ public partial class MyCommandLineArguments
 	// Options may be set to required, triggering an exception if not passed
 	// Option properties may have any supported type
 	[Option(longName: "Target", required: true)]
-	public string? Output {get; set;}
+	public string? Output { get; set; }
 
 	// Positional attributes are passed on the commandline without any
 	// named identifier marking them. They are instead distinguished by the
@@ -40,5 +40,11 @@ public partial class MyCommandLineArguments
 	// Positional arguments may be set to required
 	// Positional argument positions must form a sequence from 0..n-1
 	[Positional(0, "the amount of times to repeat")]
-	public int RepeatTimes {get; set;}
+	public int RepeatTimes { get; set; }
+
+	// To pass a value here, use the default format that .net expects
+	// example: 2025-05-05T12:00:00Z or "2025-05-05T12:00:00 +02:00"
+	// make sure to quote the value if it contains spaces or special characters
+	[Option(shortName: "t", longName: "TimeStamp", description: "The timestamp to use", required: false)]
+	public DateTime TimeStamp { get; set; }
 }
