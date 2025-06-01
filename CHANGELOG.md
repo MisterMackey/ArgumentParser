@@ -1,8 +1,12 @@
 # This document will track changes starting in v1.1.0
 
 ## UnReleased changes
+
+## v1.1.1
 ### Fixed
 - Bugfix for allowing DateTime, Timestamp, Guid, Uri types
+###
+- Started adding automated tests
 
 ## v1.1.0
 ### Added
