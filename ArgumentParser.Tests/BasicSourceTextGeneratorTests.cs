@@ -3,7 +3,10 @@ using Microsoft.CodeAnalysis;
 
 namespace ArgumentParser.Tests
 {
-	public class SourceTextGeneratorTests
+	/// <summary>
+	/// Couple simple checks including property types, required params, parameter handlers
+	/// </summary>
+	public class BasicSourceTextGeneratorTests
 	{
 		[Fact]
 		public void Generator_DeclaresParseMethod()
@@ -138,7 +141,7 @@ namespace ArgumentParser.Tests
 		}
 
 		[Fact]
-		public void Generator_HandlesPositionalArguments()
+		public void Generator_CreatesPositionalHandler()
 		{
 			// Arrange
 			using var builder = new SourceCodeBuilder();
