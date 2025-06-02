@@ -56,8 +56,8 @@ public class GeneratorConfiguration
 		}
 		// get the named and positional arguments used in the attribute
 		var namedArguments = attribute.ArgumentList?.Arguments
-			.Where(arg => arg.NameEquals != null)
-			.ToDictionary(arg => arg.NameEquals!.Name.ToString(), arg =>
+			.Where(arg => arg.NameColon != null)
+			.ToDictionary(arg => arg.NameColon!.Name.ToString(), arg =>
 			{
 				if (arg.Expression is MemberAccessExpressionSyntax memberAccess)
 				{
@@ -69,7 +69,7 @@ public class GeneratorConfiguration
 				}
 			});
 		var positionalArguments = attribute.ArgumentList?.Arguments
-			.Where(arg => arg.NameEquals == null)
+			.Where(arg => arg.NameColon == null)
 			.Select(arg =>
 			{
 				if (arg.Expression is MemberAccessExpressionSyntax memberAccess)
@@ -104,19 +104,19 @@ public class GeneratorConfiguration
 		// deal with named arguments
 		if (namedArguments != null)
 		{
-			if (namedArguments.TryGetValue("HelpTextGeneration", out string? textGen))
+			if (namedArguments.TryGetValue("helpTextGeneration", out string? textGen))
 			{
 				HelpTextGenerationMode = textGen;
 			}
-			if (namedArguments.TryGetValue("HelpArgumentShortName", out string? shortName))
+			if (namedArguments.TryGetValue("helpArgumentShortName", out string? shortName))
 			{
 				HelpArgumentShortName = shortName;
 			}
-			if (namedArguments.TryGetValue("HelpArgumentLongName", out string? longName))
+			if (namedArguments.TryGetValue("helpArgumentLongName", out string? longName))
 			{
 				HelpArgumentLongName = longName;
 			}
-			if (namedArguments.TryGetValue("BehaviourOnError", out string? errBehaviour))
+			if (namedArguments.TryGetValue("behaviourOnError", out string? errBehaviour))
 			{
 				BehaviourOnError = errBehaviour;
 			}

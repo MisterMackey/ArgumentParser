@@ -251,6 +251,9 @@ Also by default, if the help argument is specified on the command line, the help
 see [AnalyzerRelease.Shipped.md](ArgumentParser/AnalyzerReleases.Shipped.md)
 
 ## Known bugs (past and present)
+v1.1.1
+	-Specifying named arguments to ParameterCollectionAttribute constructor doesn't work. They are treated as positional arguments
+
 v1.1.0
 	-DateTime, TimeStamp, Guid, and Uri types not working
 
