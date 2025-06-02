@@ -46,7 +46,7 @@ namespace ArgumentParser
 			HelpTextGeneration helpTextGeneration = HelpTextGeneration.GenerateAll,
 			string helpArgumentShortName = "h",
 			string helpArgumentLongName = "Help",
-			BehaviourOnError behaviourOnError = BehaviourOnError.ThrowIfMissingRequired
+			BehaviourOnError behaviourOnError = BehaviourOnError.DisplayHelpAndExit
 		)
 		{
 			HelpTextGeneration = helpTextGeneration;
