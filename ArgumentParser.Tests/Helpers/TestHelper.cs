@@ -57,8 +57,12 @@ namespace ArgumentParser.Tests
 			// Get the generated output
 			var generatedOutput = runResult.GeneratedTrees.FirstOrDefault()?.ToString() ?? string.Empty;
 
-			// Get diagnostic results
+			// Get diagnostic results from compiler itself
 			var diagnostics = compilation.GetDiagnostics();
+			// Get diagnostics from the generator
+			var generatorDiagnostics = runResult.Diagnostics;
+			// Combine both diagnostics
+			diagnostics = [.. diagnostics, .. generatorDiagnostics];
 
 			return (diagnostics, generatedOutput);
 		}
