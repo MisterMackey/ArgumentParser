@@ -11,7 +11,7 @@ namespace ArgumentParser.Tests
 			// Arrange
 			var builder = new SourceCodeBuilder();
 			builder.AddImports(null)
-				.AddClassDeclaration("TestClass", "public");
+				.AddClassDeclaration("TestClass", "public class");
 			var source = builder.ToString();
 
 			// Act
@@ -187,7 +187,7 @@ namespace ArgumentParser.Tests
 			var error = diagnostics.FirstOrDefault(d => d.Id == "ARG007");
 			Assert.NotNull(error);
 			Assert.Equal(DiagnosticSeverity.Error, error.Severity);
-			Assert.Contains("Unsupported property type 'System.IO.FileInfo'", error.GetMessage());
+			Assert.Contains("Specified property type 'FileInfo'", error.GetMessage());
 		}
 		
 		[Fact]
@@ -331,7 +331,7 @@ namespace ArgumentParser.Tests
 			var error = diagnostics.FirstOrDefault(d => d.Id == "ARG013");
 			Assert.NotNull(error);
 			Assert.Equal(DiagnosticSeverity.Error, error.Severity);
-			Assert.Contains("Invalid flag on string", error.GetMessage());
+			Assert.Contains("flags can only be applied to boolean properties", error.GetMessage());
 		}
 	}
 }
