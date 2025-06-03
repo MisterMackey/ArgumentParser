@@ -243,6 +243,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine("{");
 			writer.Indent++;
 			writer.WriteLine("System.AggregateException ae = new System.AggregateException(message:\"One or more errors occurred during parsing\", innerExceptions: errors);");
+			writer.WriteLine("throw ae;");
 			writer.Indent--;
 			writer.WriteLine("}");
 		}
