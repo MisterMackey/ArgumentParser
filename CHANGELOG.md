@@ -1,6 +1,10 @@
 # This document will track changes starting in v1.1.0
 
 ## UnReleased changes
+- Levels are now allowed for flag variables, example '-vv' for 'extra verbose'
+  - Property type must be an enum type
+  - The value is the result of casting the amount of flag repeats (int) to the enum.
+  - For the example above, an appropriate Verbosity enum would be: 'Silent=0, Verbose=1, ExtraVerbose=2'
 
 ## v1.1.1
 ### Fixed

@@ -71,7 +71,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine("{");
 			writer.Indent++;
 		}
-		writer.WriteLine("[System.CodeDom.Compiler.GeneratedCodeAttribute(\"ArgumentParser\", \"1.1.1\")]");
+		writer.WriteLine("[System.CodeDom.Compiler.GeneratedCodeAttribute(\"ArgumentParser\", \"1.2.0\")]");
 		writer.WriteLine($"public partial class {className}");
 		writer.WriteLine("{");
 		writer.Indent++;
