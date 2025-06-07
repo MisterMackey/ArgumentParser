@@ -47,6 +47,7 @@ namespace ArgumentParser.Tests
 			Assert.Contains("if (errors.Count > 0)", output);
 			Assert.Contains("new System.AggregateException", output);
 			Assert.Contains("One or more errors occurred ", output);
+			Assert.Contains("throw ", output);
 		}
 
 		[Fact]
@@ -92,6 +93,7 @@ namespace ArgumentParser.Tests
 			Assert.Contains("if (missingRequired.Count > 0)", output);
 			Assert.Contains("new System.AggregateException", output);
 			Assert.Contains("One or more required arguments missing", output);
+			Assert.Contains("throw ", output);
 		}
 	}
 }
