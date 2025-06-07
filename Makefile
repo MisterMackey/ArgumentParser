@@ -1,3 +1,4 @@
+.DEFAULT_GOAL := help
 # stamp files definition
 STAMP_DIR := .build-stamps
 ANALYZER_STAMP := $(STAMP_DIR)/analyzer_built
@@ -25,7 +26,20 @@ $(TESTPROJ_STAMP): $(TEST_SOURCES) build-analyzer | $(STAMP_DIR)
 	dotnet build ArgumentParser.Tests -c Debug # never build in Release, we want stacktraces!
 
 # targets
-.PHONY: clean build-analyzer build-example build-tests
+.PHONY: help
+
+help:
+	@echo "Makefile targets:"
+	@echo "  all                - Build everything and run tests"
+	@echo "  clean              - Clean the build artifacts"
+	@echo "  build-analyzer     - Build the ArgumentParser analyzer"
+	@echo "  restore-example    - Add locally built Aot.ArgumentParser package to ExampleConsole"
+	@echo "  build-example      - Build the ExampleConsole project"
+	@echo "  build-tests        - Build the ArgumentParser.Tests project"
+	@echo "  test               - Run the tests in ArgumentParser.Tests"
+	@echo "  help               - Show this help message"
+
+all: build-analyzer build-example build-tests test
 
 clean:
 	rm -rf $(STAMP_DIR)
