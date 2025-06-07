@@ -1,9 +1,0 @@
-#!/bin/bash
-
-dotnet clean &&\
-dotnet build ArgumentParser -c Release &&\
-dotnet remove ExampleConsole package Aot.ArgumentParser &&\
-dotnet nuget locals all --clear &&\
-dotnet restore &&\
-dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg &&\
-dotnet build ExampleConsole -v:d

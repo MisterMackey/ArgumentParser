@@ -1,6 +1,7 @@
 # Build artifacts
 bin/
 obj/
+.build-stamps/
 
 # User-specific files
 .vscode/
