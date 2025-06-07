@@ -44,6 +44,8 @@ all: build-analyzer build-example build-tests test
 clean:
 	rm -rf $(STAMP_DIR)
 	dotnet clean
+	rm -rf coveragereports
+	rm ArgumentParser.Tests/coverage.cobertura.xml
 
 build-analyzer: $(ANALYZER_STAMP)
 
@@ -58,4 +60,9 @@ build-example: $(EXAMPLE_STAMP)
 build-tests: $(TESTPROJ_STAMP)
 
 test: build-tests
-	dotnet test ArgumentParser.Tests --no-build
+	dotnet test ArgumentParser.Tests --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
+
+coverage: build-tests
+	dotnet test ArgumentParser.Tests --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
+	reportgenerator -reports:ArgumentParser.Tests/coverage.cobertura.xml -targetdir:coveragereports -reporttypes:Html
+	@echo "Coverage report generated in coveragereports/index.html"

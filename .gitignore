@@ -20,3 +20,7 @@ obj/
 
 # IDE-specific files
 .vs/
+
+# coverage reports
+coverage.cobertura.xml
+coveragereports/
