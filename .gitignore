@@ -9,6 +9,7 @@ obj/
 *.suo
 *.userosscache
 *.sln.docstates
+.github/copilot-instructions.md
 
 # Logs
 *.log
