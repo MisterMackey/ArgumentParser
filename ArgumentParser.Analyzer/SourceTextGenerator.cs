@@ -271,7 +271,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 	/// <summary>
 	/// Gets the appropriate code to parse a string value into the specified property type.
 	/// </summary>
-	/// <param name="propertyInfo">">The info of the property to parse to.</param>
+	/// <param name="propertyInfo">The info of the property to parse to.</param>
 	/// <param name="localVariableName">The name of the token property to read the value from.</param>
 	/// <param name="propertyName">The name of the property in the partial class to set.</param>
 	/// <param name="writer">The writer to write the code to.</param>

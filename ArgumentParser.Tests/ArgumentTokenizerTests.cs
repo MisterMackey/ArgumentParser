@@ -1,8 +1,3 @@
-using System;
-using System.Linq;
-using Xunit;
-
-// TODO: fix errors in this code, proofread carefully
 namespace ArgumentParser.Tests
 {
 	public class ArgumentTokenizerTests

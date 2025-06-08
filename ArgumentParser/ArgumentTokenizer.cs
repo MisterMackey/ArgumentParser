@@ -131,6 +131,7 @@ namespace ArgumentParser
 		/// </returns>
 		public (List<Token> result, List<ArgumentParserException> err) TokenizeArguments(string[] args, OptionAttribute[] options, PositionalAttribute[] positionals, FlagAttribute[] flags)
 		{
+			flagRepeatCounts.Clear();
 			if (args is null)
 				throw new System.ArgumentNullException(nameof(args));
 			if (options is null)

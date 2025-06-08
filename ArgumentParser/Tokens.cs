@@ -70,7 +70,7 @@ namespace ArgumentParser
 
 		/// <summary>
 		/// Get the level of the flag, or null if this flag has no levels.
-		/// /// </summary>
+		/// </summary>
 		public int Level { get; } = level;
 	}
 
