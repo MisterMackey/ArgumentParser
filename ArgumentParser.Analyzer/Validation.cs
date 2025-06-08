@@ -181,7 +181,7 @@ public static class Validation
 		var allProperties = options.Concat(positionals).Concat(flags).ToList();
 		foreach (var prop in allProperties)
 		{
-			if (!IsSupportedPropertyType(prop.PropertyType))
+			if (!IsSupportedPropertyType(prop))
 			{
 				var location = GetLocation(prop, classDeclarationSyntax);
 				diagnostics.Add(Diagnostic.Create(
@@ -307,12 +307,13 @@ public static class Validation
 	/// <summary>
 	/// Determines if a property type is supported by the argument parser generator.
 	/// </summary>
-	/// <param name="propertyType">The property type to check.</param>
+	/// <param name="propInfo">The property type to check.</param>
 	/// <returns>True if the property type is supported; otherwise, false.</returns>
-	private static bool IsSupportedPropertyType(string propertyType)
+	private static bool IsSupportedPropertyType(PropertyAndAttributeInfo propInfo)
 	{
-		// Match the types supported in SourceTextGenerator.WriteValueParseCode
-		return propertyType switch
+		// check if its a 'simple' BCL type
+		var propertyType = propInfo.PropertyType;
+		var simpleSupportedType = propertyType switch
 		{
 			"int" => true,
 			"double" => true,
@@ -335,6 +336,16 @@ public static class Validation
 			"string?" => true,
 			_ => false
 		};
+		if (simpleSupportedType)
+		{
+			return true;
+		}
+		// Enum types are also supported
+		if (propInfo.PropertySymbol?.Type.TypeKind == TypeKind.Enum)
+		{
+			return true;
+		}
+		return false;
 	}
 
 	private static Location? GetLocation(PropertyAndAttributeInfo info, ClassDeclarationSyntax classDeclarationSyntax)

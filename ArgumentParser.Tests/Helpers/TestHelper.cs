@@ -13,7 +13,10 @@ namespace ArgumentParser.Tests
 			var references = new List<MetadataReference>
 			{
 				// non core references
+				// ArgumentParser ref
 				MetadataReference.CreateFromFile(typeof(ParameterCollectionAttribute).Assembly.Location),
+				// ArgumentParser.Tests ref
+				MetadataReference.CreateFromFile(typeof(TestHelper).Assembly.Location),
 			};
 			// Add core references
 			var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
