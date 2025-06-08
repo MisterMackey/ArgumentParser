@@ -91,7 +91,9 @@ public static class Validation
 		// Check for duplicate short names
 		var duplicateShortNames = options.
 			Select(x => x.Attribute.ShortName)
+			.Where(x => !string.IsNullOrEmpty(x))
 			.Concat(flags.Select(x => x.Attribute.ShortName))
+			.Where(x => !string.IsNullOrEmpty(x))
 			.GroupBy(x => x)
 			.Where(g => g.Count() > 1)
 			.Select(g => g.Key)
@@ -124,7 +126,9 @@ public static class Validation
 		// Check for duplicate long names
 		var duplicateLongNames = options.
 			Select(x => x.Attribute.LongName)
+			.Where(x => !string.IsNullOrEmpty(x))
 			.Concat(flags.Select(x => x.Attribute.LongName))
+			.Where(x => !string.IsNullOrEmpty(x))
 			.GroupBy(x => x)
 			.Where(g => g.Count() > 1)
 			.Select(g => g.Key)

@@ -278,10 +278,10 @@ public class SourceTextGenerator : ISourceTextGenerator
 	/// <returns>A string containing the code needed to parse the value.</returns>
 	private static void WriteValueParseCode(PropertyAndAttributeInfo propertyInfo, string localVariableName, string propertyName, IndentedTextWriter writer)
 	{
-		// check if its an enum and parse to int + explicit cast in that case
+		// check if its an enum and construct enum with string value in that case
 		if (propertyInfo.PropertySymbol?.Type.TypeKind == TypeKind.Enum)
 		{
-			writer.WriteLine($"if (!int.TryParse({localVariableName}.Value, out var parsedValue))");
+			writer.WriteLine($"if (!Enum.TryParse<{propertyInfo.PropertyType}>({localVariableName}.Value, out var parsedValue))");
 			writer.WriteLine("{");
 			writer.Indent++;
 			writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
@@ -290,7 +290,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine("else");
 			writer.WriteLine("{");
 			writer.Indent++;
-			writer.WriteLine($"instance.{propertyName} = ({propertyInfo.PropertyType})parsedValue;");
+			writer.WriteLine($"instance.{propertyName} = parsedValue;");
 			writer.Indent--;
 			writer.WriteLine("}");
 			return;
@@ -568,7 +568,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		if (isEnum)
 		{
 			// take the level of the token and cast to enum type
-			writer.WriteLine($"instance.{propertyName} = ({flagInfo.PropertyType})flagToken.Level ?? 0;");
+			writer.WriteLine($"instance.{propertyName} = ({flagInfo.PropertyType})flagToken.Level;");
 		}
 	}
 }
