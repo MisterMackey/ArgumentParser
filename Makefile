@@ -2,13 +2,14 @@
 # stamp files definition
 STAMP_DIR := .build-stamps
 ANALYZER_STAMP := $(STAMP_DIR)/analyzer_built
+RESTORE_EXAMPLE_STAMP := $(STAMP_DIR)/example_restored
 EXAMPLE_STAMP := $(STAMP_DIR)/example_built
 TESTPROJ_STAMP := $(STAMP_DIR)/testproj_built
 
 # sources
-ANALYZER_SOURCES := $(wildcard ArgumentParser/**/*.cs) $(wildcard ArgumentParser.Analyzer/**/*.cs)
-EXAMPLE_SOURCES := $(wildcard ExampleConsole/**/*.cs)
-TEST_SOURCES := $(wildcard ArgumentParser.Tests/**/*.cs)
+ANALYZER_SOURCES := $(wildcard ArgumentParser/*.cs) $(wildcard ArgumentParser/**/*.cs) $(wildcard ArgumentParser.Analyzer/*.cs) $(wildcard ArgumentParser.Analyzer/**/*.cs)
+EXAMPLE_SOURCES := $(wildcard ExampleConsole/*.cs) $(wildcard ExampleConsole/**/*.cs)
+TEST_SOURCES := $(wildcard ArgumentParser.Tests/*.cs) $(wildcard ArgumentParser.Tests/**/*.cs)
 
 # stamps
 $(STAMP_DIR):
@@ -18,11 +19,18 @@ $(ANALYZER_STAMP): $(ANALYZER_SOURCES) | $(STAMP_DIR)
 	dotnet build ArgumentParser -c Release
 	touch $@
 
-$(EXAMPLE_STAMP): $(EXAMPLE_SOURCES) restore-example | $(STAMP_DIR)
+$(RESTORE_EXAMPLE_STAMP): $(ANALYZER_STAMP) | $(STAMP_DIR)
+	dotnet remove ExampleConsole package Aot.ArgumentParser || true
+	dotnet nuget locals all --clear
+	dotnet restore
+	dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg
+	touch $@
+
+$(EXAMPLE_STAMP): $(EXAMPLE_SOURCES) $(RESTORE_EXAMPLE_STAMP) | $(STAMP_DIR)
 	dotnet build ExampleConsole -v:d
 	touch $@
 
-$(TESTPROJ_STAMP): $(TEST_SOURCES) build-analyzer | $(STAMP_DIR)
+$(TESTPROJ_STAMP): $(TEST_SOURCES) $(ANALYZER_STAMP) | $(STAMP_DIR)
 	dotnet build ArgumentParser.Tests -c Debug # never build in Release, we want stacktraces!
 
 # targets
@@ -49,11 +57,7 @@ clean:
 
 build-analyzer: $(ANALYZER_STAMP)
 
-restore-example: build-analyzer
-	dotnet remove ExampleConsole package Aot.ArgumentParser || true
-	dotnet nuget locals all --clear
-	dotnet restore
-	dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg
+restore-example: $(RESTORE_EXAMPLE_STAMP)
 
 build-example: $(EXAMPLE_STAMP)
 
