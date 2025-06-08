@@ -1,6 +1,9 @@
 # This document will track changes starting in v1.1.0
 
 ## UnReleased changes
+
+## v1.2.0
+### Added
 - All custom enum types are now allowed types. Parsing rules depend on whether the property is annotated with.
   - For Flags:
     - The value is interpreted as a 'level', and the number of times the value is encountered (as an int) is casted to the type
@@ -11,6 +14,9 @@
   - For Options and Positionals:
     - A TryParse is executed using the string value supplied
     - Failures are added to the error list
+### Improved
+- Added some automated testing
+- Improved build system
 
 ## v1.1.1
 ### Fixed
