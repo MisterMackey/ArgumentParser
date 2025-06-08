@@ -191,10 +191,13 @@ public static class Validation
 			}
 		}
 
-		// Check that Flag attributes are only applied to boolean properties
+		// Check that Flag attributes are only applied to boolean and enum properties
 		foreach (var flag in flags)
 		{
-			if (flag.PropertyType != "bool")
+			if (flag.PropertyType != "bool"
+				&& !(flag.PropertySymbol?.Type.TypeKind == TypeKind.Enum)
+			)
+
 			{
 				var location = GetLocation(flag, classDeclarationSyntax);
 				diagnostics.Add(Diagnostic.Create(

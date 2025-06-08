@@ -331,7 +331,7 @@ namespace ArgumentParser.Tests
 			var error = diagnostics.FirstOrDefault(d => d.Id == "ARG013");
 			Assert.NotNull(error);
 			Assert.Equal(DiagnosticSeverity.Error, error.Severity);
-			Assert.Contains("flags can only be applied to boolean properties", error.GetMessage());
+			Assert.Contains("flags can only be applied to boolean or enum properties", error.GetMessage());
 		}
 	}
 }

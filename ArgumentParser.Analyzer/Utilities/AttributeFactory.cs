@@ -147,7 +147,8 @@ public class AttributeFactory
 		{
 			Attribute = new AttributeInfo(shortName, longName, description, false, -1),
 			PropertyName = propertyName,
-			PropertyType = propertyType
+			PropertyType = propertyType,
+			PropertySymbol = propertySymbol
 		};
 	}
 
@@ -224,7 +225,8 @@ public class AttributeFactory
 		{
 			Attribute = new AttributeInfo(shortName, longName, description, required, -1),
 			PropertyName = propertyName,
-			PropertyType = propertyType
+			PropertyType = propertyType,
+			PropertySymbol = propertySymbol
 		};
 	}
 
@@ -292,7 +294,8 @@ public class AttributeFactory
 		{
 			Attribute = new AttributeInfo("", "", description, required, int.Parse(position, CultureInfo.InvariantCulture)),
 			PropertyName = propertyName,
-			PropertyType = propertyType
+			PropertyType = propertyType,
+			PropertySymbol = propertySymbol
 		};
 	}
 }
@@ -316,6 +319,11 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	/// The type of the property.
 	/// </summary>
 	public string PropertyType { get; set; }
+
+	/// <summary>
+	/// The symbol representing the property.
+	/// </summary>
+	public IPropertySymbol? PropertySymbol { get; set; }
 
 	/// <summary>
 	/// Determines whether the current instance is equal to another object.
