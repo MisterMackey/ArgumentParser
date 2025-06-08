@@ -60,7 +60,7 @@ namespace ArgumentParser
 	/// </remarks>
 	/// <param name="name">The name of the flag.</param>
 	/// <param name="level">The level of the flag, or null if this flag has no levels.</param>
-	public class FlagToken(string name, int? level = null) : Token
+	public class FlagToken(string name, int level) : Token
 	{
 
 		/// <summary>
@@ -71,7 +71,7 @@ namespace ArgumentParser
 		/// <summary>
 		/// Get the level of the flag, or null if this flag has no levels.
 		/// /// </summary>
-		public int? Level { get; } = level;
+		public int Level { get; } = level;
 	}
 
 	/// <summary>

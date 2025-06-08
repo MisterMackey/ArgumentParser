@@ -116,6 +116,28 @@ namespace ArgumentParser.Tests
 		}
 
 		[Fact]
+		public void Generator_HandlesEnumOption()
+		{
+			// Arrange
+			using var builder = new SourceCodeBuilder();
+			builder.AddImports(null)
+				.AddImports(new[] { "using ArgumentParser.Tests;" })
+				.AddOptionParameter(new PropertyAndAttributeInfo
+				{
+					PropertyName = "LogLevelOption",
+					PropertyType = "ExampleEnum",
+					Attribute = new AttributeInfo("l", "LogLevel", "Set the log level option", false, -1)
+				}, null);
+			var source = builder.ToString();
+			// Act
+			var (diagnostics, output) = TestHelper.GetGeneratedOutput(source);
+			// Assert
+			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+			Assert.Contains("LogLevelOption = parsedValue", output);
+			Assert.Contains("if (!Enum.TryParse<ArgumentParser.Tests.ExampleEnum>)", output);
+		}
+
+		[Fact]
 		public void Generator_CreatesFlagHandler()
 		{
 			// Arrange
