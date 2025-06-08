@@ -48,3 +48,11 @@ public partial class MyCommandLineArguments
 	[Option(shortName: "t", longName: "TimeStamp", description: "The timestamp to use", required: false)]
 	public DateTime TimeStamp { get; set; }
 }
+
+public enum MyVeryOwnEnum
+{
+	None = 0,
+	Some = 1,
+	More = 2,
+	Most = 3
+}

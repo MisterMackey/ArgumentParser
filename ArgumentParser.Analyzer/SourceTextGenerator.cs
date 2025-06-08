@@ -549,7 +549,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		if (isEnum)
 		{
 			// take the level of the token and cast to enum type
-			writer.WriteLine($"instance.{propertyName} = ({flagInfo.PropertyType})flagToken.Level;");
+			writer.WriteLine($"instance.{propertyName} = ({flagInfo.PropertyType})flagToken.Level ?? 0;");
 		}
 	}
 }

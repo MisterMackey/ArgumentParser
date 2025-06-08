@@ -19,22 +19,22 @@ namespace ArgumentParser.Tests
 			// default set of attributes is a valid set containing no required attributes
 			_options = new[]
 			{
-		new OptionAttribute("o", "output", "Output file"),
-		new OptionAttribute("i", "input", "Input file"),
-	    };
+				new OptionAttribute("o", "output", "Output file"),
+				new OptionAttribute("i", "input", "Input file"),
+			};
 
 			_positionals = new[]
 			{
-		new PositionalAttribute(0, "Source file"),
-		new PositionalAttribute(1, "Destination file")
-	    };
+				new PositionalAttribute(0, "Source file"),
+				new PositionalAttribute(1, "Destination file")
+			};
 
 			_flags = new[]
 			{
-		new FlagAttribute("h", "help", "Show help"),
-		new FlagAttribute("v", "verbose", "Enable verbose output"),
-		new FlagAttribute("f", "force", "Force overwrite")
-	    };
+				new FlagAttribute("h", "help", "Show help"),
+				new FlagAttribute("v", "verbose", "Enable verbose output"),
+				new FlagAttribute("f", "force", "Force overwrite")
+			};
 		}
 
 		[Fact]
@@ -117,7 +117,8 @@ namespace ArgumentParser.Tests
 
 			var token = tokens[0] as FlagToken;
 			Assert.NotNull(token);
-			Assert.Equal("help", token.Name);
+			// when both short and long names are present, the short name is used
+			Assert.Equal("h", token.Name);
 		}
 
 		[Fact]
@@ -197,19 +198,20 @@ namespace ArgumentParser.Tests
 			Assert.Equal(4, tokens.Count);
 			Assert.Empty(errors);
 
-			Assert.IsType<FlagToken>(tokens[0]);
-			Assert.IsType<PositionalToken>(tokens[1]);
-			var firstPositionalToken = tokens[1] as PositionalToken;
+			Assert.IsType<PositionalToken>(tokens[0]);
+			var firstPositionalToken = tokens[0] as PositionalToken;
 			Assert.NotNull(firstPositionalToken);
 			Assert.Equal("source.txt", firstPositionalToken.Value);
-			Assert.IsType<OptionToken>(tokens[2]);
-			var optionToken = tokens[2] as OptionToken;
+			Assert.IsType<OptionToken>(tokens[1]);
+			var optionToken = tokens[1] as OptionToken;
 			Assert.NotNull(optionToken);
 			Assert.Equal("out.txt", optionToken.Value);
-			Assert.IsType<PositionalToken>(tokens[3]);
-			var secondPositionalToken = tokens[3] as PositionalToken;
+			Assert.IsType<PositionalToken>(tokens[2]);
+			var secondPositionalToken = tokens[2] as PositionalToken;
 			Assert.NotNull(secondPositionalToken);
 			Assert.Equal("dest.txt", secondPositionalToken.Value);
+			// flag tokens are always at the end
+			Assert.IsType<FlagToken>(tokens[3]);
 		}
 
 		[Fact]
@@ -289,12 +291,12 @@ namespace ArgumentParser.Tests
 			Assert.Equal(3, tokens.Count);
 			Assert.Empty(errors);
 
-			Assert.IsType<FlagToken>(tokens[0]);
-			Assert.IsType<FlagToken>(tokens[1]);
-			Assert.IsType<OptionToken>(tokens[2]);
-			var optionToken = tokens[2] as OptionToken;
+			Assert.IsType<OptionToken>(tokens[0]);
+			var optionToken = tokens[0] as OptionToken;
 			Assert.NotNull(optionToken);
 			Assert.Equal("output.txt", optionToken.Value);
+			Assert.IsType<FlagToken>(tokens[1]);
+			Assert.IsType<FlagToken>(tokens[2]);
 		}
 
 		[Fact]
@@ -310,6 +312,63 @@ namespace ArgumentParser.Tests
 			Assert.Equal(2, tokens.Count);
 			Assert.Single(errors);
 			Assert.Contains("Unexpected flag '-o'", errors[0].Message);
+		}
+
+		[Theory]
+		[InlineData("-v", 1)]
+		[InlineData("-vv", 2)]
+		[InlineData("-vvv", 3)]
+		[InlineData("-vv --verbose", 3)]
+		public void TokenizeArguments_FlagLevel_ParsesCorrectly(string arg, int expectedCount)
+		{
+			// Arrange
+			string[] args = arg.Split(' ');
+			var flags = new[]
+			{
+				new FlagAttribute("v", "verbose", "verbosity"),
+			};
+			var options = Array.Empty<OptionAttribute>();
+			var positionals = Array.Empty<PositionalAttribute>();
+
+			// Act
+			var (tokens, errors) = _tokenizer.TokenizeArguments(args, options, positionals, flags);
+
+			// Assert
+			Assert.Single(tokens);
+			Assert.Empty(errors);
+			var flagToken = tokens[0] as FlagToken;
+			Assert.NotNull(flagToken);
+			Assert.Equal("v", flagToken.Name);
+			Assert.Equal(expectedCount, flagToken.Level);
+		}
+
+		[Theory]
+		[InlineData("--verbose", 1)]
+		[InlineData("--verbose --verbose", 2)]
+		public void TokenizeArguments_FlagWithOnlyLongName_KeepsName(string arg, int expectedCount)
+		{
+			// explanation:
+			// the tokenizer attempts to use only short names for flags to make counting the levels easier,
+			// but if a flag has no short name, it should still be recognized by its long name. (and levels should work)
+			// Arrange
+			string[] args = arg.Split(' ');
+			var flags = new[]
+			{
+				new FlagAttribute("", "verbose", "verbosity"),
+			};
+			var options = Array.Empty<OptionAttribute>();
+			var positionals = Array.Empty<PositionalAttribute>();
+
+			// Act
+			var (tokens, errors) = _tokenizer.TokenizeArguments(args, options, positionals, flags);
+
+			// Assert
+			Assert.Single(tokens);
+			Assert.Empty(errors);
+			var flagToken = tokens[0] as FlagToken;
+			Assert.NotNull(flagToken);
+			Assert.Equal("verbose", flagToken.Name);
+			Assert.Equal(expectedCount, flagToken.Level);
 		}
 	}
 }
