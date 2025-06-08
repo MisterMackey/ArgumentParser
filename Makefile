@@ -53,7 +53,7 @@ clean:
 	rm -rf $(STAMP_DIR)
 	dotnet clean
 	rm -rf coveragereports
-	rm ArgumentParser.Tests/coverage.cobertura.xml
+	rm -f ArgumentParser.Tests/coverage.cobertura.xml
 
 build-analyzer: $(ANALYZER_STAMP)
 
