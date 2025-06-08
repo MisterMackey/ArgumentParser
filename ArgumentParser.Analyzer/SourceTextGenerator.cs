@@ -133,11 +133,11 @@ public class SourceTextGenerator : ISourceTextGenerator
 		}
 
 		// add DisplayHelp property if needed
-			if (Config.HelpArgumentShouldBeGenerated())
-			{
-				writer.WriteLine("public bool DisplayHelp { get; set; } = false;");
-				writer.WriteLine();
-			}
+		if (Config.HelpArgumentShouldBeGenerated())
+		{
+			writer.WriteLine("public bool DisplayHelp { get; set; } = false;");
+			writer.WriteLine();
+		}
 
 		// Parse method
 		writer.WriteLine($"public static ({className} result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)");
@@ -193,7 +193,12 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.Indent++;
 		foreach (var flag in Flags)
 		{
-			writer.WriteLine($"if (flagToken.Name == \"{flag.Attribute.ShortName}\" || flagToken.Name == \"{flag.Attribute.LongName}\") {{ instance.{flag.PropertyName} = true; }}");
+			writer.WriteLine($"if (flagToken.Name == \"{flag.Attribute.ShortName}\" || flagToken.Name == \"{flag.Attribute.LongName}\")");
+			writer.WriteLine("{");
+			writer.Indent++;
+			WriteFlagParseCode(flag, writer);
+			writer.Indent--;
+			writer.WriteLine("}");
 		}
 		writer.WriteLine("break;");
 		writer.Indent--;
@@ -208,7 +213,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.WriteLine("}");
 		writer.Indent--;
 		writer.WriteLine("}");
-		
+
 		// check for missing required properties and deal
 		writer.WriteLine("var missingRequired = requiredProperties");
 		writer.Indent++;
@@ -222,7 +227,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		{
 			HelpDisplayGenerator.GenerateDisplayHelpText(writer, className);
 		}
-		
+
 		if (Config.HelpTextShouldDisplayOnError())
 		{
 			HelpDisplayGenerator.GenerateDisplayHelpTextWithError(writer, className);
@@ -521,8 +526,30 @@ public class SourceTextGenerator : ISourceTextGenerator
 				break;
 			default:
 				writer.WriteLine($"// Unsupported property type: {propertyType}");
-				// TODO: put diagnostic for this case
 				break;
+		}
+	}
+
+	private static void WriteFlagParseCode(PropertyAndAttributeInfo flagInfo, IndentedTextWriter writer)
+	{
+		var propertyName = flagInfo.PropertyName;
+		bool isBool = flagInfo.PropertyType == "bool";
+		bool isEnum = flagInfo.PropertySymbol?.Type.TypeKind == TypeKind.Enum;
+		if (!isBool && !isEnum)
+		{
+			// could maybe throw? but that might annoy a user who somehow manages to pass validation on an invalid type
+			writer.WriteLine($"// Unsupported flag type: {flagInfo.PropertyType}");
+			return;
+		}
+		if (isBool)
+		{
+			writer.WriteLine($"instance.{propertyName} = true;");
+			return;
+		}
+		if (isEnum)
+		{
+			// take the level of the token and cast to enum type
+			writer.WriteLine($"instance.{propertyName} = ({flagInfo.PropertyType})flagToken.Level;");
 		}
 	}
 }
