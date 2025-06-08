@@ -63,8 +63,8 @@ public static class GeneratorDiagnostics
 	private const string ARG012_Message = "HelpText const string is specified by the user, but the generator is supplying it. Remove the const string from your class.";
 
 	private const string ARG013_Id = "ARG013";
-	private const string ARG013_Title = "Flag attributes should only be applied to boolean properties";
-	private const string ARG013_Message = "Flag attribute is applied to property '{0}' of type '{1}', but flags can only be applied to boolean properties";
+	private const string ARG013_Title = "Flag attributes should only be applied to boolean or enum properties";
+	private const string ARG013_Message = "Flag attribute is applied to property '{0}' of type '{1}', but flags can only be applied to boolean or enum properties";
 
 	/// <summary>
 	/// Diagnostic descriptor for ARG001: Classes with ParameterCollection attribute must be partial.

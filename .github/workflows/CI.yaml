@@ -18,22 +18,20 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: '9'
-    
-    - name: Restore dependencies
-      run: dotnet restore
+
+    - name: Clean all
+      run: make clean
     
     - name: Build using Makefile
       run: make build-analyzer
     
-    - name: Build tests
-      run: make build-tests
+    - name: Build and run tests
+      run: make test
       
-    - name: Run unit tests
-      run: dotnet test --no-build --verbosity normal ArgumentParser.Tests
-    
     - name: Build example project
       run: make build-example
     
     - name: Run integration tests (example project)
       run: |
         ExampleConsole/bin/Debug/net9.0/ExampleConsole --Target target -v 15
+        ExampleConsole/bin/Debug/net9.0/ExampleConsole --Target target --Level Level3

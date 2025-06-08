@@ -71,7 +71,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine("{");
 			writer.Indent++;
 		}
-		writer.WriteLine("[System.CodeDom.Compiler.GeneratedCodeAttribute(\"ArgumentParser\", \"1.1.1\")]");
+		writer.WriteLine("[System.CodeDom.Compiler.GeneratedCodeAttribute(\"ArgumentParser\", \"1.2.0\")]");
 		writer.WriteLine($"public partial class {className}");
 		writer.WriteLine("{");
 		writer.Indent++;
@@ -133,11 +133,11 @@ public class SourceTextGenerator : ISourceTextGenerator
 		}
 
 		// add DisplayHelp property if needed
-			if (Config.HelpArgumentShouldBeGenerated())
-			{
-				writer.WriteLine("public bool DisplayHelp { get; set; } = false;");
-				writer.WriteLine();
-			}
+		if (Config.HelpArgumentShouldBeGenerated())
+		{
+			writer.WriteLine("public bool DisplayHelp { get; set; } = false;");
+			writer.WriteLine();
+		}
 
 		// Parse method
 		writer.WriteLine($"public static ({className} result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)");
@@ -160,7 +160,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine($"if (optionToken.Name == \"{option.Attribute.ShortName}\" || optionToken.Name == \"{option.Attribute.LongName}\")");
 			writer.WriteLine("{");
 			writer.Indent++;
-			WriteValueParseCode(option.PropertyType, "optionToken", option.PropertyName, writer);
+			WriteValueParseCode(option, "optionToken", option.PropertyName, writer);
 			if (option.Attribute.Required)
 			{
 				writer.WriteLine($"requiredProperties[\"{option.Attribute.ShortName} | {option.Attribute.LongName}\"] = true;");
@@ -178,7 +178,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine($"if (positionalToken.Position == {positional.Attribute.Position})");
 			writer.WriteLine("{");
 			writer.Indent++;
-			WriteValueParseCode(positional.PropertyType, "positionalToken", positional.PropertyName, writer);
+			WriteValueParseCode(positional, "positionalToken", positional.PropertyName, writer);
 			if (positional.Attribute.Required)
 			{
 				writer.WriteLine($"requiredProperties[\"{positional.PropertyName}\"] = true;");
@@ -193,7 +193,12 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.Indent++;
 		foreach (var flag in Flags)
 		{
-			writer.WriteLine($"if (flagToken.Name == \"{flag.Attribute.ShortName}\" || flagToken.Name == \"{flag.Attribute.LongName}\") {{ instance.{flag.PropertyName} = true; }}");
+			writer.WriteLine($"if (flagToken.Name == \"{flag.Attribute.ShortName}\" || flagToken.Name == \"{flag.Attribute.LongName}\")");
+			writer.WriteLine("{");
+			writer.Indent++;
+			WriteFlagParseCode(flag, writer);
+			writer.Indent--;
+			writer.WriteLine("}");
 		}
 		writer.WriteLine("break;");
 		writer.Indent--;
@@ -208,7 +213,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.WriteLine("}");
 		writer.Indent--;
 		writer.WriteLine("}");
-		
+
 		// check for missing required properties and deal
 		writer.WriteLine("var missingRequired = requiredProperties");
 		writer.Indent++;
@@ -222,7 +227,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		{
 			HelpDisplayGenerator.GenerateDisplayHelpText(writer, className);
 		}
-		
+
 		if (Config.HelpTextShouldDisplayOnError())
 		{
 			HelpDisplayGenerator.GenerateDisplayHelpTextWithError(writer, className);
@@ -266,13 +271,32 @@ public class SourceTextGenerator : ISourceTextGenerator
 	/// <summary>
 	/// Gets the appropriate code to parse a string value into the specified property type.
 	/// </summary>
-	/// <param name="propertyType">The type of the property to parse to.</param>
+	/// <param name="propertyInfo">The info of the property to parse to.</param>
 	/// <param name="localVariableName">The name of the token property to read the value from.</param>
 	/// <param name="propertyName">The name of the property in the partial class to set.</param>
 	/// <param name="writer">The writer to write the code to.</param>
 	/// <returns>A string containing the code needed to parse the value.</returns>
-	private static void WriteValueParseCode(string propertyType, string localVariableName, string propertyName, IndentedTextWriter writer)
+	private static void WriteValueParseCode(PropertyAndAttributeInfo propertyInfo, string localVariableName, string propertyName, IndentedTextWriter writer)
 	{
+		// check if its an enum and construct enum with string value in that case
+		if (propertyInfo.PropertySymbol?.Type.TypeKind == TypeKind.Enum)
+		{
+			writer.WriteLine($"if (!Enum.TryParse<{propertyInfo.PropertyType}>({localVariableName}.Value, out var parsedValue))");
+			writer.WriteLine("{");
+			writer.Indent++;
+			writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+			writer.Indent--;
+			writer.WriteLine("}");
+			writer.WriteLine("else");
+			writer.WriteLine("{");
+			writer.Indent++;
+			writer.WriteLine($"instance.{propertyName} = parsedValue;");
+			writer.Indent--;
+			writer.WriteLine("}");
+			return;
+		}
+		// otherwise just parse the value based on the (simple) type
+		var propertyType = propertyInfo.PropertyType;
 		switch (propertyType)
 		{
 			case "int":
@@ -521,8 +545,30 @@ public class SourceTextGenerator : ISourceTextGenerator
 				break;
 			default:
 				writer.WriteLine($"// Unsupported property type: {propertyType}");
-				// TODO: put diagnostic for this case
 				break;
+		}
+	}
+
+	private static void WriteFlagParseCode(PropertyAndAttributeInfo flagInfo, IndentedTextWriter writer)
+	{
+		var propertyName = flagInfo.PropertyName;
+		bool isBool = flagInfo.PropertyType == "bool";
+		bool isEnum = flagInfo.PropertySymbol?.Type.TypeKind == TypeKind.Enum;
+		if (!isBool && !isEnum)
+		{
+			// could maybe throw? but that might annoy a user who somehow manages to pass validation on an invalid type
+			writer.WriteLine($"// Unsupported flag type: {flagInfo.PropertyType}");
+			return;
+		}
+		if (isBool)
+		{
+			writer.WriteLine($"instance.{propertyName} = true;");
+			return;
+		}
+		if (isEnum)
+		{
+			// take the level of the token and cast to enum type
+			writer.WriteLine($"instance.{propertyName} = ({flagInfo.PropertyType})flagToken.Level;");
 		}
 	}
 }

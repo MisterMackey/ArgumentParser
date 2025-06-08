@@ -91,7 +91,9 @@ public static class Validation
 		// Check for duplicate short names
 		var duplicateShortNames = options.
 			Select(x => x.Attribute.ShortName)
+			.Where(x => !string.IsNullOrEmpty(x))
 			.Concat(flags.Select(x => x.Attribute.ShortName))
+			.Where(x => !string.IsNullOrEmpty(x))
 			.GroupBy(x => x)
 			.Where(g => g.Count() > 1)
 			.Select(g => g.Key)
@@ -124,7 +126,9 @@ public static class Validation
 		// Check for duplicate long names
 		var duplicateLongNames = options.
 			Select(x => x.Attribute.LongName)
+			.Where(x => !string.IsNullOrEmpty(x))
 			.Concat(flags.Select(x => x.Attribute.LongName))
+			.Where(x => !string.IsNullOrEmpty(x))
 			.GroupBy(x => x)
 			.Where(g => g.Count() > 1)
 			.Select(g => g.Key)
@@ -181,7 +185,7 @@ public static class Validation
 		var allProperties = options.Concat(positionals).Concat(flags).ToList();
 		foreach (var prop in allProperties)
 		{
-			if (!IsSupportedPropertyType(prop.PropertyType))
+			if (!IsSupportedPropertyType(prop))
 			{
 				var location = GetLocation(prop, classDeclarationSyntax);
 				diagnostics.Add(Diagnostic.Create(
@@ -191,10 +195,13 @@ public static class Validation
 			}
 		}
 
-		// Check that Flag attributes are only applied to boolean properties
+		// Check that Flag attributes are only applied to boolean and enum properties
 		foreach (var flag in flags)
 		{
-			if (flag.PropertyType != "bool")
+			if (flag.PropertyType != "bool"
+				&& !(flag.PropertySymbol?.Type.TypeKind == TypeKind.Enum)
+			)
+
 			{
 				var location = GetLocation(flag, classDeclarationSyntax);
 				diagnostics.Add(Diagnostic.Create(
@@ -304,12 +311,13 @@ public static class Validation
 	/// <summary>
 	/// Determines if a property type is supported by the argument parser generator.
 	/// </summary>
-	/// <param name="propertyType">The property type to check.</param>
+	/// <param name="propInfo">The property type to check.</param>
 	/// <returns>True if the property type is supported; otherwise, false.</returns>
-	private static bool IsSupportedPropertyType(string propertyType)
+	private static bool IsSupportedPropertyType(PropertyAndAttributeInfo propInfo)
 	{
-		// Match the types supported in SourceTextGenerator.WriteValueParseCode
-		return propertyType switch
+		// check if its a 'simple' BCL type
+		var propertyType = propInfo.PropertyType;
+		var simpleSupportedType = propertyType switch
 		{
 			"int" => true,
 			"double" => true,
@@ -332,6 +340,16 @@ public static class Validation
 			"string?" => true,
 			_ => false
 		};
+		if (simpleSupportedType)
+		{
+			return true;
+		}
+		// Enum types are also supported
+		if (propInfo.PropertySymbol?.Type.TypeKind == TypeKind.Enum)
+		{
+			return true;
+		}
+		return false;
 	}
 
 	private static Location? GetLocation(PropertyAndAttributeInfo info, ClassDeclarationSyntax classDeclarationSyntax)

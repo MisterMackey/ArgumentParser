@@ -47,4 +47,22 @@ public partial class MyCommandLineArguments
 	// make sure to quote the value if it contains spaces or special characters
 	[Option(shortName: "t", longName: "TimeStamp", description: "The timestamp to use", required: false)]
 	public DateTime TimeStamp { get; set; }
+
+	// Enum types are also supported, and when combined with a Flag, can be used
+	// to implement levels of verbosity or other similar features.
+	// ensure the enum values follow the pattern 0,1,2,3..n
+	[Flag("l", "", "A level")]
+	public MyVeryOwnEnum Level { get; set; }
+
+	// Combined with an option it lets you set a value based on a string
+	[Option(shortName: "", longName: "Level", description: "A level option with a long name")]
+	public MyVeryOwnEnum LevelOption { get; set; }
+}
+
+public enum MyVeryOwnEnum
+{
+	Level0,
+	Level1,
+	Level2,
+	Level3
 }
