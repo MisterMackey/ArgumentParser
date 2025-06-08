@@ -160,7 +160,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine($"if (optionToken.Name == \"{option.Attribute.ShortName}\" || optionToken.Name == \"{option.Attribute.LongName}\")");
 			writer.WriteLine("{");
 			writer.Indent++;
-			WriteValueParseCode(option.PropertyType, "optionToken", option.PropertyName, writer);
+			WriteValueParseCode(option, "optionToken", option.PropertyName, writer);
 			if (option.Attribute.Required)
 			{
 				writer.WriteLine($"requiredProperties[\"{option.Attribute.ShortName} | {option.Attribute.LongName}\"] = true;");
@@ -178,7 +178,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine($"if (positionalToken.Position == {positional.Attribute.Position})");
 			writer.WriteLine("{");
 			writer.Indent++;
-			WriteValueParseCode(positional.PropertyType, "positionalToken", positional.PropertyName, writer);
+			WriteValueParseCode(positional, "positionalToken", positional.PropertyName, writer);
 			if (positional.Attribute.Required)
 			{
 				writer.WriteLine($"requiredProperties[\"{positional.PropertyName}\"] = true;");
@@ -271,13 +271,32 @@ public class SourceTextGenerator : ISourceTextGenerator
 	/// <summary>
 	/// Gets the appropriate code to parse a string value into the specified property type.
 	/// </summary>
-	/// <param name="propertyType">The type of the property to parse to.</param>
+	/// <param name="propertyInfo">">The info of the property to parse to.</param>
 	/// <param name="localVariableName">The name of the token property to read the value from.</param>
 	/// <param name="propertyName">The name of the property in the partial class to set.</param>
 	/// <param name="writer">The writer to write the code to.</param>
 	/// <returns>A string containing the code needed to parse the value.</returns>
-	private static void WriteValueParseCode(string propertyType, string localVariableName, string propertyName, IndentedTextWriter writer)
+	private static void WriteValueParseCode(PropertyAndAttributeInfo propertyInfo, string localVariableName, string propertyName, IndentedTextWriter writer)
 	{
+		// check if its an enum and parse to int + explicit cast in that case
+		if (propertyInfo.PropertySymbol?.Type.TypeKind == TypeKind.Enum)
+		{
+			writer.WriteLine($"if (!int.TryParse({localVariableName}.Value, out var parsedValue))");
+			writer.WriteLine("{");
+			writer.Indent++;
+			writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+			writer.Indent--;
+			writer.WriteLine("}");
+			writer.WriteLine("else");
+			writer.WriteLine("{");
+			writer.Indent++;
+			writer.WriteLine($"instance.{propertyName} = ({propertyInfo.PropertyType})parsedValue;");
+			writer.Indent--;
+			writer.WriteLine("}");
+			return;
+		}
+		// otherwise just parse the value based on the (simple) type
+		var propertyType = propertyInfo.PropertyType;
 		switch (propertyType)
 		{
 			case "int":
