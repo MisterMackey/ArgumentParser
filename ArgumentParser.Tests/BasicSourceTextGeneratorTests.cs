@@ -134,7 +134,7 @@ namespace ArgumentParser.Tests
 			// Assert
 			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 			Assert.Contains("LogLevelOption = parsedValue", output);
-			Assert.Contains("if (!Enum.TryParse<ArgumentParser.Tests.ExampleEnum>)", output);
+			Assert.Contains("if (!Enum.TryParse<ArgumentParser.Tests.ExampleEnum>", output);
 		}
 
 		[Fact]
