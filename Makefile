@@ -84,6 +84,17 @@ set-version:
 	sed -i 's|<Version>[^<]*</Version>|<Version>'"$$VERSION"'</Version>|' ArgumentParser/ArgumentParser.csproj
 	git commit -a --amend --no-edit
 
+set-version-stable:
+	VERSION=$$(dotnet-gitversion | jq -r '.MajorMinorPatch'); \
+	if [ -z "$$VERSION" ]; then \
+		echo "Versioning check failed: Unable to determine version"; \
+		exit 1; \
+	fi; \
+	echo "Version to be used: $$VERSION"; \
+	sed -i 's/public const string FullSemVer = "[^"]*";/public const string FullSemVer = "'$$VERSION'";/' ArgumentParser.Analyzer/CodeProviders/AssemblyVersionProvider.cs; \
+	sed -i 's|<Version>[^<]*</Version>|<Version>'"$$VERSION"'</Version>|' ArgumentParser/ArgumentParser.csproj
+	git commit -a --amend --no-edit
+
 release: clean set-version
 	@echo "Checking git working tree status..."
 	@if [ -n "$$(git status --porcelain)" ]; then \
@@ -111,3 +122,30 @@ release: clean set-version
 	git tag -a "v$$VERSION" -m "$$(read message; echo $$message)"; \
 	@echo "Release $$VERSION completed successfully."
 	@echo "Remember to push the tag with: git push origin v$$VERSION"
+
+release-stable: clean set-version-stable
+	@echo "Checking git working tree status..."
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: Working tree is not clean. Please commit or stash changes before releasing."; \
+		exit 1; \
+	fi
+	@echo "Running tests..."
+	@if ! make test; then \
+		echo "Error: Tests failed. Aborting release."; \
+		exit 1; \
+	fi
+	@echo "Building example project..."
+	@if ! make build-example; then \
+		echo "Error: Example project build failed. Aborting release."; \
+		exit 1; \
+	fi
+	@echo "Running example console to verify it works..."
+	@if ! ExampleConsole/bin/Debug/net9.0/ExampleConsole --Help; then \
+		echo "Error: Example console execution failed. Aborting release."; \
+		exit 1; \
+	fi
+	@echo "Creating git tag..."
+	VERSION=$$(dotnet-gitversion | jq -r '.MajorMinorPatch'); \
+	echo "Enter tag message for v$$VERSION (press Enter to start editor):"; \
+	git tag -a "v$$VERSION" -m "Automated build for $$VERSION"
+	@echo "Release $$VERSION completed successfully."
