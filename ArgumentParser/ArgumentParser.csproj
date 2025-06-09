@@ -17,7 +17,7 @@
 
     <!-- Package metadata -->
     <PackageId>Aot.ArgumentParser</PackageId>
-    <Version>1.2.1-ci-versioning.1+5</Version>
+    <Version>1.2.1-ci-versioning.2+2</Version>
     <Authors>Jasper Ris</Authors>
     <Description>A source generator that generates an AoT-Friendly Parse method for an annotated class containing CLI arguments.</Description>
     <PackageTags>source-generator;analyzer;CLI;arguments;commandline;parser;AoT</PackageTags>

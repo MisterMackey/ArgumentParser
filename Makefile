@@ -82,6 +82,7 @@ set-version:
 	echo "Version to be used: $$VERSION"; \
 	sed -i 's/public const string FullSemVer = "[^"]*";/public const string FullSemVer = "'$$VERSION'";/' ArgumentParser.Analyzer/CodeProviders/AssemblyVersionProvider.cs; \
 	sed -i 's|<Version>[^<]*</Version>|<Version>'"$$VERSION"'</Version>|' ArgumentParser/ArgumentParser.csproj
+	git commit -a --amend --no-edit
 
 release: clean set-version
 	@echo "Checking git working tree status..."
@@ -107,6 +108,6 @@ release: clean set-version
 	@echo "Creating git tag..."
 	VERSION=$$(dotnet-gitversion | jq -r '.FullSemVer'); \
 	echo "Enter tag message for v$$VERSION (press Enter to start editor):"; \
-	git tag -a "v$$VERSION" -m "$$(read message; echo $$message)"
-	@echo "Release v$$VERSION completed successfully."
+	git tag -a "v$$VERSION" -m "$$(read message; echo $$message)"; \
+	@echo "Release $$VERSION completed successfully."
 	@echo "Remember to push the tag with: git push origin v$$VERSION"
