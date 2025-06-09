@@ -1,31 +1,36 @@
-mode: ContinuousDeployment
-
 branches:
   main:
+    mode: ContinuousDeployment
     regex: ^main$
     increment: Inherit
     is-main-branch: true
 
   breaking:
-    regex: ^breaking[/-]
+    mode: ManualDeployment
+    regex: ^breaking[/-](?<BranchName>.*)
     increment: Major
     source-branches: ['main']
     tracks-release-branches: true
     is-main-branch: false
+    is-release-branch: true
 
   feature:
-    regex: ^feature[/-]
+    mode: ManualDeployment
+    regex: ^feature[/-](?<BranchName>.*)
     increment: Minor
     source-branches: ['main']
     tracks-release-branches: false
     is-main-branch: false
+    is-release-branch: true
 
   fix:
-    regex: ^fix[/-]
+    mode: ManualDeployment
+    regex: ^fix[/-](?<BranchName>.*)
     increment: Patch
     source-branches: ['main']
     tracks-release-branches: false
     is-main-branch: false
+    is-release-branch: true
 
 ignore:
   sha: []
