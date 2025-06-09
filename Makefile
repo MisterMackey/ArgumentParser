@@ -23,7 +23,7 @@ $(RESTORE_EXAMPLE_STAMP): $(ANALYZER_STAMP) | $(STAMP_DIR)
 	dotnet remove ExampleConsole package Aot.ArgumentParser || true
 	dotnet nuget locals all --clear
 	dotnet restore
-	dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg
+	dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg --prerelease
 	touch $@
 
 $(EXAMPLE_STAMP): $(EXAMPLE_SOURCES) $(RESTORE_EXAMPLE_STAMP) | $(STAMP_DIR)
@@ -45,6 +45,9 @@ help:
 	@echo "  build-example      - Build the ExampleConsole project"
 	@echo "  build-tests        - Build the ArgumentParser.Tests project"
 	@echo "  test               - Run the tests in ArgumentParser.Tests"
+	@echo "  coverage           - Generate a coverage report for ArgumentParser.Tests"
+	@echo "  set-version        - Set the version in the analyzer and example project based on git version"
+	@echo "  release            - Performs some checks and cuts a release"
 	@echo "  help               - Show this help message"
 
 all: build-analyzer build-example build-tests test
@@ -67,6 +70,44 @@ test: build-tests
 	dotnet test ArgumentParser.Tests --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
 
 coverage: build-tests
-	dotnet test ArgumentParser.Tests --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
 	reportgenerator -reports:ArgumentParser.Tests/coverage.cobertura.xml -targetdir:coveragereports -reporttypes:Html
 	@echo "Coverage report generated in coveragereports/index.html"
+
+set-version:
+	VERSION=$$(dotnet-gitversion | jq -r '.FullSemVer'); \
+	if [ -z "$$VERSION" ]; then \
+		echo "Versioning check failed: Unable to determine version"; \
+		exit 1; \
+	fi; \
+	echo "Version to be used: $$VERSION"; \
+	sed -i 's/public const string FullSemVer = "[^"]*";/public const string FullSemVer = "'$$VERSION'";/' ArgumentParser.Analyzer/CodeProviders/AssemblyVersionProvider.cs; \
+	sed -i 's|<Version>[^<]*</Version>|<Version>'"$$VERSION"'</Version>|' ArgumentParser/ArgumentParser.csproj
+	git commit -a --amend --no-edit
+
+release: clean set-version
+	@echo "Checking git working tree status..."
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: Working tree is not clean. Please commit or stash changes before releasing."; \
+		exit 1; \
+	fi
+	@echo "Running tests..."
+	@if ! make test; then \
+		echo "Error: Tests failed. Aborting release."; \
+		exit 1; \
+	fi
+	@echo "Building example project..."
+	@if ! make build-example; then \
+		echo "Error: Example project build failed. Aborting release."; \
+		exit 1; \
+	fi
+	@echo "Running example console to verify it works..."
+	@if ! ExampleConsole/bin/Debug/net9.0/ExampleConsole --Help; then \
+		echo "Error: Example console execution failed. Aborting release."; \
+		exit 1; \
+	fi
+	@echo "Creating git tag..."
+	VERSION=$$(dotnet-gitversion | jq -r '.FullSemVer'); \
+	echo "Enter tag message for v$$VERSION (press Enter to start editor):"; \
+	git tag -a "v$$VERSION" -m "$$(read message; echo $$message)"; \
+	@echo "Release $$VERSION completed successfully."
+	@echo "Remember to push the tag with: git push origin v$$VERSION"
