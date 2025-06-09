@@ -84,3 +84,29 @@ set-version:
 	sed -i 's|<Version>[^<]*</Version>|<Version>'"$$VERSION"'</Version>|' ArgumentParser/ArgumentParser.csproj
 
 release: clean set-version
+	@echo "Checking git working tree status..."
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: Working tree is not clean. Please commit or stash changes before releasing."; \
+		exit 1; \
+	fi
+	@echo "Running tests..."
+	@if ! make test; then \
+		echo "Error: Tests failed. Aborting release."; \
+		exit 1; \
+	fi
+	@echo "Building example project..."
+	@if ! make build-example; then \
+		echo "Error: Example project build failed. Aborting release."; \
+		exit 1; \
+	fi
+	@echo "Running example console to verify it works..."
+	@if ! ExampleConsole/bin/Debug/net9.0/ExampleConsole --Help; then \
+		echo "Error: Example console execution failed. Aborting release."; \
+		exit 1; \
+	fi
+	@echo "Creating git tag..."
+	VERSION=$$(dotnet-gitversion | jq -r '.FullSemVer'); \
+	echo "Enter tag message for v$$VERSION (press Enter to start editor):"; \
+	git tag -a "v$$VERSION" -m "$$(read message; echo $$message)"
+	@echo "Release v$$VERSION completed successfully."
+	@echo "Remember to push the tag with: git push origin v$$VERSION"
