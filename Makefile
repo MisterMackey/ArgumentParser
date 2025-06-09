@@ -23,7 +23,7 @@ $(RESTORE_EXAMPLE_STAMP): $(ANALYZER_STAMP) | $(STAMP_DIR)
 	dotnet remove ExampleConsole package Aot.ArgumentParser || true
 	dotnet nuget locals all --clear
 	dotnet restore
-	dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg
+	dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg --prerelease
 	touch $@
 
 $(EXAMPLE_STAMP): $(EXAMPLE_SOURCES) $(RESTORE_EXAMPLE_STAMP) | $(STAMP_DIR)
