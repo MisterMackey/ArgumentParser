@@ -80,7 +80,7 @@ namespace ArgumentParser
 
 			shortName ??= "";
 			longName ??= "";
-			if ( shortName.Length > 1)
+			if (shortName.Length > 1)
 				throw new ArgumentException("ShortName must be a single character.");
 
 			ShortName = shortName;
@@ -180,5 +180,28 @@ namespace ArgumentParser
 		/// Gets the description of the flag to be used in help text.
 		/// </summary>
 		public string Description { get; }
+	}
+
+	/// <summary>
+	/// This attribute indicates that the property type is parsed using a method with the specified name.
+	/// The method signature should be bool methodName(string input, out T value), i.e. TryParse style.
+	/// this method is expected to be a static method on the property's declaring type
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Property, Inherited = false)]
+	public sealed class ParsedWithMethodAttribute : Attribute
+	{
+		/// <summary>
+		/// Initializes a new instance of the <see cref="ParsedWithMethodAttribute"/> class.
+		/// </summary>
+		/// <param name="methodName">The name of the method used to parse the arguments.</param>
+		public ParsedWithMethodAttribute(string methodName)
+		{
+			MethodName = methodName ?? throw new ArgumentNullException(nameof(methodName));
+		}
+
+		/// <summary>
+		/// Gets the name of the method used to parse the arguments.
+		/// </summary>
+		public string MethodName { get; }
 	}
 }

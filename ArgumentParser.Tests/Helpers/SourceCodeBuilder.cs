@@ -82,29 +82,41 @@ public class SourceCodeBuilder : IDisposable
 		return this;
 	}
 
-	public SourceCodeBuilder AddOptionParameter(PropertyAndAttributeInfo info, string? modifiers)
+	public SourceCodeBuilder AddOptionParameter(PropertyAndAttributeInfo info, string? modifiers, string? parseMethodName = null)
 	{
 		if (string.IsNullOrWhiteSpace(modifiers))
 			modifiers = "public";
+		if (!string.IsNullOrEmpty(parseMethodName))
+		{
+			classMembers.Add($"[ParsedWithMethod(\"{parseMethodName}\")]");
+		}
 		classMembers.Add($"[Option(\"{info.Attribute.ShortName}\", \"{info.Attribute.LongName}\", \"{info.Attribute.Description}\", {info.Attribute.Required.ToString().ToLower()})]");
 		classMembers.Add($"{modifiers} {info.PropertyType} {info.PropertyName} {{ get; set; }}");
 		classMembers.Add(Environment.NewLine);
 		return this;
 	}
 
-	public SourceCodeBuilder AddFlagParameter(PropertyAndAttributeInfo info, string? modifiers)
+	public SourceCodeBuilder AddFlagParameter(PropertyAndAttributeInfo info, string? modifiers, string? parseMethodName = null)
 	{
 		if (string.IsNullOrWhiteSpace(modifiers))
 			modifiers = "public";
+		if (!string.IsNullOrEmpty(parseMethodName))
+		{
+			classMembers.Add($"[ParsedWithMethod(\"{parseMethodName}\")]");
+		}
 		classMembers.Add($"[Flag(\"{info.Attribute.ShortName}\", \"{info.Attribute.LongName}\", \"{info.Attribute.Description}\")]");
 		classMembers.Add($"{modifiers} {info.PropertyType} {info.PropertyName} {{ get; set; }}");
 		classMembers.Add(Environment.NewLine);
 		return this;
 	}
-	public SourceCodeBuilder AddPositionalParameter(PropertyAndAttributeInfo info, string? modifiers)
+	public SourceCodeBuilder AddPositionalParameter(PropertyAndAttributeInfo info, string? modifiers, string? parseMethodName = null)
 	{
 		if (string.IsNullOrWhiteSpace(modifiers))
 			modifiers = "public";
+		if (!string.IsNullOrEmpty(parseMethodName))
+		{
+			classMembers.Add($"[ParsedWithMethod(\"{parseMethodName}\")]");
+		}
 		classMembers.Add($"[Positional({info.Attribute.Position}, \"{info.Attribute.Description}\", {info.Attribute.Required.ToString().ToLower()})]");
 		classMembers.Add($"{modifiers} {info.PropertyType} {info.PropertyName} {{ get; set; }}");
 		classMembers.Add(Environment.NewLine);
