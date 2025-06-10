@@ -38,17 +38,20 @@ $(TESTPROJ_STAMP): $(TEST_SOURCES) $(ANALYZER_STAMP) | $(STAMP_DIR)
 
 help:
 	@echo "Makefile targets:"
-	@echo "  all                - Build everything and run tests"
-	@echo "  clean              - Clean the build artifacts"
-	@echo "  build-analyzer     - Build the ArgumentParser analyzer"
-	@echo "  restore-example    - Add locally built Aot.ArgumentParser package to ExampleConsole"
-	@echo "  build-example      - Build the ExampleConsole project"
-	@echo "  build-tests        - Build the ArgumentParser.Tests project"
-	@echo "  test               - Run the tests in ArgumentParser.Tests"
-	@echo "  coverage           - Generate a coverage report for ArgumentParser.Tests"
-	@echo "  set-version        - Set the version in the analyzer and example project based on git version"
-	@echo "  release            - Performs some checks and cuts a release"
-	@echo "  help               - Show this help message"
+	@echo "  all                    - Build everything and run tests"
+	@echo "  clean                  - Clean the build artifacts and coverage reports"
+	@echo "  build-analyzer         - Build the ArgumentParser analyzer (Release)"
+	@echo "  restore-example        - Add locally built Aot.ArgumentParser package to ExampleConsole"
+	@echo "  build-example          - Build the ExampleConsole project"
+	@echo "  build-tests            - Build the ArgumentParser.Tests project (Debug)"
+	@echo "  test                   - Run the tests in ArgumentParser.Tests with coverage"
+	@echo "  coverage               - Generate a coverage report for ArgumentParser.Tests"
+	@echo "  set-pre-release-version- Set the pre-release version in the analyzer and example project based on git version"
+	@echo "  set-version-stable     - Set the stable version in the analyzer and example project based on git version"
+	@echo "  pre-release            - Performs checks and cuts a pre-release (FullSemVer tag)"
+	@echo "  release-stable         - Performs checks and cuts a stable release (MajorMinorPatch tag)"
+	@echo "  smoke-test             - Run smoke tests on the ExampleConsole executable"
+	@echo "  help                   - Show this help message"
 
 all: build-analyzer build-example build-tests test
 
@@ -119,7 +122,7 @@ pre-release: clean set-version
 	@echo "Creating git tag..."
 	VERSION=$$(dotnet-gitversion | jq -r '.FullSemVer'); \
 	echo "Enter tag message for v$$VERSION (press Enter to start editor):"; \
-	git tag -a "v$$VERSION" -m "$$(read message; echo $$message)"; \
+	git tag -a "v$$VERSION" -m "Automated build for $$VERSION"
 	@echo "Release $$VERSION completed successfully."
 	@echo "Remember to push the tag with: git push origin v$$VERSION"
 

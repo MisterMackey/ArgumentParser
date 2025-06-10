@@ -10,5 +10,5 @@ public static class AssemblyVersionProvider
 	/// The fullsemver version of the assembly.
 	/// Updated automatically by the build pipeline.
 	/// </summary>
-	public const string FullSemVer = "1.3.0-custom-types.1+3";
+	public const string FullSemVer = "1.3.0";
 }
