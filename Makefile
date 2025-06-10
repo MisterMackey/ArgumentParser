@@ -38,17 +38,20 @@ $(TESTPROJ_STAMP): $(TEST_SOURCES) $(ANALYZER_STAMP) | $(STAMP_DIR)
 
 help:
 	@echo "Makefile targets:"
-	@echo "  all                - Build everything and run tests"
-	@echo "  clean              - Clean the build artifacts"
-	@echo "  build-analyzer     - Build the ArgumentParser analyzer"
-	@echo "  restore-example    - Add locally built Aot.ArgumentParser package to ExampleConsole"
-	@echo "  build-example      - Build the ExampleConsole project"
-	@echo "  build-tests        - Build the ArgumentParser.Tests project"
-	@echo "  test               - Run the tests in ArgumentParser.Tests"
-	@echo "  coverage           - Generate a coverage report for ArgumentParser.Tests"
-	@echo "  set-version        - Set the version in the analyzer and example project based on git version"
-	@echo "  release            - Performs some checks and cuts a release"
-	@echo "  help               - Show this help message"
+	@echo "  all                    - Build everything and run tests"
+	@echo "  clean                  - Clean the build artifacts and coverage reports"
+	@echo "  build-analyzer         - Build the ArgumentParser analyzer (Release)"
+	@echo "  restore-example        - Add locally built Aot.ArgumentParser package to ExampleConsole"
+	@echo "  build-example          - Build the ExampleConsole project"
+	@echo "  build-tests            - Build the ArgumentParser.Tests project (Debug)"
+	@echo "  test                   - Run the tests in ArgumentParser.Tests with coverage"
+	@echo "  coverage               - Generate a coverage report for ArgumentParser.Tests"
+	@echo "  set-pre-release-version- Set the pre-release version in the analyzer and example project based on git version"
+	@echo "  set-version-stable     - Set the stable version in the analyzer and example project based on git version"
+	@echo "  pre-release            - Performs checks and cuts a pre-release (FullSemVer tag)"
+	@echo "  release-stable         - Performs checks and cuts a stable release (MajorMinorPatch tag)"
+	@echo "  smoke-test             - Run smoke tests on the ExampleConsole executable"
+	@echo "  help                   - Show this help message"
 
 all: build-analyzer build-example build-tests test
 
@@ -73,7 +76,7 @@ coverage: build-tests
 	reportgenerator -reports:ArgumentParser.Tests/coverage.cobertura.xml -targetdir:coveragereports -reporttypes:Html
 	@echo "Coverage report generated in coveragereports/index.html"
 
-set-version:
+set-pre-release-version:
 	VERSION=$$(dotnet-gitversion | jq -r '.FullSemVer'); \
 	if [ -z "$$VERSION" ]; then \
 		echo "Versioning check failed: Unable to determine version"; \
@@ -84,30 +87,66 @@ set-version:
 	sed -i 's|<Version>[^<]*</Version>|<Version>'"$$VERSION"'</Version>|' ArgumentParser/ArgumentParser.csproj
 	git commit -a --amend --no-edit
 
-release: clean set-version
+set-version-stable:
+	VERSION=$$(dotnet-gitversion | jq -r '.MajorMinorPatch'); \
+	if [ -z "$$VERSION" ]; then \
+		echo "Versioning check failed: Unable to determine version"; \
+		exit 1; \
+	fi; \
+	echo "Version to be used: $$VERSION"; \
+	sed -i 's/public const string FullSemVer = "[^"]*";/public const string FullSemVer = "'$$VERSION'";/' ArgumentParser.Analyzer/CodeProviders/AssemblyVersionProvider.cs; \
+	sed -i 's|<Version>[^<]*</Version>|<Version>'"$$VERSION"'</Version>|' ArgumentParser/ArgumentParser.csproj
+	git commit -a --amend --no-edit
+
+pre-release: clean set-pre-release-version test smoke-test
 	@echo "Checking git working tree status..."
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "Error: Working tree is not clean. Please commit or stash changes before releasing."; \
 		exit 1; \
 	fi
-	@echo "Running tests..."
-	@if ! make test; then \
-		echo "Error: Tests failed. Aborting release."; \
-		exit 1; \
-	fi
-	@echo "Building example project..."
-	@if ! make build-example; then \
-		echo "Error: Example project build failed. Aborting release."; \
-		exit 1; \
-	fi
-	@echo "Running example console to verify it works..."
-	@if ! ExampleConsole/bin/Debug/net9.0/ExampleConsole --Help; then \
-		echo "Error: Example console execution failed. Aborting release."; \
-		exit 1; \
-	fi
 	@echo "Creating git tag..."
 	VERSION=$$(dotnet-gitversion | jq -r '.FullSemVer'); \
 	echo "Enter tag message for v$$VERSION (press Enter to start editor):"; \
-	git tag -a "v$$VERSION" -m "$$(read message; echo $$message)"; \
+	git tag -a "v$$VERSION" -m "Automated build for $$VERSION"
 	@echo "Release $$VERSION completed successfully."
 	@echo "Remember to push the tag with: git push origin v$$VERSION"
+
+release-stable: clean set-version-stable test smoke-test
+	@echo "Checking git working tree status..."
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: Working tree is not clean. Please commit or stash changes before releasing."; \
+		exit 1; \
+	fi
+	@echo "Creating git tag..."
+	VERSION=$$(dotnet-gitversion | jq -r '.MajorMinorPatch'); \
+	echo "Enter tag message for v$$VERSION (press Enter to start editor):"; \
+	git tag -a "v$$VERSION" -m "Automated build for $$VERSION"
+	@echo "Release $$VERSION completed successfully."
+
+smoke-test: build-example
+	@echo "running smoke tests..."
+	@echo "Checking display help on error."
+	@ExampleConsole/bin/Debug/net9.0/ExampleConsole; \
+	RET=$$?; \
+	if [ $$RET -ne 2 ]; then \
+		echo "display help on error failed"; \
+		exit 1; \
+	else \
+		echo "display help on error test passed successfully"; \
+	fi
+	@echo "Checking display help on request."
+	@ExampleConsole/bin/Debug/net9.0/ExampleConsole --Help; \
+	if [ $$? -ne 0 ]; then \
+		echo "display help on request failed"; \
+		exit 1; \
+	else \
+		echo "display help on request test passed successfully"; \
+	fi
+	@echo "Checking regular use..."
+	@ExampleConsole/bin/Debug/net9.0/ExampleConsole --Target target 15 -llvt 2025-05-05T12:00:00Z; \
+	if [ $$? -ne 0 ]; then \
+		echo "regular use failed"; \
+		exit 1; \
+	else \
+		echo "regular use test passed successfully"; \
+	fi

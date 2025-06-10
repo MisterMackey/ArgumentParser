@@ -101,9 +101,13 @@ public class AttributeFactory
 		var flagAttributeData = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
 		    .FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("FlagAttribute") == true);
 
+		var parsedWithMethodAttribute = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
+			.FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("ParsedWithMethodAttribute") == true);
+
 		string shortName = string.Empty;
 		string longName = string.Empty;
 		string description = string.Empty;
+		string parsedWithMethod = string.Empty;
 
 		if (flagAttributeData != null)
 		{
@@ -139,6 +143,21 @@ public class AttributeFactory
 			}
 		}
 
+		if (parsedWithMethodAttribute != null)
+		{
+			if (parsedWithMethodAttribute.ConstructorArguments.Length > 0)
+			{
+				parsedWithMethod = parsedWithMethodAttribute.ConstructorArguments[0].Value?.ToString() ?? string.Empty;
+			}
+			foreach (var namedArg in parsedWithMethodAttribute.NamedArguments)
+			{
+				if (namedArg.Key == "methodName")
+				{
+					parsedWithMethod = namedArg.Value.Value?.ToString() ?? string.Empty;
+				}
+			}
+		}
+
 		var propertyName = property.Identifier.Text;
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
 		var propertyType = propertySymbol?.Type.ToDisplayString() ?? "string"; //default, no parsing
@@ -148,7 +167,8 @@ public class AttributeFactory
 			Attribute = new AttributeInfo(shortName, longName, description, false, -1),
 			PropertyName = propertyName,
 			PropertyType = propertyType,
-			PropertySymbol = propertySymbol
+			PropertySymbol = propertySymbol,
+			ParseMethodName = parsedWithMethod
 		};
 	}
 
@@ -162,10 +182,14 @@ public class AttributeFactory
 		var optionAttributeData = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
 		    .FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("OptionAttribute") == true);
 
+		var parsedWithMethodAttribute = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
+			.FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("ParsedWithMethodAttribute") == true);
+
 		string shortName = string.Empty;
 		string longName = string.Empty;
 		string description = string.Empty;
 		bool required = false;
+		string parsedWithMethod = string.Empty;
 
 		if (optionAttributeData != null)
 		{
@@ -217,6 +241,21 @@ public class AttributeFactory
 			}
 		}
 
+		if (parsedWithMethodAttribute != null)
+		{
+			if (parsedWithMethodAttribute.ConstructorArguments.Length > 0)
+			{
+				parsedWithMethod = parsedWithMethodAttribute.ConstructorArguments[0].Value?.ToString() ?? string.Empty;
+			}
+			foreach (var namedArg in parsedWithMethodAttribute.NamedArguments)
+			{
+				if (namedArg.Key == "methodName")
+				{
+					parsedWithMethod = namedArg.Value.Value?.ToString() ?? string.Empty;
+				}
+			}
+		}
+
 		var propertyName = property.Identifier.Text;
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
 		var propertyType = propertySymbol?.Type.ToDisplayString() ?? "string"; //default, no parsing
@@ -226,7 +265,8 @@ public class AttributeFactory
 			Attribute = new AttributeInfo(shortName, longName, description, required, -1),
 			PropertyName = propertyName,
 			PropertyType = propertyType,
-			PropertySymbol = propertySymbol
+			PropertySymbol = propertySymbol,
+			ParseMethodName = parsedWithMethod
 		};
 	}
 
@@ -240,9 +280,13 @@ public class AttributeFactory
 		var positionalAttributeData = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
 		    .FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("PositionalAttribute") == true);
 
+		var parsedWithMethodAttribute = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
+			.FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("ParsedWithMethodAttribute") == true);
+
 		string position = string.Empty;
 		string description = string.Empty;
 		bool required = false;
+		string parsedWithMethod = string.Empty;
 
 		if (positionalAttributeData != null)
 		{
@@ -286,6 +330,21 @@ public class AttributeFactory
 			}
 		}
 
+		if (parsedWithMethodAttribute != null)
+		{
+			if (parsedWithMethodAttribute.ConstructorArguments.Length > 0)
+			{
+				parsedWithMethod = parsedWithMethodAttribute.ConstructorArguments[0].Value?.ToString() ?? string.Empty;
+			}
+			foreach (var namedArg in parsedWithMethodAttribute.NamedArguments)
+			{
+				if (namedArg.Key == "methodName")
+				{
+					parsedWithMethod = namedArg.Value.Value?.ToString() ?? string.Empty;
+				}
+			}
+		}
+
 		var propertyName = property.Identifier.Text;
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
 		var propertyType = propertySymbol?.Type.ToDisplayString() ?? "string"; //default, no parsing
@@ -295,7 +354,8 @@ public class AttributeFactory
 			Attribute = new AttributeInfo("", "", description, required, int.Parse(position, CultureInfo.InvariantCulture)),
 			PropertyName = propertyName,
 			PropertyType = propertyType,
-			PropertySymbol = propertySymbol
+			PropertySymbol = propertySymbol,
+			ParseMethodName = parsedWithMethod
 		};
 	}
 }
@@ -324,6 +384,16 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	/// The symbol representing the property.
 	/// </summary>
 	public IPropertySymbol? PropertySymbol { get; set; }
+
+	/// <summary>
+	/// The name of the method used for parsing the property value.
+	/// </summary>
+	public string ParseMethodName { get; set; }
+
+	/// <summary>
+	/// Indicates whether the property has a parse method defined.
+	/// </summary>
+	public readonly bool HasParseMethod { get => !string.IsNullOrEmpty(ParseMethodName); }
 
 	/// <summary>
 	/// Determines whether the current instance is equal to another object.

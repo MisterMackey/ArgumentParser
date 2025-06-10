@@ -60,6 +60,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 	{
 		var className = ClassDeclaration.Identifier.Text;
 		var namespaceName = Symbol.ContainingNamespace?.ToDisplayString();
+		var argumentParserVersion = AssemblyVersionProvider.FullSemVer;
 
 		using var writer = new IndentedTextWriter(new StringWriter());
 
@@ -71,7 +72,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine("{");
 			writer.Indent++;
 		}
-		writer.WriteLine("[System.CodeDom.Compiler.GeneratedCodeAttribute(\"ArgumentParser\", \"1.2.0\")]");
+		writer.WriteLine($"[System.CodeDom.Compiler.GeneratedCodeAttribute(\"ArgumentParser\", \"{argumentParserVersion}\")]");
 		writer.WriteLine($"public partial class {className}");
 		writer.WriteLine("{");
 		writer.Indent++;
@@ -282,6 +283,24 @@ public class SourceTextGenerator : ISourceTextGenerator
 		if (propertyInfo.PropertySymbol?.Type.TypeKind == TypeKind.Enum)
 		{
 			writer.WriteLine($"if (!Enum.TryParse<{propertyInfo.PropertyType}>({localVariableName}.Value, out var parsedValue))");
+			writer.WriteLine("{");
+			writer.Indent++;
+			writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
+			writer.Indent--;
+			writer.WriteLine("}");
+			writer.WriteLine("else");
+			writer.WriteLine("{");
+			writer.Indent++;
+			writer.WriteLine($"instance.{propertyName} = parsedValue;");
+			writer.Indent--;
+			writer.WriteLine("}");
+			return;
+		}
+		// check if custom parse logic is specified
+		if (propertyInfo.HasParseMethod)
+		{
+			var typeWithoutNullableIndicator = propertyInfo.PropertyType.Replace("?", "");
+			writer.WriteLine($"if (!{typeWithoutNullableIndicator}.{propertyInfo.ParseMethodName}({localVariableName}.Value, out var parsedValue))");
 			writer.WriteLine("{");
 			writer.Indent++;
 			writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");

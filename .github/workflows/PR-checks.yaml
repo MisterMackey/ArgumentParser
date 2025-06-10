@@ -29,7 +29,5 @@ jobs:
     - name: Build example project
       run: make build-example
     
-    - name: Run integration tests (example project)
-      run: |
-        ExampleConsole/bin/Debug/net9.0/ExampleConsole --Target target -v 15
-        ExampleConsole/bin/Debug/net9.0/ExampleConsole --Target target --Level Level3
+    - name: smoke test
+      run: make smoke-test

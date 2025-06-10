@@ -35,6 +35,9 @@ jobs:
 
     - name: create release
       run: make release
+    
+    - name: smoke test
+      run: make smoke-test
       
     - name: Push changes and tags
       run: |

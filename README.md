@@ -1,6 +1,21 @@
 # ArgumentParser
 Licensed under the Apache License, Version 2.0
 
+## Table of contents
+- [ArgumentParser](#argumentparser)
+	- [Table of contents](#table-of-contents)
+	- [About](#about)
+	- [Quickstart](#quickstart)
+		- [Overriding the default behaviour](#overriding-the-default-behaviour)
+		- [Supported types for argument properties](#supported-types-for-argument-properties)
+	- [Inspecting the generated code](#inspecting-the-generated-code)
+	- [Default behaviour](#default-behaviour)
+	- [Diagnostics and Errors](#diagnostics-and-errors)
+	- [Known bugs (past and present)](#known-bugs-past-and-present)
+- [Development](#development)
+	- [building and testing locally](#building-and-testing-locally)
+	- [creating a release](#creating-a-release)
+
 ## About
 ArgumentParser provides functionality to parse commandline arguments without the use of Reflection. It is therefore compatible with AOT publishing.
 
@@ -311,3 +326,20 @@ v1.1.0
 
 v1.0.0:
 	- AggregateException is always thrown when any parse error is encountered
+
+# Development
+The project comes with a makefile that should cover most typical needs during the development cycle.
+
+## building and testing locally
+run ```make build-analyzer``` to generate the nuget package locally
+run ```make build-example``` to build the example project
+run ```make test``` and ```make smoke-test``` to run unit testing and smoke testing, respectively. Smoke testing runs the example project
+
+## creating a release
+For a release, the version of the final nuget package, the version specified in the GeneratedCodeAttribute, and the git tag should all match.
+
+The easiest way to do this is to install dotnet-gitversion and run ```make set-pre-release-version``` or ```make set-version-stable```.
+The first creates a pre-release tag and updates the corresponding files in the project. The second creates a major.minor.patch release tag and also updates files. Both targets amend the latest commit to include these changes in the source tree.
+
+```make pre-release``` and ```make release-stable``` respectively create a prerelease and a stable release, along with the required git tag.
+Stable releases should only be created from the main branch.

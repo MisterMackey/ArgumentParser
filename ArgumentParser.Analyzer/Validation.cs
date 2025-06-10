@@ -181,8 +181,12 @@ public static class Validation
 			    position.Attribute.Position));
 		}
 
-		// Check for unsupported property types
-		var allProperties = options.Concat(positionals).Concat(flags).ToList();
+		// Check for unsupported property types (for properties that don't specify custom parsing)
+		var allProperties = options
+			.Concat(positionals)
+			.Concat(flags)
+			.Where(x => !x.HasParseMethod)
+			.ToList();
 		foreach (var prop in allProperties)
 		{
 			if (!IsSupportedPropertyType(prop))
