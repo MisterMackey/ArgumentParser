@@ -299,7 +299,8 @@ public class SourceTextGenerator : ISourceTextGenerator
 		// check if custom parse logic is specified
 		if (propertyInfo.HasParseMethod)
 		{
-			writer.WriteLine($"if (!{propertyInfo.PropertyType}.TryParse({localVariableName}.Value, out var parsedValue))");
+			var typeWithoutNullableIndicator = propertyInfo.PropertyType.Replace("?", "");
+			writer.WriteLine($"if (!{typeWithoutNullableIndicator}.{propertyInfo.ParseMethodName}({localVariableName}.Value, out var parsedValue))");
 			writer.WriteLine("{");
 			writer.Indent++;
 			writer.WriteLine($"errors.Add(new ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");

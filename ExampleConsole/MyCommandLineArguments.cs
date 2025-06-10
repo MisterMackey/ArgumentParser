@@ -61,6 +61,9 @@ public partial class MyCommandLineArguments
 	// Specifying the ParsedWithMethod attribute lets you specify your own parsing method
 	// This method should be a static (extension) method on the type you are using
 	// This disables type checking diagnostics
+	[ParsedWithMethod("ParseThis")]
+	[Positional(1, "Custom type")]
+	public MyVeryOwnType? MyVeryOwnType { get; set; }
 }
 
 public enum MyVeryOwnEnum
@@ -69,4 +72,19 @@ public enum MyVeryOwnEnum
 	Level1,
 	Level2,
 	Level3
+}
+
+public class MyVeryOwnType
+{
+	public static bool ParseThis(string input, out MyVeryOwnType result)
+	{
+		if (!string.IsNullOrEmpty(input))
+		{
+			result = new MyVeryOwnType();
+			return true;
+		}
+		result = null!;
+		return false;
+		
+	}
 }
