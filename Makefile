@@ -73,7 +73,7 @@ coverage: build-tests
 	reportgenerator -reports:ArgumentParser.Tests/coverage.cobertura.xml -targetdir:coveragereports -reporttypes:Html
 	@echo "Coverage report generated in coveragereports/index.html"
 
-set-version:
+set-pre-release-version:
 	VERSION=$$(dotnet-gitversion | jq -r '.FullSemVer'); \
 	if [ -z "$$VERSION" ]; then \
 		echo "Versioning check failed: Unable to determine version"; \
@@ -95,7 +95,7 @@ set-version-stable:
 	sed -i 's|<Version>[^<]*</Version>|<Version>'"$$VERSION"'</Version>|' ArgumentParser/ArgumentParser.csproj
 	git commit -a --amend --no-edit
 
-release: clean set-version
+pre-release: clean set-version
 	@echo "Checking git working tree status..."
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "Error: Working tree is not clean. Please commit or stash changes before releasing."; \
@@ -149,3 +149,31 @@ release-stable: clean set-version-stable
 	echo "Enter tag message for v$$VERSION (press Enter to start editor):"; \
 	git tag -a "v$$VERSION" -m "Automated build for $$VERSION"
 	@echo "Release $$VERSION completed successfully."
+
+smoke-test: build-example
+	@echo "running smoke tests..."
+	@echo "Checking display help on error."
+	@ExampleConsole/bin/Debug/net9.0/ExampleConsole; \
+	RET=$$?; \
+	if [ $$RET -ne 2 ]; then \
+		echo "display help on error failed"; \
+		exit 1; \
+	else \
+		echo "display help on error test passed successfully"; \
+	fi
+	@echo "Checking display help on request."
+	@ExampleConsole/bin/Debug/net9.0/ExampleConsole --Help; \
+	if [ $$? -ne 0 ]; then \
+		echo "display help on request failed"; \
+		exit 1; \
+	else \
+		echo "display help on request test passed successfully"; \
+	fi
+	@echo "Checking regular use..."
+	@ExampleConsole/bin/Debug/net9.0/ExampleConsole --Target target 15 -llvt 2025-05-05T12:00:00Z; \
+	if [ $$? -ne 0 ]; then \
+		echo "regular use failed"; \
+		exit 1; \
+	else \
+		echo "regular use test passed successfully"; \
+	fi
