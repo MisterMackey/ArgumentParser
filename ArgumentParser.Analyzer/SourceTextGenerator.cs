@@ -315,7 +315,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			return;
 		}
 		// otherwise just parse the value based on the (simple) type
-			var propertyType = propertyInfo.PropertyType;
+		var propertyType = propertyInfo.PropertyType;
 		switch (propertyType)
 		{
 			case "int":
