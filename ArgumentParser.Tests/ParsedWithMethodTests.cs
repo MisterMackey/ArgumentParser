@@ -41,7 +41,7 @@ namespace ArgumentParser.Tests
 			// Assert
 			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 			Assert.Contains("if (!ArgumentParser.Tests.CustomClassWithTryParse.TryParse", output);
-			Assert.Contains("out ArgumentParser.Tests.CustomClassWithTryParse parsedValue", output);
+			Assert.Contains("out var parsedValue", output);
 			Assert.Contains("CustomClass = parsedValue", output);
 		}
 	}

@@ -57,6 +57,10 @@ public partial class MyCommandLineArguments
 	// Combined with an option it lets you set a value based on a string
 	[Option(shortName: "", longName: "Level", description: "A level option with a long name")]
 	public MyVeryOwnEnum LevelOption { get; set; }
+
+	// Specifying the ParsedWithMethod attribute lets you specify your own parsing method
+	// This method should be a static (extension) method on the type you are using
+	// This disables type checking diagnostics
 }
 
 public enum MyVeryOwnEnum
