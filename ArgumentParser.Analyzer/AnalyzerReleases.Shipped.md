@@ -16,4 +16,4 @@ ARG009 | GenerationOptions | Error | HelpText property is missing but argument h
 ARG010 | GenerationOptions | Error | HelpText property is missing but display help on error handler is generated.
 ARG011 | GenerationOptions | Error | DisplayHelp property specified but generator is supplying it.
 ARG012 | GenerationOptions | Error | HelpText const string specified but generator is supplying it.
-ARG013 | AttributeDeclaration | Error | Flag attributes should only be applied to boolean properties.
+ARG013 | AttributeDeclaration | Error | Flag attributes should only be applied to boolean or enum properties.

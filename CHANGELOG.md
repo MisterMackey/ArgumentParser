@@ -2,6 +2,15 @@
 
 ## UnReleased changes
 
+## v1.3.0
+### Added
+- Any type may now be used for a property if it is annotated with the ParsedWithMethod attribute
+  - To use this attribute, create a static (extension) method that follows the same signature as TryParse (bool TryParse(string input, out var result)).
+  - Initialize the ParsedWithMethodAttribute with the name of the method you created.
+  - The generate parse method will use the indicated method.
+### Improved
+- Added more make targets
+
 ## v1.2.0
 ### Added
 - All custom enum types are now allowed types. Parsing rules depend on whether the property is annotated with.
