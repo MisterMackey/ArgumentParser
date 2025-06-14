@@ -1,6 +1,8 @@
 # This document will track changes starting in v1.1.0
 
-## UnReleased changes
+## UnReleased / Unplanned changes
+- Quick action code fix support
+- Overriding program names in generated helptext
 
 ## v1.3.0
 ### Added

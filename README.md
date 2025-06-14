@@ -24,11 +24,6 @@ This method will take the raw arguments from the commandline (in the form of a s
 
 The method is generated during compilation, which allows the generated code to be very simple and not rely on Reflection. By being very simple it will compile fine when publishing an AOT executable.
 
-This library is in an early version, some features are not there yet like:
-- Make arguments required via the required keyword
-- Specific types (like FileInfo)
-- Custom parsers for types
-
 ## Quickstart
 *For an example, check out the ExampleConsole project in this repository*
 
