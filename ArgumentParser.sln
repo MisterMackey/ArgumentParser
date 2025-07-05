@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArgumentParser.Analyzer", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArgumentParser.Tests", "ArgumentParser.Tests\ArgumentParser.Tests.csproj", "{94F74211-CDED-4C6D-AE8E-DC4D14BFB64B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArgumentParser.CodeFixes", "ArgumentParser.CodeFixes\ArgumentParser.CodeFixes.csproj", "{D5A0D614-3955-463C-9F1F-E000268957D2}"
+EndProject
 Global
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -84,5 +86,17 @@ Global
 		{94F74211-CDED-4C6D-AE8E-DC4D14BFB64B}.Release|x64.Build.0 = Release|Any CPU
 		{94F74211-CDED-4C6D-AE8E-DC4D14BFB64B}.Release|x86.ActiveCfg = Release|Any CPU
 		{94F74211-CDED-4C6D-AE8E-DC4D14BFB64B}.Release|x86.Build.0 = Release|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Debug|x64.Build.0 = Debug|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Debug|x86.Build.0 = Debug|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Release|x64.ActiveCfg = Release|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Release|x64.Build.0 = Release|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Release|x86.ActiveCfg = Release|Any CPU
+		{D5A0D614-3955-463C-9F1F-E000268957D2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
