@@ -7,7 +7,7 @@ EXAMPLE_STAMP := $(STAMP_DIR)/example_built
 TESTPROJ_STAMP := $(STAMP_DIR)/testproj_built
 
 # sources
-ANALYZER_SOURCES := $(wildcard ArgumentParser/*.cs) $(wildcard ArgumentParser/**/*.cs) $(wildcard ArgumentParser.Analyzer/*.cs) $(wildcard ArgumentParser.Analyzer/**/*.cs)
+ANALYZER_SOURCES := $(wildcard ArgumentParser/*.cs) $(wildcard ArgumentParser/**/*.cs) $(wildcard ArgumentParser.Analyzer/*.cs) $(wildcard ArgumentParser.CodeFixes/**/*.cs) $(wildcard ArgumentParser.Analyzer/*.cs) $(wildcard ArgumentParser.CodeFixes/**/*.cs)
 EXAMPLE_SOURCES := $(wildcard ExampleConsole/*.cs) $(wildcard ExampleConsole/**/*.cs)
 TEST_SOURCES := $(wildcard ArgumentParser.Tests/*.cs) $(wildcard ArgumentParser.Tests/**/*.cs)
 

@@ -22,7 +22,6 @@ namespace ArgumentParser.CodeFixes.Fixes
 			var diagnostic = context.Diagnostics.First();
 			var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-			// Find the class declaration identified by the diagnostic.
 			var classDecl = root?.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf().OfType<ClassDeclarationSyntax>().FirstOrDefault();
 			if (classDecl == null)
 				return;
@@ -37,7 +36,6 @@ namespace ArgumentParser.CodeFixes.Fixes
 
 		private async Task<Document> MakeClassPartialAsync(Document document, ClassDeclarationSyntax classDecl, CancellationToken cancellationToken)
 		{
-			// Add the partial modifier if not present
 			if (!classDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
 			{
 				var newModifiers = classDecl.Modifiers.Add(SyntaxFactory.Token(SyntaxKind.PartialKeyword));
