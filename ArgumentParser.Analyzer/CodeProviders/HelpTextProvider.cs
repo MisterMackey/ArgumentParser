@@ -39,7 +39,6 @@ public class HelptextProvider
 		var flags = _argumentProvider.GetFlagArguments();
 		var positionals = _argumentProvider.GetPositionalArguments();
 		StringBuilder helpText = new StringBuilder();
-		helpText.AppendLine("public const string HelpText = \"\"\"");
 		helpText.AppendLine(ProgramName);
 		helpText.AppendLine();
 		helpText.AppendLine("Example usage: ");
@@ -164,8 +163,25 @@ public class HelptextProvider
 		}
 
 		helpText.AppendLine();
-		helpText.AppendLine("\"\"\";");
 
-		return helpText.ToString();
+		return WrapInRawStringLiteral(helpText.ToString());
+	}
+
+	private static string WrapInRawStringLiteral(string content)
+	{
+		// a raw string literal needs more quote characters in its delimiter than the longest run inside the content
+		int longestRun = 0;
+		int currentRun = 0;
+		foreach (var c in content)
+		{
+			currentRun = c == '"' ? currentRun + 1 : 0;
+			longestRun = Math.Max(longestRun, currentRun);
+		}
+		var delimiter = new string('"', Math.Max(3, longestRun + 1));
+		var literal = new StringBuilder();
+		literal.AppendLine($"public const string HelpText = {delimiter}");
+		literal.Append(content);
+		literal.AppendLine($"{delimiter};");
+		return literal.ToString();
 	}
 }

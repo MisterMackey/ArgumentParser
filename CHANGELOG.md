@@ -4,6 +4,12 @@
 - Quick action code fix support
 - Overriding program names in generated helptext
 
+### Fixed
+- Required arguments were tracked in static state, so after one `Parse` call that supplied them later calls in the same process no longer reported them missing. The tracking is now local to each call.
+- Names and descriptions containing quotes or backslashes (and help text containing triple quotes) produced generated code that did not compile. They are now escaped.
+- With `BehaviourOnError.ThrowIfAnyError` the thrown `AggregateException` only contained the missing-required errors when both missing and invalid arguments were present. It now contains all errors.
+- The generated code only compiled in projects with `ImplicitUsings` enabled. It now declares the usings it needs.
+
 ## v1.3.0
 ### Added
 - Any type may now be used for a property if it is annotated with the ParsedWithMethod attribute
