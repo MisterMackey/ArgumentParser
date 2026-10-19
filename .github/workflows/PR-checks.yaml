@@ -15,7 +15,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '9'
+        dotnet-version: '10'
 
     - name: Clean all
       run: make clean

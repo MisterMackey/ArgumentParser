@@ -126,7 +126,7 @@ release-stable: clean set-version-stable test smoke-test
 smoke-test: build-example
 	@echo "running smoke tests..."
 	@echo "Checking display help on error."
-	@ExampleConsole/bin/Debug/net9.0/ExampleConsole; \
+	@ExampleConsole/bin/Debug/net10.0/linux-x64/ExampleConsole; \
 	RET=$$?; \
 	if [ $$RET -ne 2 ]; then \
 		echo "display help on error failed"; \
@@ -135,7 +135,7 @@ smoke-test: build-example
 		echo "display help on error test passed successfully"; \
 	fi
 	@echo "Checking display help on request."
-	@ExampleConsole/bin/Debug/net9.0/ExampleConsole --Help; \
+	@ExampleConsole/bin/Debug/net10.0/linux-x64/ExampleConsole --Help; \
 	if [ $$? -ne 0 ]; then \
 		echo "display help on request failed"; \
 		exit 1; \
@@ -143,7 +143,7 @@ smoke-test: build-example
 		echo "display help on request test passed successfully"; \
 	fi
 	@echo "Checking regular use..."
-	@ExampleConsole/bin/Debug/net9.0/ExampleConsole --Target target 15 -llvt 2025-05-05T12:00:00Z; \
+	@ExampleConsole/bin/Debug/net10.0/linux-x64/ExampleConsole --Target target 15 -llvt 2025-05-05T12:00:00Z; \
 	if [ $$? -ne 0 ]; then \
 		echo "regular use failed"; \
 		exit 1; \

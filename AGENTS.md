@@ -18,7 +18,7 @@ make all                   # analyzer + example + tests
 make help                  # lists every target
 ```
 
-Run a subset of tests directly (the xunit project targets net9.0, Debug only; never Release, stack traces are wanted):
+Run a subset of tests directly (the xunit project targets net10.0, Debug only; never Release, stack traces are wanted):
 
 ```bash
 dotnet test ArgumentParser.Tests --filter "FullyQualifiedName~HelpTextTests"
@@ -26,9 +26,8 @@ dotnet test ArgumentParser.Tests --filter "FullyQualifiedName=ArgumentParser.Tes
 ```
 
 Gotchas with the Makefile:
-- `make build-example` / `restore-example` runs `dotnet nuget locals all --clear` (wipes the global NuGet cache) and `dotnet add ExampleConsole package ... --prerelease`, which **rewrites `ExampleConsole/ExampleConsole.csproj`**. Check `git diff` afterwards and don't commit unintended version changes there.
-- `smoke-test` executes `ExampleConsole/bin/Debug/net9.0/ExampleConsole`, but `ExampleConsole` now targets `net10.0` (and CI installs .NET 9 only), so that path can be stale. Verify the path/TFM before relying on the target.
-- `.github/workflows/main-build-and-tag.yaml` calls `make release`, which is not a Makefile target (only `pre-release`/`release-stable` exist).
+- `make build-example` / `restore-example` deliberately consumes the example as a real NuGet consumer, to prove the packed nupkg (analyzer DLL under `analyzers/dotnet/cs/`) works end to end. `dotnet nuget locals all --clear` is there because every local build reuses the same version, so a cached copy would be served stale. `dotnet add ... --source ArgumentParser/bin/nupkg --prerelease` picks the **highest** version in that folder, and the (gitignored) folder accumulates old nupkgs, so locally it can rewrite `ExampleConsole/ExampleConsole.csproj` to a version other than the one just built (e.g. 1.4.0 instead of 1.3.0). Run `git checkout ExampleConsole/ExampleConsole.csproj` afterwards, or delete stale nupkgs first.
+- `ExampleConsole` pins `RuntimeIdentifier` to `linux-x64` (AOT ILCompiler package workaround), so its binary is at `ExampleConsole/bin/Debug/net10.0/linux-x64/ExampleConsole`, which is what `smoke-test` runs.
 
 ## Architecture
 Three projects matter; keep the split in mind because it is not obvious from the names:
@@ -41,7 +40,7 @@ Three projects matter; keep the split in mind because it is not obvious from the
   4. `Validation.ValidateAttributes` / `ValidateGenerationOptions` report diagnostics (errors stop generation, warnings don't).
   5. `SourceTextGenerator` emits `<ClassName>_Parser.g.cs` as a string, with `AssemblyVersionProvider.FullSemVer` stamped into `[GeneratedCode]`.
   The generator must stay netstandard2.0 and satisfy `EnforceExtendedAnalyzerRules`. Generated code deliberately uses no `using` directives and only fully qualified names, so it works in any user project.
-- **`ArgumentParser.Tests/`** (xunit, net9.0): `Helpers/TestHelper.GetGeneratedOutput(source)` compiles a source string and runs `ParserGenerator` through `CSharpGeneratorDriver`, returning diagnostics plus the first generated file. `Helpers/SourceCodeBuilder` assembles test class source from `PropertyAndAttributeInfo`s. Tests assert on substrings of generated text, so changing emitted code formatting can break many tests. `ArgumentTokenizerTests` tests the runtime tokenizer directly.
+- **`ArgumentParser.Tests/`** (xunit, net10.0): `Helpers/TestHelper.GetGeneratedOutput(source)` compiles a source string and runs `ParserGenerator` through `CSharpGeneratorDriver`, returning diagnostics plus the first generated file. `Helpers/SourceCodeBuilder` assembles test class source from `PropertyAndAttributeInfo`s. Tests assert on substrings of generated text, so changing emitted code formatting can break many tests. `ArgumentTokenizerTests` tests the runtime tokenizer directly.
 - `ExampleConsole/` is the demo/smoke-test app (`PublishAot`, consumes the locally built nupkg).
 - `ArgumentParser.CodeFixes/` is gitignored build leftovers; code fixes are unimplemented (see `TODO`).
 
@@ -52,5 +51,5 @@ Three projects matter; keep the split in mind because it is not obvious from the
 
 ## Versioning and releases
 - Version bumps come from GitVersion (`GitVersion.yml`): commit-message tags `+semver: fix|minor|major` or branch names `fix/`, `feature/`, `breaking/`.
-- The version string exists in `ArgumentParser.Analyzer/CodeProviders/AssemblyVersionProvider.cs`, `ArgumentParser/ArgumentParser.csproj` (`<Version>`), and `ExampleConsole.csproj`; `make set-version-stable` / `set-pre-release-version` rewrite the first two with `sed` and **`git commit --amend`** the latest commit. Don't run those targets casually. CI (`main-build-and-tag.yaml`) does this on push to `main`.
+- The version string exists in `ArgumentParser.Analyzer/CodeProviders/AssemblyVersionProvider.cs`, `ArgumentParser/ArgumentParser.csproj` (`<Version>`), and `ExampleConsole.csproj`; `make set-version-stable` / `set-pre-release-version` rewrite the first two with `sed` and **`git commit --amend`** the latest commit. Don't run those targets casually. Releases are cut locally (`make pre-release` / `make release-stable`); no CI workflow does it.
 - Add user-visible changes to `CHANGELOG.md` under "UnReleased".
