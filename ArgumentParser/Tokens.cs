@@ -4,8 +4,16 @@ namespace ArgumentParser
 	/// <summary>
 	/// Base class for all tokens.
 	/// </summary>
-	public abstract class Token
+	/// <param name="isShort">Whether the token was written with its short name (one dash) rather than its long name (two dashes).</param>
+	public abstract class Token(bool isShort = false)
 	{
+
+		/// <summary>
+		/// Gets a value indicating whether the token was written with its short name (one dash) rather than its long name (two dashes).
+		/// Short and long names live in separate namespaces, so -v and --v are different arguments.
+		/// Always false for tokens that have no name.
+		/// </summary>
+		public bool IsShort { get; } = isShort;
 	}
 
 	/// <summary>
@@ -16,7 +24,8 @@ namespace ArgumentParser
 	/// </remarks>
 	/// <param name="name">The name of the option.</param>
 	/// <param name="value">The value of the option.</param>
-	public class OptionToken(string name, string value) : Token
+	/// <param name="isShort">Whether the option was written with its short name.</param>
+	public class OptionToken(string name, string value, bool isShort = false) : Token(isShort)
 	{
 
 		/// <summary>
@@ -60,7 +69,8 @@ namespace ArgumentParser
 	/// </remarks>
 	/// <param name="name">The name of the flag.</param>
 	/// <param name="level">The level of the flag, or null if this flag has no levels.</param>
-	public class FlagToken(string name, int level) : Token
+	/// <param name="isShort">Whether the flag was written with its short name. A long flag that has a short name is reported with the short name.</param>
+	public class FlagToken(string name, int level, bool isShort = false) : Token(isShort)
 	{
 
 		/// <summary>

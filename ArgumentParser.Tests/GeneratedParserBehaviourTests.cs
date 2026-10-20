@@ -51,6 +51,27 @@ public class GeneratedParserBehaviourTests
 	}
 
 	[Fact]
+	public void Names_ShortNameOfOneArgumentEqualToLongNameOfAnother_AreKeptApart()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("v", "Value", "first")]
+			public string First { get; set; } = "";
+			[Option("x", "v", "second")]
+			public string Second { get; set; } = "";
+			"""));
+
+		var viaShort = parser.Parse("-v", "one");
+		var viaLong = parser.Parse("--v", "two");
+
+		Assert.Empty(viaShort.Errors);
+		Assert.Equal("one", viaShort.Get<string>("First"));
+		Assert.Equal("", viaShort.Get<string>("Second"));
+		Assert.Empty(viaLong.Errors);
+		Assert.Equal("", viaLong.Get<string>("First"));
+		Assert.Equal("two", viaLong.Get<string>("Second"));
+	}
+
+	[Fact]
 	public void Option_ParsesDateTime()
 	{
 		var parser = GeneratedParser.Compile(ParserSource.Build("""

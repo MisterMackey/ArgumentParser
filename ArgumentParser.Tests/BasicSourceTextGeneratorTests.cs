@@ -157,7 +157,7 @@ namespace ArgumentParser.Tests
 			// Assert
 			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 			Assert.Contains("Verbose = ", output);
-			Assert.Contains("if (flagToken.Name == \"v\" || flagToken.Name == \"Verbose\")", output);
+			Assert.Contains("if ((flagToken.IsShort && flagToken.Name == \"v\") || (!flagToken.IsShort && flagToken.Name == \"Verbose\"))", output);
 		}
 
 		[Fact]
@@ -180,7 +180,7 @@ namespace ArgumentParser.Tests
 			// Assert
 			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 			Assert.Contains("ConfigFile = ", output);
-			Assert.Contains("if (optionToken.Name == \"c\" || optionToken.Name == \"Config\")", output);
+			Assert.Contains("if ((optionToken.IsShort && optionToken.Name == \"c\") || (!optionToken.IsShort && optionToken.Name == \"Config\"))", output);
 		}
 
 		[Fact]

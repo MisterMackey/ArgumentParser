@@ -9,6 +9,11 @@
 - Names and descriptions containing quotes or backslashes (and help text containing triple quotes) produced generated code that did not compile. They are now escaped.
 - With `BehaviourOnError.ThrowIfAnyError` the thrown `AggregateException` only contained the missing-required errors when both missing and invalid arguments were present. It now contains all errors.
 - The generated code only compiled in projects with `ImplicitUsings` enabled. It now declares the usings it needs.
+- ARG002 did not recognise an existing `Parse(String[] args)` or `Parse(System.String[] args)`; the clash surfaced as a compiler error instead.
+- ARG006 counted a static constructor as a parameterless constructor and did not notice a primary constructor with parameters, so the generated `new TestClass()` failed to compile instead of being reported.
+- Short and long names were not told apart: `-v` also set the argument whose long name is `v`, and short and long flags with the same text shared a repeat count. Tokens now carry `IsShort` and the generated code checks it.
+- A bare `--` was matched to an argument that has no long name, and swallowed the next argument as its value. It is now reported as an unknown argument.
+- The ARG006 diagnostic linked to "blah" instead of its documentation page.
 
 ## v1.3.0
 ### Added

@@ -39,7 +39,7 @@ public static class Validation
 		// Validate that the class doesn't already have a Parse method
 		if (classDeclaration.Members.OfType<MethodDeclarationSyntax>()
 		    .Any(m => m.Identifier.Text == "Parse" && m.ParameterList.Parameters.Count == 1
-			&& m.ParameterList.Parameters[0].Type!.ToString() == "string[]"))
+			&& IsStringArray(m.ParameterList.Parameters[0].Type)))
 		{
 			diagnostics.Add(Diagnostic.Create(
 			    GeneratorDiagnostics.ARG002,
@@ -48,12 +48,15 @@ public static class Validation
 		}
 
 		// Validate that the class has a constructor with no parameters
-		// or no constructor at all (which implies a default constructor)
-		if (
-		    classDeclaration.Members.OfType<ConstructorDeclarationSyntax>().Any()
-			&& !classDeclaration.Members.OfType<ConstructorDeclarationSyntax>()
-		    .Any(c => c.ParameterList.Parameters.Count == 0) 
-		)
+		// or no constructor at all (which implies a default constructor).
+		// Static constructors are not instance constructors, and a primary constructor replaces the default one.
+		var instanceConstructors = classDeclaration.Members
+			.OfType<ConstructorDeclarationSyntax>()
+			.Where(c => !c.Modifiers.Any(SyntaxKind.StaticKeyword))
+			.ToList();
+		var hasParameterlessConstructor = instanceConstructors.Any(c => c.ParameterList.Parameters.Count == 0);
+		var hasPrimaryConstructorWithParameters = classDeclaration.ParameterList?.Parameters.Count > 0;
+		if (!hasParameterlessConstructor && (instanceConstructors.Count > 0 || hasPrimaryConstructorWithParameters))
 		{
 			diagnostics.Add(Diagnostic.Create(
 			    GeneratorDiagnostics.ARG006,
@@ -354,6 +357,16 @@ public static class Validation
 			return true;
 		}
 		return false;
+	}
+
+	private static bool IsStringArray(TypeSyntax? type)
+	{
+		if (type is not ArrayTypeSyntax array || array.RankSpecifiers.Count != 1 || array.RankSpecifiers[0].Rank != 1)
+		{
+			return false;
+		}
+		var elementType = array.ElementType.ToString();
+		return elementType is "string" or "String" or "System.String" or "global::System.String";
 	}
 
 	private static Location? GetLocation(PropertyAndAttributeInfo info, ClassDeclarationSyntax classDeclarationSyntax)

@@ -141,7 +141,7 @@ public static class GeneratorDiagnostics
 	    ClassErrorCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "blah"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG006.md"
 	);
 
 	/// <summary>

@@ -79,6 +79,64 @@ namespace ArgumentParser.Tests
 		}
 
 		[Fact]
+		public void TokenizeArguments_OptionTokens_RecordWhetherTheShortOrLongNameWasUsed()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["-o", "a", "--output", "b"], _options, _positionals, _flags);
+
+			Assert.Empty(errors);
+			Assert.True(((OptionToken)tokens[0]).IsShort);
+			Assert.False(((OptionToken)tokens[1]).IsShort);
+		}
+
+		[Fact]
+		public void TokenizeArguments_FlagWithShortName_IsAlwaysReportedAsShort()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["--verbose"], _options, _positionals, _flags);
+
+			Assert.Empty(errors);
+			var token = Assert.IsType<FlagToken>(Assert.Single(tokens));
+			Assert.Equal("v", token.Name);
+			Assert.True(token.IsShort);
+		}
+
+		[Fact]
+		public void TokenizeArguments_FlagWithOnlyALongName_IsReportedAsLong()
+		{
+			var flags = new[] { new FlagAttribute("", "verbose", "desc") };
+
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["--verbose"], [], [], flags);
+
+			Assert.Empty(errors);
+			var token = Assert.IsType<FlagToken>(Assert.Single(tokens));
+			Assert.Equal("verbose", token.Name);
+			Assert.False(token.IsShort);
+		}
+
+		[Fact]
+		public void TokenizeArguments_ShortAndLongFlagsWithTheSameText_AreCountedSeparately()
+		{
+			var flags = new[] { new FlagAttribute("v", "", "short only"), new FlagAttribute("", "v", "long only") };
+
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["-v", "-v", "--v"], [], [], flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(2, tokens.Count);
+			Assert.Equal(2, tokens.OfType<FlagToken>().Single(t => t.IsShort).Level);
+			Assert.Equal(1, tokens.OfType<FlagToken>().Single(t => !t.IsShort).Level);
+		}
+
+		[Fact]
+		public void TokenizeArguments_DoubleDashAlone_IsNotMatchedToAnArgumentWithoutALongName()
+		{
+			var options = new[] { new OptionAttribute("o", "", "short only") };
+
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["--"], options, [], []);
+
+			Assert.Empty(tokens);
+			Assert.IsType<UnexpectedArgumentException>(Assert.Single(errors));
+		}
+
+		[Fact]
 		public void TokenizeArguments_ShortNameOption_ReturnsOptionToken()
 		{
 			// Arrange

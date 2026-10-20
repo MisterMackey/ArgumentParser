@@ -9,18 +9,19 @@ namespace ArgumentParser
 	/// </summary>
 	public class ArgumentTokenizer
 	{
-		private Dictionary<string, int> flagRepeatCounts = new Dictionary<string, int>();
+		private Dictionary<(string Name, bool IsShort), int> flagRepeatCounts = new Dictionary<(string Name, bool IsShort), int>();
 		private void ProcessLongNameArgument(string arg, string[] args, ref int i, OptionAttribute[] options, FlagAttribute[] flags, List<Token> tokens, List<ArgumentParserException> errors)
 		{
 			var name = arg.Substring(2);
-			var option = options.FirstOrDefault(o => o.LongName == name);
-			var flag = flags.FirstOrDefault(f => f.LongName == name);
+			// an argument without a long name has an empty LongName, which must never match
+			var option = name.Length == 0 ? null : options.FirstOrDefault(o => o.LongName == name);
+			var flag = name.Length == 0 ? null : flags.FirstOrDefault(f => f.LongName == name);
 
 			if (option != null)
 			{
 				if (i + 1 < args.Length)
 				{
-					tokens.Add(new OptionToken(name, args[++i]));
+					tokens.Add(new OptionToken(name, args[++i], false));
 				}
 				else
 				{
@@ -31,18 +32,12 @@ namespace ArgumentParser
 			{
 				// check if there is a corresponding shortname for this flag and use that instead for convenience
 				// that way, something like -vv --verbose will be counted to level 3 without any issues
-				if (!string.IsNullOrEmpty(flag.ShortName))
+				var isShort = !string.IsNullOrEmpty(flag.ShortName);
+				if (isShort)
 				{
 					name = flag.ShortName;
 				}
-				if (flagRepeatCounts.TryGetValue(name, out int count))
-				{
-					flagRepeatCounts[name] = count + 1;
-				}
-				else
-				{
-					flagRepeatCounts[name] = 1;
-				}
+				CountFlag(name, isShort);
 			}
 			else
 			{
@@ -62,14 +57,7 @@ namespace ArgumentParser
 
 				if (flag != null)
 				{
-					if (flagRepeatCounts.TryGetValue(name, out int count))
-					{
-						flagRepeatCounts[name] = count + 1;
-					}
-					else
-					{
-						flagRepeatCounts[name] = 1;
-					}
+					CountFlag(name, true);
 				}
 				// option arguments are only allowed to appear at the end of the string
 				// otherwise it's an error
@@ -82,7 +70,7 @@ namespace ArgumentParser
 
 					if (i + 1 < args.Length)
 					{
-						tokens.Add(new OptionToken(name, args[++i]));
+						tokens.Add(new OptionToken(name, args[++i], true));
 					}
 					else
 					{
@@ -109,11 +97,18 @@ namespace ArgumentParser
 			}
 		}
 
+		private void CountFlag(string name, bool isShort)
+		{
+			var key = (name, isShort);
+			flagRepeatCounts.TryGetValue(key, out int count);
+			flagRepeatCounts[key] = count + 1;
+		}
+
 		private void AddFlagTokensWithLevels(List<Token> tokens)
 		{
 			foreach (var kvp in flagRepeatCounts)
 			{
-				tokens.Add(new FlagToken(kvp.Key, kvp.Value));
+				tokens.Add(new FlagToken(kvp.Key.Name, kvp.Value, kvp.Key.IsShort));
 			}
 		}
 

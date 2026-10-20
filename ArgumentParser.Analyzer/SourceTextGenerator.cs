@@ -162,7 +162,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.Indent++;
 		foreach (var option in Options)
 		{
-			writer.WriteLine($"if (optionToken.Name == {Literal(option.Attribute.ShortName)} || optionToken.Name == {Literal(option.Attribute.LongName)})");
+			writer.WriteLine($"if ({NameCondition("optionToken", option.Attribute.ShortName, option.Attribute.LongName)})");
 			writer.WriteLine("{");
 			writer.Indent++;
 			WriteValueParseCode(option, "optionToken", option.PropertyName, writer);
@@ -198,7 +198,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.Indent++;
 		foreach (var flag in Flags)
 		{
-			writer.WriteLine($"if (flagToken.Name == {Literal(flag.Attribute.ShortName)} || flagToken.Name == {Literal(flag.Attribute.LongName)})");
+			writer.WriteLine($"if ({NameCondition("flagToken", flag.Attribute.ShortName, flag.Attribute.LongName)})");
 			writer.WriteLine("{");
 			writer.Indent++;
 			WriteFlagParseCode(flag, writer);
@@ -570,6 +570,20 @@ public class SourceTextGenerator : ISourceTextGenerator
 				writer.WriteLine($"// Unsupported property type: {propertyType}");
 				break;
 		}
+	}
+
+	private static string NameCondition(string token, string shortName, string longName)
+	{
+		var conditions = new List<string>();
+		if (!string.IsNullOrEmpty(shortName))
+		{
+			conditions.Add($"({token}.IsShort && {token}.Name == {Literal(shortName)})");
+		}
+		if (!string.IsNullOrEmpty(longName))
+		{
+			conditions.Add($"(!{token}.IsShort && {token}.Name == {Literal(longName)})");
+		}
+		return conditions.Count == 0 ? "false" : string.Join(" || ", conditions);
 	}
 
 	private static string Literal(string value)
