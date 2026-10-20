@@ -311,6 +311,32 @@ Parameters marked as required are tracked and checked off when found. At the end
 By default, if any error is encountered during the parsing, the help text is displayed and the program exits via a call to Environment.Exit(2)
 Also by default, if the help argument is specified on the command line, the help text is displayed and the program exits via a call to Environment.Exit(0)
 
+### Behaviour on error
+What happens when an error is encountered is set with the `behaviourOnError` argument of the ParameterCollection attribute:
+
+| BehaviourOnError | Result |
+|---|---|
+| `DisplayHelpAndExit` (default) | Every error is printed, followed by the help text, and the program exits with code 2. `Parse` never returns. |
+| `ThrowNever` | Nothing is thrown and the program does not exit. `Parse` returns the instance together with the list of errors, so the caller decides what to do. |
+| `ThrowIfMissingRequired` | An `AggregateException` is thrown if a required argument is missing. Other errors (invalid values, unknown arguments) are only added to the returned list. |
+| `ThrowIfAnyError` | An `AggregateException` is thrown if there is any error at all, including missing required arguments. |
+
+The thrown exception is always a `System.AggregateException`, never an `ArgumentParserException` itself. The individual problems are its `InnerExceptions`, which are the `ArgumentParserException` subclasses that otherwise end up in the returned list (`MissingRequiredArgumentException`, `InvalidArgumentValueException`, `UnexpectedArgumentException`, ...):
+```C#
+try
+{
+	var (myArgs, _) = MyCommandLineArguments.Parse(args);
+}
+catch (AggregateException ex)
+{
+	foreach (var inner in ex.InnerExceptions)
+	{
+		Console.WriteLine(inner.Message);
+	}
+}
+```
+Independent of `behaviourOnError`, `HelpTextGeneration.GenerateAll` and `GenerateArgumentAndHandler` generate a handler that prints the help text and exits with code 0 when the help argument is given.
+
 ## Diagnostics and Errors
 
 see [AnalyzerRelease.Shipped.md](ArgumentParser/AnalyzerReleases.Shipped.md)

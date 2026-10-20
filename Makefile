@@ -23,7 +23,7 @@ $(RESTORE_EXAMPLE_STAMP): $(ANALYZER_STAMP) | $(STAMP_DIR)
 	dotnet remove ExampleConsole package Aot.ArgumentParser || true
 	dotnet nuget locals all --clear
 	dotnet restore
-	dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg --prerelease
+	dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg --version $$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' ArgumentParser/ArgumentParser.csproj)
 	touch $@
 
 $(EXAMPLE_STAMP): $(EXAMPLE_SOURCES) $(RESTORE_EXAMPLE_STAMP) | $(STAMP_DIR)
@@ -125,28 +125,4 @@ release-stable: clean set-version-stable test smoke-test
 
 smoke-test: build-example
 	@echo "running smoke tests..."
-	@echo "Checking display help on error."
-	@ExampleConsole/bin/Debug/net10.0/linux-x64/ExampleConsole; \
-	RET=$$?; \
-	if [ $$RET -ne 2 ]; then \
-		echo "display help on error failed"; \
-		exit 1; \
-	else \
-		echo "display help on error test passed successfully"; \
-	fi
-	@echo "Checking display help on request."
-	@ExampleConsole/bin/Debug/net10.0/linux-x64/ExampleConsole --Help; \
-	if [ $$? -ne 0 ]; then \
-		echo "display help on request failed"; \
-		exit 1; \
-	else \
-		echo "display help on request test passed successfully"; \
-	fi
-	@echo "Checking regular use..."
-	@ExampleConsole/bin/Debug/net10.0/linux-x64/ExampleConsole --Target target 15 -llvt 2025-05-05T12:00:00Z; \
-	if [ $$? -ne 0 ]; then \
-		echo "regular use failed"; \
-		exit 1; \
-	else \
-		echo "regular use test passed successfully"; \
-	fi
+	@scripts/smoke-test.sh ExampleConsole/bin/Debug/net10.0/linux-x64/ExampleConsole
