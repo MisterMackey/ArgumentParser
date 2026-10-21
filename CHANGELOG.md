@@ -4,6 +4,10 @@
 - Quick action code fix support
 - Overriding program names in generated helptext
 
+### Changed
+- The generator is now incremental: it extracts a plain, comparable model of each annotated class and only generates again when that model changes, so edits elsewhere in a project no longer rerun the generator for every annotated class.
+- Diagnostics are now reported at a file path and span instead of a syntax node. Because of this, `#pragma warning disable` and `.editorconfig` severity settings no longer silence the ARG008 warning; use `<NoWarn>ARG008</NoWarn>` in the project file.
+
 ### Fixed
 - Required arguments were tracked in static state, so after one `Parse` call that supplied them later calls in the same process no longer reported them missing. The tracking is now local to each call.
 - Names and descriptions containing quotes or backslashes (and help text containing triple quotes) produced generated code that did not compile. They are now escaped.

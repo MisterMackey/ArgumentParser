@@ -764,9 +764,9 @@ public class AttributeExtractionTests
 	{
 		var c = BuildComponents();
 
-		Assert.Throws<ArgumentNullException>(() => new SourceTextGenerator(c.Class, null!, c.HelpText, c.Symbol, c.Config));
-		Assert.Throws<ArgumentNullException>(() => new SourceTextGenerator(c.Class, c.Provider, null!, c.Symbol, c.Config));
-		Assert.Throws<ArgumentNullException>(() => new SourceTextGenerator(c.Class, c.Provider, c.HelpText, c.Symbol, null!));
+		Assert.Throws<ArgumentNullException>(() => new SourceTextGenerator("Target", null, null!, c.HelpText, c.Config));
+		Assert.Throws<ArgumentNullException>(() => new SourceTextGenerator("Target", null, c.Provider, null!, c.Config));
+		Assert.Throws<ArgumentNullException>(() => new SourceTextGenerator("Target", null, c.Provider, c.HelpText, null!));
 	}
 
 	[Fact]

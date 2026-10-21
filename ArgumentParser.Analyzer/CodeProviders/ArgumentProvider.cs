@@ -10,7 +10,6 @@ namespace ArgumentParser.Internal
 	/// </summary>
 	public class ArgumentProvider
 	{
-		private readonly AttributeFactory _attributeFactory;
 		private readonly GeneratorConfiguration _config;
 		private List<PropertyAndAttributeInfo> _optionArguments = [];
 		private List<PropertyAndAttributeInfo> _flagArguments = [];
@@ -23,12 +22,41 @@ namespace ArgumentParser.Internal
 		/// <param name="config">The <see cref="GeneratorConfiguration"/> object containing configuration settings.</param>
 		public ArgumentProvider(AttributeFactory attributeFactory, GeneratorConfiguration config)
 		{
-			_attributeFactory = attributeFactory ?? throw new ArgumentNullException(nameof(attributeFactory));
+			if (attributeFactory is null)
+			{
+				throw new ArgumentNullException(nameof(attributeFactory));
+			}
 			_config = config ?? throw new ArgumentNullException(nameof(config));
-			InitializeArguments();
+			InitializeArguments(
+				attributeFactory.GetOptionAttributes(),
+				attributeFactory.GetFlagAttributes(),
+				attributeFactory.GetPositionalAttributes());
 		}
 
-		private void InitializeArguments()
+		/// <summary>
+		/// Initializes a new instance of the <see cref="ArgumentProvider"/> class from arguments that were already extracted.
+		/// </summary>
+		/// <param name="config">The <see cref="GeneratorConfiguration"/> object containing configuration settings.</param>
+		/// <param name="options">The option arguments written by the user.</param>
+		/// <param name="flags">The flag arguments written by the user.</param>
+		/// <param name="positionals">The positional arguments written by the user.</param>
+		public ArgumentProvider(
+			GeneratorConfiguration config,
+			IEnumerable<PropertyAndAttributeInfo> options,
+			IEnumerable<PropertyAndAttributeInfo> flags,
+			IEnumerable<PropertyAndAttributeInfo> positionals)
+		{
+			_config = config ?? throw new ArgumentNullException(nameof(config));
+			InitializeArguments(
+				options ?? throw new ArgumentNullException(nameof(options)),
+				flags ?? throw new ArgumentNullException(nameof(flags)),
+				positionals ?? throw new ArgumentNullException(nameof(positionals)));
+		}
+
+		private void InitializeArguments(
+			IEnumerable<PropertyAndAttributeInfo> options,
+			IEnumerable<PropertyAndAttributeInfo> flags,
+			IEnumerable<PropertyAndAttributeInfo> positionals)
 		{
 			// add help arg if needed
 			if (_config.HelpArgumentShouldBeGenerated())
@@ -47,9 +75,9 @@ namespace ArgumentParser.Internal
 				});
 			}
 			// add the user provided arguments
-			_optionArguments.AddRange(_attributeFactory.GetOptionAttributes());
-			_flagArguments.AddRange(_attributeFactory.GetFlagAttributes());
-			_positionalArguments.AddRange(_attributeFactory.GetPositionalAttributes());
+			_optionArguments.AddRange(options);
+			_flagArguments.AddRange(flags);
+			_positionalArguments.AddRange(positionals);
 		}
 
 		/// <summary>

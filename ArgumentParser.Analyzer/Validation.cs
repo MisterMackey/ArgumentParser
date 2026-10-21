@@ -19,18 +19,18 @@ public static class Validation
 	/// </summary>
 	/// <param name="classDeclaration">The class declaration to validate.</param>
 	/// <returns>List of diagnostics if validation fails, empty list if validation passes.</returns>
-	public static ReadOnlyCollection<Diagnostic> ValidateClassDeclaration(ClassDeclarationSyntax classDeclaration)
+	public static ReadOnlyCollection<DiagnosticInfo> ValidateClassDeclaration(ClassDeclarationSyntax classDeclaration)
 	{
 		if (classDeclaration is null)
 		{
 			throw new ArgumentNullException(nameof(classDeclaration));
 		}
-		var diagnostics = new List<Diagnostic>();
+		var diagnostics = new List<DiagnosticInfo>();
 
 		// Validate that the class is partial
 		if (!classDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword))
 		{
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG001,
 			    classDeclaration.GetLocation(),
 			    classDeclaration.Identifier.Text));
@@ -41,7 +41,7 @@ public static class Validation
 		    .Any(m => m.Identifier.Text == "Parse" && m.ParameterList.Parameters.Count == 1
 			&& IsStringArray(m.ParameterList.Parameters[0].Type)))
 		{
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG002,
 			    classDeclaration.GetLocation(),
 			    classDeclaration.Identifier.Text));
@@ -58,7 +58,7 @@ public static class Validation
 		var hasPrimaryConstructorWithParameters = classDeclaration.ParameterList?.Parameters.Count > 0;
 		if (!hasParameterlessConstructor && (instanceConstructors.Count > 0 || hasPrimaryConstructorWithParameters))
 		{
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG006,
 			    classDeclaration.GetLocation(),
 			    classDeclaration.Identifier.Text));
@@ -73,7 +73,7 @@ public static class Validation
 	/// <param name="provider">The argument provider to validate.</param>
 	/// <param name="classDeclarationSyntax"></param>
 	/// <returns>List of diagnostics if validation fails, empty list if validation passes.</returns>
-	public static ReadOnlyCollection<Diagnostic> ValidateAttributes(
+	public static ReadOnlyCollection<DiagnosticInfo> ValidateAttributes(
 		ArgumentProvider provider,
 		ClassDeclarationSyntax classDeclarationSyntax
 	)
@@ -89,7 +89,7 @@ public static class Validation
 		var options = provider.GetOptionArguments();
 		var flags = provider.GetFlagArguments();
 		var positionals = provider.GetPositionalArguments();
-		var diagnostics = new List<Diagnostic>();
+		var diagnostics = new List<DiagnosticInfo>();
 
 		// Check for duplicate short names
 		var duplicateShortNames = options.
@@ -110,7 +110,7 @@ public static class Validation
 		foreach (var option in duplicateOptions)
 		{
 			var location = GetLocation(option, classDeclarationSyntax);
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG003,
 			    location,
 			    "short",
@@ -119,7 +119,7 @@ public static class Validation
 		foreach (var flag in duplicateFlags)
 		{
 			var location = GetLocation(flag, classDeclarationSyntax);
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG003,
 			    location,
 			    "short",
@@ -143,7 +143,7 @@ public static class Validation
 		foreach (var option in duplicateLongOptions)
 		{
 			var location = GetLocation(option, classDeclarationSyntax);
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG003,
 			    location,
 			    "long",
@@ -152,7 +152,7 @@ public static class Validation
 		foreach (var flag in duplicateLongFlags)
 		{
 			var location = GetLocation(flag, classDeclarationSyntax);
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG003,
 			    location,
 			    "long",
@@ -167,7 +167,7 @@ public static class Validation
 		foreach (var position in duplicatePositions)
 		{
 			var location = GetLocation(position, classDeclarationSyntax);
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG004,
 			    location,
 			    position.Attribute.Position));
@@ -178,7 +178,7 @@ public static class Validation
 		foreach (var position in invalidPositions)
 		{
 			var location = GetLocation(position, classDeclarationSyntax);
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG005,
 			    location,
 			    position.Attribute.Position));
@@ -195,7 +195,7 @@ public static class Validation
 			if (!IsSupportedPropertyType(prop))
 			{
 				var location = GetLocation(prop, classDeclarationSyntax);
-				diagnostics.Add(Diagnostic.Create(
+				diagnostics.Add(DiagnosticInfo.Create(
 					GeneratorDiagnostics.ARG007,
 					location,
 					prop.PropertyType));
@@ -211,7 +211,7 @@ public static class Validation
 
 			{
 				var location = GetLocation(flag, classDeclarationSyntax);
-				diagnostics.Add(Diagnostic.Create(
+				diagnostics.Add(DiagnosticInfo.Create(
 					GeneratorDiagnostics.ARG013,
 					location,
 					flag.PropertyName,
@@ -230,7 +230,7 @@ public static class Validation
 	/// <param name="classDeclarationSyntax"></param>
 	/// <returns></returns>
 	/// <exception cref="ArgumentNullException"></exception>
-	public static ReadOnlyCollection<Diagnostic> ValidateGenerationOptions(
+	public static ReadOnlyCollection<DiagnosticInfo> ValidateGenerationOptions(
 		GeneratorConfiguration config,
 		ArgumentProvider provider,
 		ClassDeclarationSyntax classDeclarationSyntax
@@ -249,7 +249,7 @@ public static class Validation
 			throw new ArgumentNullException(nameof(classDeclarationSyntax));
 		}
 
-		var diagnostics = new List<Diagnostic>();
+		var diagnostics = new List<DiagnosticInfo>();
 
 		 // Find the ParameterCollectionAttribute location
 		var parameterCollectionAttribute = classDeclarationSyntax.AttributeLists
@@ -262,7 +262,7 @@ public static class Validation
 			(config.HelpArgumentShortName != "h" || 
 			 config.HelpArgumentLongName != "Help"))
 		{
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 				GeneratorDiagnostics.ARG008,
 				attributeLocation));
 		}
@@ -276,7 +276,7 @@ public static class Validation
 		// Check for missing HelpText property when argument handler is generated (ARG009)
 		if (config.HelpArgumentShouldBeGenerated() && config.HelpTextShouldDisplayOnRequest() && !hasHelpTextConst && !config.HelpTextShouldBeGenerated())
 		{
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 				GeneratorDiagnostics.ARG009,
 				attributeLocation));
 		}
@@ -284,7 +284,7 @@ public static class Validation
 		// Check for missing HelpText property when display help on error is enabled (ARG010)
 		if (config.HelpTextShouldDisplayOnError() && !hasHelpTextConst && !config.HelpTextShouldBeGenerated())
 		{
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 				GeneratorDiagnostics.ARG010,
 				attributeLocation));
 		}
@@ -298,7 +298,7 @@ public static class Validation
 
 			if (hasDisplayHelpProperty)
 			{
-				diagnostics.Add(Diagnostic.Create(
+				diagnostics.Add(DiagnosticInfo.Create(
 					GeneratorDiagnostics.ARG011,
 					attributeLocation));
 			}
@@ -307,7 +307,7 @@ public static class Validation
 		// Check for user-defined HelpText const string when generator is creating one (ARG012)
 		if (config.HelpTextShouldBeGenerated() && hasHelpTextConst)
 		{
-			diagnostics.Add(Diagnostic.Create(
+			diagnostics.Add(DiagnosticInfo.Create(
 				GeneratorDiagnostics.ARG012,
 				attributeLocation));
 		}
@@ -386,7 +386,7 @@ public static class Validation
 	/// </summary>
 	/// <param name="context">The source production context to report to.</param>
 	/// <param name="diagnostics">The diagnostics to report.</param>
-	public static void ReportDiagnostics(SourceProductionContext context, ReadOnlyCollection<Diagnostic> diagnostics)
+	public static void ReportDiagnostics(SourceProductionContext context, ReadOnlyCollection<DiagnosticInfo> diagnostics)
 	{
 		if (diagnostics is null)
 		{
@@ -394,7 +394,7 @@ public static class Validation
 		}
 		foreach (var diagnostic in diagnostics)
 		{
-			context.ReportDiagnostic(diagnostic);
+			context.ReportDiagnostic(diagnostic.ToDiagnostic());
 		}
 	}
 }

@@ -23,6 +23,26 @@ public class IncrementalityTests
 		}
 		""";
 
+	private const string NotPartialSource = """
+		using ArgumentParser;
+
+		[ParameterCollection]
+		public class Args
+		{
+			[Flag("v", "Verbose")]
+			public bool Verbose { get; set; }
+		}
+		""";
+
+	private const string WarningSource = """
+		using ArgumentParser;
+
+		[ParameterCollection(HelpTextGeneration.None, "x", "Other", BehaviourOnError.ThrowNever)]
+		public partial class Args
+		{
+		}
+		""";
+
 	private const string UnrelatedSource = "public class Unrelated { public int A; }";
 
 	[Fact]
@@ -33,7 +53,7 @@ public class IncrementalityTests
 		Assert.All(OutputReasons(driver), reason => Assert.True(IsReused(reason), reason.ToString()));
 	}
 
-	[Fact(Skip = "Not incremental yet: the transform returns the whole GeneratorAttributeSyntaxContext, which never compares equal across compilations. See 'Switch to incremental generation' in TODO.")]
+	[Fact]
 	public void EditToAnUnrelatedFile_ReusesTheCachedOutput()
 	{
 		var driver = RunTwice(
@@ -42,6 +62,23 @@ public class IncrementalityTests
 				Parse(UnrelatedSource + "\n// a comment\npublic class AnotherUnrelated { }")));
 
 		Assert.All(OutputReasons(driver), reason => Assert.True(IsReused(reason), reason.ToString()));
+	}
+
+	[Theory]
+	[InlineData(NotPartialSource, "ARG001")]
+	[InlineData(WarningSource, "ARG008")]
+	public void EditToAnUnrelatedFile_ReusesTheCachedDiagnostics(string source, string expectedRule)
+	{
+		var compilation = TestHelper.CreateCompilation(source).AddSyntaxTrees(Parse(UnrelatedSource));
+		var driver = CreateDriver().RunGenerators(compilation);
+		Assert.Contains(driver.GetRunResult().Diagnostics, d => d.Id == expectedRule);
+
+		driver = driver.RunGenerators(compilation.ReplaceSyntaxTree(
+			compilation.SyntaxTrees.Single(t => t.ToString() == UnrelatedSource),
+			Parse(UnrelatedSource + "\n// a comment")));
+
+		Assert.All(OutputReasons(driver), reason => Assert.True(IsReused(reason), reason.ToString()));
+		Assert.Contains(driver.GetRunResult().Diagnostics, d => d.Id == expectedRule);
 	}
 
 	[Fact]

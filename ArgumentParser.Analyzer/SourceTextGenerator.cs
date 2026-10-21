@@ -16,27 +16,27 @@ namespace ArgumentParser.Internal;
 /// </summary>
 public class SourceTextGenerator : ISourceTextGenerator
 {
-	private readonly ClassDeclarationSyntax ClassDeclaration;
+	private readonly string ClassName;
+	private readonly string? NamespaceName;
 	private readonly ReadOnlyCollection<PropertyAndAttributeInfo> Options;
 	private readonly ReadOnlyCollection<PropertyAndAttributeInfo> Positionals;
 	private readonly ReadOnlyCollection<PropertyAndAttributeInfo> Flags;
 	private readonly HelptextProvider HelptextProvider;
-	private readonly ISymbol Symbol;
 	private readonly GeneratorConfiguration Config;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="SourceTextGenerator"/> class.
 	/// </summary>
-	/// <param name="classDeclaration">The class declaration syntax to generate parsing code for.</param>
+	/// <param name="className">The name of the class to generate parsing code for.</param>
+	/// <param name="namespaceName">The namespace of the class, or null if it has none.</param>
 	/// <param name="argumentProvider">The argument provider to retrieve argument information from.</param>
 	/// <param name="helptextProvider">The help text provider to generate help text if needed.</param>
-	/// <param name="symbol">The symbol representing the class.</param>
 	/// <param name="config">The configuration settings for code generation and help text.</param>
 	public SourceTextGenerator(
-		ClassDeclarationSyntax classDeclaration,
+		string className,
+		string? namespaceName,
 		ArgumentProvider argumentProvider,
 		HelptextProvider helptextProvider,
-		ISymbol symbol,
 		GeneratorConfiguration config
 	)
 	{
@@ -44,12 +44,12 @@ public class SourceTextGenerator : ISourceTextGenerator
 		{
 			throw new ArgumentNullException(nameof(argumentProvider));
 		}
-		ClassDeclaration = classDeclaration;
+		ClassName = className ?? throw new ArgumentNullException(nameof(className));
+		NamespaceName = namespaceName;
 		Options = argumentProvider.GetOptionArguments();
 		Positionals = argumentProvider.GetPositionalArguments();
 		Flags = argumentProvider.GetFlagArguments();
 		HelptextProvider = helptextProvider ?? throw new ArgumentNullException(nameof(helptextProvider));
-		Symbol = symbol;
 		Config = config ?? throw new ArgumentNullException(nameof(config));
 	}
 
@@ -59,8 +59,8 @@ public class SourceTextGenerator : ISourceTextGenerator
 	/// <returns>A string containing the generated source code for the parser.</returns>
 	public string GenerateSourceText()
 	{
-		var className = ClassDeclaration.Identifier.Text;
-		var namespaceName = Symbol.ContainingNamespace?.ToDisplayString();
+		var className = ClassName;
+		var namespaceName = NamespaceName;
 		var argumentParserVersion = AssemblyVersionProvider.FullSemVer;
 
 		using var writer = new IndentedTextWriter(new StringWriter());

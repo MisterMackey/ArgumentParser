@@ -12,8 +12,21 @@ public class DiagnosticRuleTests
 {
 	private const string SafeAttribute = "[ParameterCollection(HelpTextGeneration.GenerateTextOnly, \"h\", \"Help\", BehaviourOnError.ThrowNever)]";
 
-	private sealed record Result(IReadOnlyList<Diagnostic> Diagnostics, string Output)
+	private sealed record Result(IReadOnlyList<Diagnostic> Diagnostics, string Output, string Source)
 	{
+		// Locations are rebuilt from plain data, so they have no syntax tree: read the flagged text from the source.
+		public string TextAt(Diagnostic diagnostic)
+		{
+			var span = diagnostic.Location.GetLineSpan().Span;
+			var lines = Source.Split('\n');
+			var first = span.Start.Line;
+			var last = span.End.Line;
+			var text = string.Join("\n", lines[first..(last + 1)]);
+			var startOffset = span.Start.Character;
+			var endOffset = text.Length - (lines[last].Length - span.End.Character);
+			return text[startOffset..endOffset];
+		}
+
 		public IReadOnlyList<string> Ids => Diagnostics.Select(d => d.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
 
 		public IReadOnlyList<Diagnostic> Rule(string id) => Diagnostics.Where(d => d.Id == id).ToList();
@@ -43,7 +56,7 @@ public class DiagnosticRuleTests
 			}
 			""";
 		var (diagnostics, output) = TestHelper.GetGeneratedOutput(source);
-		return new Result(diagnostics.Where(d => d.Id.StartsWith("ARG", StringComparison.Ordinal)).ToList(), output);
+		return new Result(diagnostics.Where(d => d.Id.StartsWith("ARG", StringComparison.Ordinal)).ToList(), output, source);
 	}
 
 	private static string Option(string shortName, string longName, string name, string type = "string", bool required = false)
@@ -726,7 +739,7 @@ public class DiagnosticRuleTests
 		var result = Diagnose(Option("o", "Output", "Output"), Attribute("None", "DisplayHelpAndExit"));
 
 		var diagnostic = Assert.Single(result.Rule("ARG010"));
-		var span = diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan);
+		var span = result.TextAt(diagnostic);
 		Assert.StartsWith("ParameterCollection", span, StringComparison.Ordinal);
 	}
 
@@ -736,7 +749,7 @@ public class DiagnosticRuleTests
 		var result = Diagnose(Option("o", "Output", "Output"), modifiers: "public");
 
 		var diagnostic = Assert.Single(result.Rule("ARG001"));
-		var span = diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan);
+		var span = result.TextAt(diagnostic);
 		Assert.Contains("class TestClass", span, StringComparison.Ordinal);
 	}
 

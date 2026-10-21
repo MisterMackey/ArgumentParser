@@ -8,7 +8,7 @@ namespace ArgumentParser.Internal.Utilities;
 /// <summary>
 /// Represents the configuration settings for the ArgumentParser.
 /// </summary>
-public class GeneratorConfiguration
+public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 {
 	/// <summary>
 	/// Gets or sets the help text generation mode.
@@ -117,6 +117,33 @@ public class GeneratorConfiguration
 			return memberAccess.Name.Identifier.ValueText;
 		}
 		return argument.Expression.GetFirstToken().ValueText;
+	}
+
+	/// <inheritdoc/>
+	public bool Equals(GeneratorConfiguration? other)
+	{
+		return other is not null
+			&& string.Equals(HelpTextGenerationMode, other.HelpTextGenerationMode, StringComparison.Ordinal)
+			&& string.Equals(HelpArgumentShortName, other.HelpArgumentShortName, StringComparison.Ordinal)
+			&& string.Equals(HelpArgumentLongName, other.HelpArgumentLongName, StringComparison.Ordinal)
+			&& string.Equals(BehaviourOnError, other.BehaviourOnError, StringComparison.Ordinal);
+	}
+
+	/// <inheritdoc/>
+	public override bool Equals(object? obj)
+	{
+		return Equals(obj as GeneratorConfiguration);
+	}
+
+	/// <inheritdoc/>
+	public override int GetHashCode()
+	{
+		int hash = 17;
+		hash = hash * 23 + (HelpTextGenerationMode?.GetHashCode() ?? 0);
+		hash = hash * 23 + (HelpArgumentShortName?.GetHashCode() ?? 0);
+		hash = hash * 23 + (HelpArgumentLongName?.GetHashCode() ?? 0);
+		hash = hash * 23 + (BehaviourOnError?.GetHashCode() ?? 0);
+		return hash;
 	}
 
 	/// <summary>
