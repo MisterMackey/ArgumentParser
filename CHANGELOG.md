@@ -9,6 +9,7 @@
 - Diagnostics are now reported at a file path and span instead of a syntax node. Because of this, `#pragma warning disable` and `.editorconfig` severity settings no longer silence the ARG008 warning; use `<NoWarn>ARG008</NoWarn>` in the project file.
 
 ### Fixed
+- A class in the global namespace produced generated code that did not compile (`namespace <global namespace>`).
 - Required arguments were tracked in static state, so after one `Parse` call that supplied them later calls in the same process no longer reported them missing. The tracking is now local to each call.
 - Names and descriptions containing quotes or backslashes (and help text containing triple quotes) produced generated code that did not compile. They are now escaped.
 - With `BehaviourOnError.ThrowIfAnyError` the thrown `AggregateException` only contained the missing-required errors when both missing and invalid arguments were present. It now contains all errors.

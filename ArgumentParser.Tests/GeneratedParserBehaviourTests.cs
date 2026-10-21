@@ -657,4 +657,22 @@ public class GeneratedParserBehaviourTests
 			public string Out { get; set; } = "";
 			"""), implicitUsings: false);
 	}
+
+	[Fact]
+	public void Generated_Code_CompilesForAClassInTheGlobalNamespace()
+	{
+		var parser = GeneratedParser.Compile("""
+			using ArgumentParser;
+
+			[ParameterCollection(HelpTextGeneration.GenerateTextOnly, "h", "Help", BehaviourOnError.ThrowNever)]
+			public partial class GlobalClass
+			{
+				[Option("o", "Out", "out")]
+				public string Out { get; set; } = "";
+			}
+			""", className: "GlobalClass");
+
+		Assert.DoesNotContain("<global namespace>", parser.GeneratedSource, StringComparison.Ordinal);
+		Assert.DoesNotContain("namespace ", parser.GeneratedSource, StringComparison.Ordinal);
+	}
 }

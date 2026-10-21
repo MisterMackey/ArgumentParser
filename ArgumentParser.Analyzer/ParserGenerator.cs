@@ -38,7 +38,8 @@ namespace ArgumentParser.Internal
 			var classDeclaration = (ClassDeclarationSyntax)generatorContext.TargetNode;
 			var semanticModel = generatorContext.SemanticModel;
 			var className = classDeclaration.Identifier.Text;
-			var namespaceName = generatorContext.TargetSymbol.ContainingNamespace?.ToDisplayString();
+			var containingNamespace = generatorContext.TargetSymbol.ContainingNamespace;
+			var namespaceName = containingNamespace is { IsGlobalNamespace: false } ? containingNamespace.ToDisplayString() : null;
 			var programName = semanticModel.Compilation.Assembly.Name ?? "";
 
 			ClassModel Rejected(IEnumerable<DiagnosticInfo> diagnostics)
