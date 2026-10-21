@@ -5,7 +5,7 @@ C# incremental source generator (published as the NuGet package `Aot.ArgumentPar
 ## Code style
 - Indent with **tabs** (see `.editorconfig`), LF line endings, one final newline. Run `make format` before committing; CI fails on formatting differences. Use tabs in any code snippet you write, including snippets inside generated-code string templates and markdown.
 - Don't add comments to the code that the generator emits unless essential.
-- XML doc comments are expected on public members: both library projects build with `AnalysisMode=All` and `GenerateDocumentationFile`.
+- XML doc comments are expected on public members: both library projects build with `AnalysisMode=All`, `GenerateDocumentationFile` and `TreatWarningsAsErrors`, so a new analyzer warning or a missing doc comment fails the build.
 
 ## Commands
 Everything goes through the `Makefile` (stamp files in `.build-stamps/` skip up-to-date steps; `make clean` resets them).

@@ -11,6 +11,7 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <WarningLevel>5</WarningLevel>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <IncludeBuildOutput>true</IncludeBuildOutput>
     <PackageOutputPath>bin/nupkg</PackageOutputPath>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
