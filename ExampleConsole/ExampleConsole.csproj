@@ -8,6 +8,7 @@
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors> <!-- trim and AOT warnings (IL2xxx, IL3xxx) must fail the smoke test -->
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier> <!-- fix for unable to find  Unable to find package runtime.arch-x64.Microsoft.DotNet.ILCompiler-->
   </PropertyGroup>
 

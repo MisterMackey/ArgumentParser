@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs the ExampleConsole executable with a range of command lines and checks the exit code and output of each.
-# Usage: scripts/smoke-test.sh <path to ExampleConsole executable>
+# Usage: scripts/smoke-test.sh <path to the published (native AOT) ExampleConsole executable>
 #
 # Each expected output entry must match a whole output line, or, when prefixed with "~", appear anywhere in the output.
 # An entry prefixed with "!" must NOT appear. The first argument after the expectations selects the scenario in
@@ -11,6 +11,12 @@ set -u
 BIN="${1:?usage: smoke-test.sh <path to ExampleConsole executable>}"
 if [ ! -x "$BIN" ]; then
 	echo "executable not found: $BIN"
+	exit 1
+fi
+
+# the point of the smoke test is the native AOT executable: a managed build has a runtimeconfig.json next to it
+if [ -e "$(dirname "$BIN")/ExampleConsole.runtimeconfig.json" ] || [ -e "$(dirname "$BIN")/ExampleConsole.dll" ]; then
+	echo "$BIN is a managed build, not a native AOT publish (use 'make build-example')"
 	exit 1
 fi
 

@@ -27,7 +27,7 @@ $(RESTORE_EXAMPLE_STAMP): $(ANALYZER_STAMP) | $(STAMP_DIR)
 	touch $@
 
 $(EXAMPLE_STAMP): $(EXAMPLE_SOURCES) $(RESTORE_EXAMPLE_STAMP) | $(STAMP_DIR)
-	dotnet build ExampleConsole -v:d
+	dotnet publish ExampleConsole -c Release
 	touch $@
 
 $(TESTPROJ_STAMP): $(TEST_SOURCES) $(ANALYZER_STAMP) | $(STAMP_DIR)
@@ -42,7 +42,7 @@ help:
 	@echo "  clean                  - Clean the build artifacts and coverage reports"
 	@echo "  build-analyzer         - Build the ArgumentParser analyzer (Release)"
 	@echo "  restore-example        - Add locally built Aot.ArgumentParser package to ExampleConsole"
-	@echo "  build-example          - Build the ExampleConsole project"
+	@echo "  build-example          - Publish the ExampleConsole project as a native AOT executable"
 	@echo "  build-tests            - Build the ArgumentParser.Tests project (Debug)"
 	@echo "  test                   - Run the tests in ArgumentParser.Tests with coverage"
 	@echo "  coverage               - Generate a coverage report for ArgumentParser.Tests"
@@ -125,4 +125,4 @@ release-stable: clean set-version-stable test smoke-test
 
 smoke-test: build-example
 	@echo "running smoke tests..."
-	@scripts/smoke-test.sh ExampleConsole/bin/Debug/net10.0/linux-x64/ExampleConsole
+	@scripts/smoke-test.sh ExampleConsole/bin/Release/net10.0/linux-x64/publish/ExampleConsole

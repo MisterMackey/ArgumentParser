@@ -13,7 +13,7 @@ Everything goes through the `Makefile` (stamp files in `.build-stamps/` skip up-
 ```bash
 make build-analyzer        # dotnet build ArgumentParser -c Release (also builds the Analyzer and packs the nupkg into ArgumentParser/bin/nupkg)
 make test                  # builds tests in Debug, then runs them with coverage
-make smoke-test            # builds ExampleConsole against the locally packed nupkg and runs scripts/smoke-test.sh against it
+make smoke-test            # publishes ExampleConsole as a native AOT executable against the locally packed nupkg and runs scripts/smoke-test.sh against it
 make all                   # analyzer + example + tests
 make help                  # lists every target
 ```
@@ -27,7 +27,7 @@ dotnet test ArgumentParser.Tests --filter "FullyQualifiedName=ArgumentParser.Tes
 
 Gotchas with the Makefile:
 - `make build-example` / `restore-example` deliberately consumes the example as a real NuGet consumer, to prove the packed nupkg (analyzer DLL under `analyzers/dotnet/cs/`) works end to end. `dotnet nuget locals all --clear` is there because every local build reuses the same version, so a cached copy would be served stale. `dotnet add ... --source ArgumentParser/bin/nupkg --prerelease` is pinned with `--version` taken from `ArgumentParser/ArgumentParser.csproj`, because the (gitignored) nupkg folder accumulates old packages and without the pin the highest one wins (it used to rewrite `ExampleConsole/ExampleConsole.csproj` to e.g. 1.4.0 instead of 1.3.0). Bumping `<Version>` therefore also needs the `PackageReference` in `ExampleConsole.csproj` updated, which `make restore-example` does.
-- `ExampleConsole` pins `RuntimeIdentifier` to `linux-x64` (AOT ILCompiler package workaround), so its binary is at `ExampleConsole/bin/Debug/net10.0/linux-x64/ExampleConsole`, which is what `smoke-test` runs.
+- `build-example` runs `dotnet publish -c Release`, so the smoke test exercises the real NativeAOT binary (needs clang and zlib; `TreatWarningsAsErrors` makes trim/AOT warnings fail the build). A plain `dotnet build` only gives a JIT-run apphost plus a managed dll, and `smoke-test.sh` refuses such a binary. `ExampleConsole` pins `RuntimeIdentifier` to `linux-x64` (AOT ILCompiler package workaround), so the binary is at `ExampleConsole/bin/Release/net10.0/linux-x64/publish/ExampleConsole`, which is what `smoke-test` runs.
 
 ## Architecture
 Three projects matter; keep the split in mind because it is not obvious from the names:

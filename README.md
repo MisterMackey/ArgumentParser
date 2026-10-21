@@ -356,8 +356,8 @@ The project comes with a makefile that should cover most typical needs during th
 
 ## building and testing locally
 run ```make build-analyzer``` to generate the nuget package locally
-run ```make build-example``` to build the example project
-run ```make test``` and ```make smoke-test``` to run unit testing and smoke testing, respectively. Smoke testing runs the example project
+run ```make build-example``` to publish the example project as a native AOT executable (needs clang and zlib, as any NativeAOT publish does)
+run ```make test``` and ```make smoke-test``` to run unit testing and smoke testing, respectively. Smoke testing runs the native AOT executable
 
 ## creating a release
 For a release, the version of the final nuget package, the version specified in the GeneratedCodeAttribute, and the git tag should all match.
