@@ -537,6 +537,48 @@ public class GeneratedParserBehaviourTests
 		Assert.True(parser.Parse("--Help").Get<bool>("DisplayHelp"));
 	}
 
+	[Fact]
+	public void HelpArgument_CustomNamesGivenAsNamedArguments_AreTheOnesRecognised()
+	{
+		var parser = GeneratedParser.Compile("""
+			using System;
+			using ArgumentParser;
+
+			namespace ArgumentParser.Tests;
+
+			[ParameterCollection(helpArgumentLongName: "Assist", helpArgumentShortName: "?", helpTextGeneration: HelpTextGeneration.GenerateArgumentOnly, behaviourOnError: BehaviourOnError.ThrowNever)]
+			public partial class TestClass
+			{
+				[Flag("v", "Verbose", "be loud")]
+				public bool Verbose { get; set; }
+			}
+			""");
+
+		Assert.True(parser.Parse("-?").Get<bool>("DisplayHelp"));
+		Assert.True(parser.Parse("--Assist").Get<bool>("DisplayHelp"));
+		Assert.False(parser.Parse("-v").Get<bool>("DisplayHelp"));
+		Assert.NotEmpty(parser.Parse("--Help").Errors);
+	}
+
+	[Fact]
+	public void HelpText_RequiredOptionsShowWhicheverNamesTheyHave()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("", "Output", "long only", required: true)]
+			public string LongOnly { get; set; } = "";
+			[Option("s", "", "short only", required: true)]
+			public string ShortOnly { get; set; } = "";
+			[Option("b", "Both", "both names", required: true)]
+			public string Both { get; set; } = "";
+			"""));
+
+		var helpText = parser.GetStaticMember<string>("HelpText");
+
+		Assert.Contains("\tOption: --Output : long only", helpText);
+		Assert.Contains("\tOption: -s : short only", helpText);
+		Assert.Contains("\tOption: -b | --Both : both names", helpText);
+	}
+
 	private const string RequiredOptionAndNumber = """
 		[Option("o", "Out", "out", required: true)]
 		public string Out { get; set; } = "";

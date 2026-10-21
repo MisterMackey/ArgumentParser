@@ -14,6 +14,9 @@
 - Short and long names were not told apart: `-v` also set the argument whose long name is `v`, and short and long flags with the same text shared a repeat count. Tokens now carry `IsShort` and the generated code checks it.
 - A bare `--` was matched to an argument that has no long name, and swallowed the next argument as its value. It is now reported as an unknown argument.
 - The ARG006 diagnostic linked to "blah" instead of its documentation page.
+- Named string arguments of `[ParameterCollection]` were read as the argument name: `helpArgumentShortName: "?"` configured a help argument called `helpArgumentShortName`. String constants (`helpArgumentLongName: Names.Help`) gave the constant's identifier instead of its value. Both are now read by value.
+- Property attributes were found by a substring match on the attribute name, so a user attribute such as `MyOptionAttribute` was treated as `[Option]`, or could shadow the real attribute. They are now matched on their full name.
+- Two properties that differed only in their position, or whose attributes differed in anything but their names, compared as equal.
 
 ## v1.3.0
 ### Added

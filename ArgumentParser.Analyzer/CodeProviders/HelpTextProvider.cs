@@ -57,27 +57,6 @@ public class HelptextProvider
 				helpText.AppendLine($"\tPosition: {positional.Attribute.Position}: {positional.Attribute.Description}");
 			}
 		}
-		foreach (var flag in flags)
-		{
-			if (flag.Attribute.Required)
-			{
-				hasRequiredArgs = true;
-				helpText.Append("\tFlag: ");
-				if (!string.IsNullOrEmpty(flag.Attribute.ShortName))
-				{
-					helpText.Append($"-{flag.Attribute.ShortName} ");
-					if (!string.IsNullOrEmpty(flag.Attribute.LongName))
-					{
-						helpText.Append($"| --{flag.Attribute.LongName} ");
-					}
-				}
-				else if (!string.IsNullOrEmpty(flag.Attribute.LongName))
-				{
-					helpText.Append($"--{flag.Attribute.LongName} ");
-				}
-				helpText.AppendLine($": {flag.Attribute.Description}");
-			}
-		}
 		foreach (var option in options)
 		{
 			if (option.Attribute.Required)

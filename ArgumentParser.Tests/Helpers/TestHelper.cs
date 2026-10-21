@@ -7,7 +7,7 @@ namespace ArgumentParser.Tests
 {
 	public static class TestHelper
 	{
-		public static (ImmutableArray<Diagnostic> Diagnostics, string Output) GetGeneratedOutput(string source)
+		public static CSharpCompilation CreateCompilation(string source)
 		{
 			// Create the references needed for compilation
 			var references = new List<MetadataReference>
@@ -38,13 +38,17 @@ namespace ArgumentParser.Tests
 				}
 			}
 
-			// Create compilation
-			var compilation = CSharpCompilation.Create(
+			return CSharpCompilation.Create(
 				"TestAssembly",
 				new[] { CSharpSyntaxTree.ParseText(source) },
 				references,
 				new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
 			);
+		}
+
+		public static (ImmutableArray<Diagnostic> Diagnostics, string Output) GetGeneratedOutput(string source)
+		{
+			var compilation = CreateCompilation(source);
 
 			// Create an instance of the generator
 			var generator = new ParserGenerator();

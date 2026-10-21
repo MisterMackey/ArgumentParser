@@ -57,30 +57,10 @@ public class GeneratorConfiguration
 		// get the named and positional arguments used in the attribute
 		var namedArguments = attribute.ArgumentList?.Arguments
 			.Where(arg => arg.NameColon != null)
-			.ToDictionary(arg => arg.NameColon!.Name.ToString(), arg =>
-			{
-				if (arg.Expression is MemberAccessExpressionSyntax memberAccess)
-				{
-					return memberAccess.Name.Identifier.ValueText;
-				}
-				else
-				{
-					return arg.GetFirstToken().ValueText;
-				}
-			});
+			.ToDictionary(arg => arg.NameColon!.Name.ToString(), arg => ArgumentValue(arg, semanticModel));
 		var positionalArguments = attribute.ArgumentList?.Arguments
 			.Where(arg => arg.NameColon == null)
-			.Select(arg =>
-			{
-				if (arg.Expression is MemberAccessExpressionSyntax memberAccess)
-				{
-					return memberAccess.Name.Identifier.ValueText;
-				}
-				else
-				{
-					return arg.GetFirstToken().ValueText;
-				}
-			})
+			.Select(arg => ArgumentValue(arg, semanticModel))
 			.ToList();
 		// make sure to update this part if the attribute changes
 		for (int i = 0; i < positionalArguments?.Count; i++)
@@ -121,6 +101,22 @@ public class GeneratorConfiguration
 				BehaviourOnError = errBehaviour;
 			}
 		}
+	}
+
+	// Strings are taken from their constant value, so literals and constants both work.
+	// Enum values are taken from the member name, so qualified and unqualified spellings are the same.
+	// The first token is taken from the expression, not the argument: for a named argument the argument starts with the name.
+	private static string ArgumentValue(AttributeArgumentSyntax argument, SemanticModel semanticModel)
+	{
+		if (semanticModel.GetConstantValue(argument.Expression).Value is string text)
+		{
+			return text;
+		}
+		if (argument.Expression is MemberAccessExpressionSyntax memberAccess)
+		{
+			return memberAccess.Name.Identifier.ValueText;
+		}
+		return argument.Expression.GetFirstToken().ValueText;
 	}
 
 	/// <summary>
