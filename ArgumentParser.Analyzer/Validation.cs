@@ -206,7 +206,7 @@ public static class Validation
 		foreach (var flag in flags)
 		{
 			if (flag.PropertyType != "bool"
-				&& !(flag.PropertySymbol?.Type.TypeKind == TypeKind.Enum)
+				&& !flag.IsEnum
 			)
 
 			{
@@ -352,7 +352,7 @@ public static class Validation
 			return true;
 		}
 		// Enum types are also supported
-		if (propInfo.PropertySymbol?.Type.TypeKind == TypeKind.Enum)
+		if (propInfo.IsEnum)
 		{
 			return true;
 		}

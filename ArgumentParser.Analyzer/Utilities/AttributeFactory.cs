@@ -117,7 +117,7 @@ public class AttributeFactory
 			Attribute = attribute,
 			PropertyName = property.Identifier.Text,
 			PropertyType = propertySymbol?.Type.ToDisplayString() ?? "string", //default, no parsing
-			PropertySymbol = propertySymbol,
+			IsEnum = propertySymbol?.Type.TypeKind == TypeKind.Enum,
 			ParseMethodName = parsedWithMethod
 		};
 	}
@@ -184,9 +184,9 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	public string PropertyType { get; set; }
 
 	/// <summary>
-	/// The symbol representing the property.
+	/// Indicates whether the property type is an enum.
 	/// </summary>
-	public IPropertySymbol? PropertySymbol { get; set; }
+	public bool IsEnum { get; set; }
 
 	/// <summary>
 	/// The name of the method used for parsing the property value.
@@ -218,7 +218,7 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	/// <returns></returns>
 	public override int GetHashCode()
 	{
-		return 17 * 23 + (PropertyName?.GetHashCode() ?? 0) * 31 + (PropertyType?.GetHashCode() ?? 0) * 37 +
+		return 17 * 23 + (PropertyName?.GetHashCode() ?? 0) * 31 + (PropertyType?.GetHashCode() ?? 0) * 37 + (IsEnum ? 1 : 0) * 43 +
 		       Attribute.GetHashCode() * 41;
 	}
 
@@ -238,6 +238,7 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	{
 		return PropertyName == other.PropertyName &&
 			PropertyType == other.PropertyType &&
+			IsEnum == other.IsEnum &&
 			ParseMethodName == other.ParseMethodName &&
 			Attribute.Equals(other.Attribute);
 	}

@@ -284,7 +284,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 	private static void WriteValueParseCode(PropertyAndAttributeInfo propertyInfo, string localVariableName, string propertyName, IndentedTextWriter writer)
 	{
 		// check if its an enum and construct enum with string value in that case
-		if (propertyInfo.PropertySymbol?.Type.TypeKind == TypeKind.Enum)
+		if (propertyInfo.IsEnum)
 		{
 			writer.WriteLine($"if (!Enum.TryParse<{propertyInfo.PropertyType}>({localVariableName}.Value, out var parsedValue))");
 			writer.WriteLine("{");
@@ -600,7 +600,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 	{
 		var propertyName = flagInfo.PropertyName;
 		bool isBool = flagInfo.PropertyType == "bool";
-		bool isEnum = flagInfo.PropertySymbol?.Type.TypeKind == TypeKind.Enum;
+		bool isEnum = flagInfo.IsEnum;
 		if (!isBool && !isEnum)
 		{
 			// could maybe throw? but that might annoy a user who somehow manages to pass validation on an invalid type

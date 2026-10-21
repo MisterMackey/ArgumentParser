@@ -133,7 +133,7 @@ public class AttributeExtractionTests
 		Assert.Equal(-1, option.Attribute.Position);
 		Assert.Equal("Output", option.PropertyName);
 		Assert.Equal("string", option.PropertyType);
-		Assert.NotNull(option.PropertySymbol);
+		Assert.False(option.IsEnum);
 		Assert.False(option.HasParseMethod);
 	}
 
@@ -244,7 +244,7 @@ public class AttributeExtractionTests
 		var flag = Assert.Single(Factory("""[Flag("c")] public Colour Level { get; set; }""").GetFlagAttributes());
 
 		Assert.Equal("Extraction.Colour", flag.PropertyType);
-		Assert.Equal(TypeKind.Enum, flag.PropertySymbol!.Type.TypeKind);
+		Assert.True(flag.IsEnum);
 	}
 
 	#endregion
@@ -454,7 +454,7 @@ public class AttributeExtractionTests
 
 	#region Value semantics
 
-	private static PropertyAndAttributeInfo Info(string name = "Name", string type = "string", int position = -1, bool required = false, string parseMethod = "")
+	private static PropertyAndAttributeInfo Info(string name = "Name", string type = "string", int position = -1, bool required = false, string parseMethod = "", bool isEnum = false)
 	{
 		return new PropertyAndAttributeInfo
 		{
@@ -462,6 +462,7 @@ public class AttributeExtractionTests
 			PropertyType = type,
 			Attribute = new AttributeInfo("n", "name", "desc", required, position),
 			ParseMethodName = parseMethod,
+			IsEnum = isEnum,
 		};
 	}
 
@@ -526,7 +527,7 @@ public class AttributeExtractionTests
 	}
 
 	[Fact]
-	public void PropertyAndAttributeInfo_DiffersByName_Type_Attribute_AndParseMethod()
+	public void PropertyAndAttributeInfo_DiffersByName_Type_Attribute_ParseMethod_AndEnumness()
 	{
 		var baseline = Info();
 
@@ -535,6 +536,7 @@ public class AttributeExtractionTests
 		Assert.NotEqual(baseline, Info(position: 1));
 		Assert.NotEqual(baseline, Info(required: true));
 		Assert.NotEqual(baseline, Info(parseMethod: "TryParse"));
+		Assert.NotEqual(baseline, Info(isEnum: true));
 	}
 
 	[Fact]
