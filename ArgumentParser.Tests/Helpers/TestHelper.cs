@@ -1,7 +1,7 @@
 ﻿using System.Collections.Immutable;
+using ArgumentParser.Internal;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using ArgumentParser.Internal;
 
 namespace ArgumentParser.Tests
 {

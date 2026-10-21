@@ -2,9 +2,9 @@ using System.Collections.Immutable;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
+using ArgumentParser.Internal;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using ArgumentParser.Internal;
 
 namespace ArgumentParser.Tests;
 

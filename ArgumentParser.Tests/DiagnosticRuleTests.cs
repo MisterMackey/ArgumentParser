@@ -1,6 +1,6 @@
 using System.Reflection;
-using Microsoft.CodeAnalysis;
 using ArgumentParser.Internal;
+using Microsoft.CodeAnalysis;
 
 namespace ArgumentParser.Tests;
 

@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using ArgumentParser.Internal;
 using ArgumentParser.Internal.Utilities;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace ArgumentParser.Tests;
 

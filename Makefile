@@ -51,6 +51,8 @@ help:
 	@echo "  pre-release            - Performs checks and cuts a pre-release (FullSemVer tag)"
 	@echo "  release-stable         - Performs checks and cuts a stable release (MajorMinorPatch tag)"
 	@echo "  smoke-test             - Run smoke tests on the ExampleConsole executable"
+	@echo "  format                 - Fix formatting and import order with dotnet format"
+	@echo "  format-check           - Fail if dotnet format would change anything (needs the example restored, so run build-example first)"
 	@echo "  help                   - Show this help message"
 
 all: build-analyzer build-example build-tests test
@@ -71,6 +73,14 @@ build-tests: $(TESTPROJ_STAMP)
 
 test: build-tests
 	dotnet test ArgumentParser.Tests --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
+
+.PHONY: format format-check
+
+format:
+	dotnet format ArgumentParser.sln
+
+format-check:
+	dotnet format ArgumentParser.sln --verify-no-changes
 
 coverage: build-tests
 	reportgenerator -reports:ArgumentParser.Tests/coverage.cobertura.xml -targetdir:coveragereports -reporttypes:Html

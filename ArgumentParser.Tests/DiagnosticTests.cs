@@ -1,5 +1,5 @@
-using Microsoft.CodeAnalysis;
 using ArgumentParser.Internal;
+using Microsoft.CodeAnalysis;
 
 namespace ArgumentParser.Tests
 {
@@ -136,7 +136,7 @@ namespace ArgumentParser.Tests
 			Assert.Equal(DiagnosticSeverity.Error, error.Severity);
 			Assert.Contains("Invalid positional argument position '2'", error.GetMessage());
 		}
-		
+
 		[Fact]
 		public void Diagnostic_NoParameterlessConstructor_ReportsError()
 		{
@@ -189,7 +189,7 @@ namespace ArgumentParser.Tests
 			Assert.Equal(DiagnosticSeverity.Error, error.Severity);
 			Assert.Contains("Specified property type 'FileInfo'", error.GetMessage());
 		}
-		
+
 		[Fact]
 		public void Diagnostic_HelpArgumentNamesSpecifiedButGenerationDisabled_ReportsWarning()
 		{
@@ -207,7 +207,7 @@ namespace ArgumentParser.Tests
 			Assert.NotNull(warning);
 			Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
 		}
-		
+
 		[Fact]
 		public void Diagnostic_MissingHelpTextWithHandler_ReportsError()
 		{
@@ -231,7 +231,7 @@ namespace ArgumentParser.Tests
 			Assert.NotNull(error);
 			Assert.Equal(DiagnosticSeverity.Error, error.Severity);
 		}
-		
+
 		[Fact]
 		public void Diagnostic_MissingHelpTextWithErrorHandler_ReportsError()
 		{
@@ -255,7 +255,7 @@ namespace ArgumentParser.Tests
 			Assert.NotNull(error);
 			Assert.Equal(DiagnosticSeverity.Error, error.Severity);
 		}
-		
+
 		[Fact]
 		public void Diagnostic_DuplicateDisplayHelpProperty_ReportsError()
 		{
@@ -283,7 +283,7 @@ namespace ArgumentParser.Tests
 			Assert.NotNull(error);
 			Assert.Equal(DiagnosticSeverity.Error, error.Severity);
 		}
-		
+
 		[Fact]
 		public void Diagnostic_DuplicateHelpTextConstant_ReportsError()
 		{

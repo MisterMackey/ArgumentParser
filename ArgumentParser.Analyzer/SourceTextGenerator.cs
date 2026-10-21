@@ -1,13 +1,13 @@
 using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.CodeDom.Compiler;
 using System.IO;
+using ArgumentParser.Analyzer;
+using ArgumentParser.Internal.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using ArgumentParser.Internal.Utilities;
-using ArgumentParser.Analyzer;
 
 namespace ArgumentParser.Internal;
 

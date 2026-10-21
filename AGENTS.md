@@ -3,7 +3,7 @@
 C# incremental source generator (published as the NuGet package `Aot.ArgumentParser`). Users annotate a `partial` class with `[ParameterCollection]` and properties with `[Flag]`/`[Option]`/`[Positional]`. The generator adds a reflection-free, AOT-friendly `static Parse(string[] args)` returning `(instance, List<ArgumentParserException>)`. User-facing docs are in `README.md`; release history in `CHANGELOG.md`.
 
 ## Code style
-- Indent with **tabs** (see `.editorconfig`), LF line endings. Use tabs in any code snippet you write, including snippets inside generated-code string templates and markdown.
+- Indent with **tabs** (see `.editorconfig`), LF line endings, one final newline. Run `make format` before committing; CI fails on formatting differences. Use tabs in any code snippet you write, including snippets inside generated-code string templates and markdown.
 - Don't add comments to the code that the generator emits unless essential.
 - XML doc comments are expected on public members: both library projects build with `AnalysisMode=All` and `GenerateDocumentationFile`.
 
@@ -13,6 +13,7 @@ Everything goes through the `Makefile` (stamp files in `.build-stamps/` skip up-
 ```bash
 make build-analyzer        # dotnet build ArgumentParser -c Release (also builds the Analyzer and packs the nupkg into ArgumentParser/bin/nupkg)
 make test                  # builds tests in Debug, then runs them with coverage
+make format                # dotnet format (whitespace, line endings, import order); CI runs 'make format-check', which fails on any difference
 make smoke-test            # publishes ExampleConsole as a native AOT executable against the locally packed nupkg and runs scripts/smoke-test.sh against it
 make all                   # analyzer + example + tests
 make help                  # lists every target

@@ -101,12 +101,12 @@ public static class Validation
 			.Where(g => g.Count() > 1)
 			.Select(g => g.Key)
 			.ToList();
-		
+
 		var duplicateOptions = options
 			.Where(x => duplicateShortNames.Contains(x.Attribute.ShortName));
 		var duplicateFlags = flags
 			.Where(x => duplicateShortNames.Contains(x.Attribute.ShortName));
-		
+
 		foreach (var option in duplicateOptions)
 		{
 			var location = GetLocation(option, classDeclarationSyntax);
@@ -251,15 +251,15 @@ public static class Validation
 
 		var diagnostics = new List<DiagnosticInfo>();
 
-		 // Find the ParameterCollectionAttribute location
+		// Find the ParameterCollectionAttribute location
 		var parameterCollectionAttribute = classDeclarationSyntax.AttributeLists
 			.SelectMany(list => list.Attributes)
 			.FirstOrDefault(attr => attr.Name.ToString().Contains("ParameterCollection"));
 		var attributeLocation = parameterCollectionAttribute?.GetLocation() ?? classDeclarationSyntax.GetLocation();
 
 		// Check if helptext argument names are specified but argument generation is disabled (ARG008)
-		if (!config.HelpArgumentShouldBeGenerated() && 
-			(config.HelpArgumentShortName != "h" || 
+		if (!config.HelpArgumentShouldBeGenerated() &&
+			(config.HelpArgumentShortName != "h" ||
 			 config.HelpArgumentLongName != "Help"))
 		{
 			diagnostics.Add(DiagnosticInfo.Create(
@@ -270,7 +270,7 @@ public static class Validation
 		// Check if helptext property should be displayed
 		bool hasHelpTextConst = classDeclarationSyntax.Members
 			.OfType<FieldDeclarationSyntax>()
-			.Any(f => f.Modifiers.Any(SyntaxKind.ConstKeyword) && 
+			.Any(f => f.Modifiers.Any(SyntaxKind.ConstKeyword) &&
 				 f.Declaration.Variables.Any(v => v.Identifier.Text == "HelpText"));
 
 		// Check for missing HelpText property when argument handler is generated (ARG009)

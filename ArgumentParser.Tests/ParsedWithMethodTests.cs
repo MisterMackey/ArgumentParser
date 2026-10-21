@@ -1,6 +1,6 @@
-using Xunit;
 using ArgumentParser.Internal;
 using Microsoft.CodeAnalysis;
+using Xunit;
 
 namespace ArgumentParser.Tests
 {
