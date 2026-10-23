@@ -104,6 +104,20 @@ public sealed class GeneratedParser
 	}
 
 	/// <summary>
+	/// Calls the generated internal ParseCore method, which never prints, exits or throws on parse errors.
+	/// </summary>
+	public ParseOutcome ParseCore(params string[] args)
+	{
+		var type = GetParameterCollectionType();
+		var method = type.GetMethod("ParseCore", BindingFlags.NonPublic | BindingFlags.Static, [typeof(string[])])
+			?? throw new InvalidOperationException($"{type.FullName} has no internal static ParseCore(string[]) method.");
+		var items = (ITuple)method.Invoke(null, [args])!;
+		var errors = ((IEnumerable<ArgumentParserException>)items[1]!).ToList();
+		var missingRequired = ((IEnumerable<ArgumentParserException>)items[2]!).ToList();
+		return new ParseOutcome(items[0]!, errors, missingRequired);
+	}
+
+	/// <summary>
 	/// Reads a public constant or static field of the generated class (for example HelpText).
 	/// </summary>
 	public T? GetStaticMember<T>(string name)
@@ -142,7 +156,7 @@ public sealed class GeneratedParser
 /// <summary>
 /// The tuple returned by a generated Parse method, with helpers to read properties of the parsed instance.
 /// </summary>
-public sealed class ParseOutcome(object instance, IReadOnlyList<ArgumentParserException> errors)
+public sealed class ParseOutcome(object instance, IReadOnlyList<ArgumentParserException> errors, IReadOnlyList<ArgumentParserException>? missingRequired = null)
 {
 	/// <summary>
 	/// The instance of the parameter collection class.
@@ -153,6 +167,12 @@ public sealed class ParseOutcome(object instance, IReadOnlyList<ArgumentParserEx
 	/// The errors collected while parsing.
 	/// </summary>
 	public IReadOnlyList<ArgumentParserException> Errors { get; } = errors;
+
+	/// <summary>
+	/// The errors for required arguments that were not given, which are also part of <see cref="Errors"/>.
+	/// Only filled in by ParseCore.
+	/// </summary>
+	public IReadOnlyList<ArgumentParserException> MissingRequired { get; } = missingRequired ?? [];
 
 	/// <summary>
 	/// Reads a public instance property from the parsed instance.

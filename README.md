@@ -204,7 +204,7 @@ Optional arguments:
 
         public bool DisplayHelp { get; set; } = false;
         
-        public static (MyCommandLineArguments result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)
+        internal static (MyCommandLineArguments result, List<ArgumentParser.ArgumentParserException> errors, List<ArgumentParser.MissingRequiredArgumentException> missingRequired) ParseCore(string[] args)
         {
             var tokenizer = new ArgumentParser.ArgumentTokenizer();
             var (tokens, errors) = tokenizer.TokenizeArguments(args, options, positionals, flags);
@@ -282,6 +282,12 @@ Optional arguments:
                 .Select(k => new ArgumentParser.MissingRequiredArgumentException($"Missing required argument: {k}"))
                 .ToList();
             errors.AddRange(missingRequired);
+            return (instance, errors, missingRequired);
+        }
+
+        public static (MyCommandLineArguments result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)
+        {
+            var (instance, errors, _) = ParseCore(args);
             if (instance.DisplayHelp)
             {
                 System.Console.WriteLine(MyCommandLineArguments.HelpText);
@@ -306,7 +312,9 @@ Optional arguments:
 ## Default behaviour
 The string[] parameter is tokenized and then the tokens are evaluated in a loop to determine which properties on the class to change. During tokenization, errors are collected when something doesn't tokenize correctly or when arguments are encountered that have no corresponding property in the class.
 
-Parameters marked as required are tracked and checked off when found. At the end of the parse method, if any required properties are missing an Exception is added to the error list.
+Parameters marked as required are tracked and checked off when found. At the end of the parse, if any required properties are missing an Exception is added to the error list.
+
+This work is done by a generated `internal static ParseCore(string[] args)` method, which only collects errors: it never prints, exits or throws because of them. `Parse` calls it and then applies the help and error behaviour described below.
 
 By default, if any error is encountered during the parsing, the help text is displayed and the program exits via a call to Environment.Exit(2)
 Also by default, if the help argument is specified on the command line, the help text is displayed and the program exits via a call to Environment.Exit(0)

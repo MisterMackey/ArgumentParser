@@ -650,6 +650,89 @@ public class GeneratedParserBehaviourTests
 	}
 
 	[Fact]
+	public void BehaviourOnError_ThrowIfMissingRequired_DoesNotThrowForAnOptionWithoutValue()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(RequiredOptionAndNumber, behaviourOnError: "ThrowIfMissingRequired"));
+
+		// the tokenizer reports the dangling -n as a MissingRequiredArgumentException, but -o was given,
+		// so no required argument is missing and nothing may be thrown
+		var result = parser.Parse("-o", "x", "-n");
+
+		Assert.IsType<MissingRequiredArgumentException>(Assert.Single(result.Errors));
+	}
+
+	// Parse with these settings calls Environment.Exit, which would kill the test host. ParseCore must be safe.
+	private static GeneratedParser CompileExitingParser()
+	{
+		return GeneratedParser.Compile(ParserSource.Build(
+			RequiredOptionAndNumber,
+			behaviourOnError: "DisplayHelpAndExit",
+			helpTextGeneration: "GenerateAll"));
+	}
+
+	[Fact]
+	public void ParseCore_ReturnsErrorsWithoutExiting()
+	{
+		var parser = CompileExitingParser();
+
+		var result = parser.ParseCore("-n", "abc");
+
+		Assert.Equal(2, result.Errors.Count);
+		Assert.Single(result.Errors.OfType<InvalidArgumentValueException>());
+		Assert.Single(result.Errors.OfType<MissingRequiredArgumentException>());
+	}
+
+	[Fact]
+	public void ParseCore_ReportsAHelpRequestWithoutExiting()
+	{
+		var parser = CompileExitingParser();
+
+		var result = parser.ParseCore("-o", "x", "--Help");
+
+		Assert.True(result.Get<bool>("DisplayHelp"));
+		Assert.Empty(result.Errors);
+	}
+
+	[Fact]
+	public void ParseCore_DoesNotThrowWhenParseWould()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(RequiredOptionAndNumber, behaviourOnError: "ThrowIfAnyError"));
+
+		Assert.Throws<AggregateException>(() => parser.Parse("-n", "abc"));
+		var result = parser.ParseCore("-n", "abc");
+
+		Assert.Equal(2, result.Errors.Count);
+	}
+
+	[Fact]
+	public void ParseCore_ReportsMissingRequiredSeparately()
+	{
+		var parser = CompileExitingParser();
+
+		var missing = parser.ParseCore("-n", "1");
+		var dangling = parser.ParseCore("-o", "x", "-n");
+
+		Assert.IsType<MissingRequiredArgumentException>(Assert.Single(missing.MissingRequired));
+		Assert.Equal(missing.Errors, missing.MissingRequired);
+		// the tokenizer's "option requires a value" error is not a missing required argument
+		Assert.IsType<MissingRequiredArgumentException>(Assert.Single(dangling.Errors));
+		Assert.Empty(dangling.MissingRequired);
+	}
+
+	[Fact]
+	public void ParseCore_FillsTheInstanceLikeParse()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(RequiredOptionAndNumber));
+
+		var core = parser.ParseCore("-o", "x", "-n", "5");
+		var parse = parser.Parse("-o", "x", "-n", "5");
+
+		Assert.Equal(parse.Get<string>("Out"), core.Get<string>("Out"));
+		Assert.Equal(parse.Get<int>("Number"), core.Get<int>("Number"));
+		Assert.Empty(core.Errors);
+	}
+
+	[Fact]
 	public void Generated_Code_CompilesWithoutImplicitUsings()
 	{
 		GeneratedParser.Compile(ParserSource.Build("""

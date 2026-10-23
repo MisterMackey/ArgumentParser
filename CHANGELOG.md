@@ -5,6 +5,7 @@
 - Overriding program names in generated helptext
 
 ### Changed
+- The generated `Parse` is split in two. A new `internal static ParseCore(string[] args)` binds the arguments and collects errors without printing, exiting or throwing; `Parse` calls it and then applies the help text and `BehaviourOnError` handling exactly as before. The behaviour of `Parse` does not change, but a class that already declares its own `ParseCore(string[])` no longer compiles.
 - The generator is now incremental: it extracts a plain, comparable model of each annotated class and only generates again when that model changes, so edits elsewhere in a project no longer rerun the generator for every annotated class.
 - Diagnostics are now reported at a file path and span instead of a syntax node. Because of this, `#pragma warning disable` and `.editorconfig` severity settings no longer silence the ARG008 warning; use `<NoWarn>ARG008</NoWarn>` in the project file.
 

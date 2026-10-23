@@ -124,8 +124,8 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine();
 		}
 
-		// Parse method
-		writer.WriteLine($"public static ({className} result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)");
+		// ParseCore binds the arguments and collects errors, it never prints, exits or throws
+		writer.WriteLine($"internal static ({className} result, List<ArgumentParser.ArgumentParserException> errors, List<ArgumentParser.MissingRequiredArgumentException> missingRequired) ParseCore(string[] args)");
 		writer.WriteLine("{");
 		writer.Indent++;
 		writer.WriteLine("var tokenizer = new ArgumentParser.ArgumentTokenizer();");
@@ -227,6 +227,17 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.WriteLine(".ToList();");
 		writer.Indent--;
 		writer.WriteLine("errors.AddRange(missingRequired);");
+		writer.WriteLine("return (instance, errors, missingRequired);");
+		writer.Indent--;
+		writer.WriteLine("}");
+		writer.WriteLine();
+
+		// Parse method: ParseCore plus what the configuration asks to happen with the outcome
+		writer.WriteLine($"public static ({className} result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)");
+		writer.WriteLine("{");
+		writer.Indent++;
+		var missingRequiredVariable = Config.ShouldThrowIfMissingRequired() ? "missingRequired" : "_";
+		writer.WriteLine($"var (instance, errors, {missingRequiredVariable}) = ParseCore(args);");
 
 		if (Config.HelpTextShouldDisplayOnRequest())
 		{
