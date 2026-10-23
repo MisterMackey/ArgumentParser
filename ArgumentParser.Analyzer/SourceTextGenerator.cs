@@ -3,7 +3,6 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using ArgumentParser.Analyzer;
 using ArgumentParser.Internal.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -236,37 +235,17 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.WriteLine($"public static ({className} result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)");
 		writer.WriteLine("{");
 		writer.Indent++;
-		var missingRequiredVariable = Config.ShouldThrowIfMissingRequired() ? "missingRequired" : "_";
-		writer.WriteLine($"var (instance, errors, {missingRequiredVariable}) = ParseCore(args);");
-
-		if (Config.HelpTextShouldDisplayOnRequest())
+		var displayHelpOnRequest = Config.HelpTextShouldDisplayOnRequest();
+		var behaviourOnError = GetEffectiveBehaviourOnError();
+		if (displayHelpOnRequest || behaviourOnError != "ThrowNever")
 		{
-			HelpDisplayGenerator.GenerateDisplayHelpText(writer, className);
+			var helpTextArgument = displayHelpOnRequest || Config.HelpTextShouldDisplayOnError() ? $"{className}.HelpText" : "null";
+			writer.WriteLine("var (instance, errors, missingRequired) = ParseCore(args);");
+			writer.WriteLine($"ArgumentParser.ParseOutcomePolicy.Apply(ArgumentParser.BehaviourOnError.{behaviourOnError}, {(displayHelpOnRequest ? "instance.DisplayHelp" : "false")}, {helpTextArgument}, errors, missingRequired);");
 		}
-
-		if (Config.HelpTextShouldDisplayOnError())
+		else
 		{
-			HelpDisplayGenerator.GenerateDisplayHelpTextWithError(writer, className);
-		}
-		if (Config.ShouldThrowIfAnyError())
-		{
-			writer.WriteLine("if (errors.Count > 0)");
-			writer.WriteLine("{");
-			writer.Indent++;
-			writer.WriteLine("System.AggregateException ae = new System.AggregateException(message:\"One or more errors occurred during parsing\", innerExceptions: errors);");
-			writer.WriteLine("throw ae;");
-			writer.Indent--;
-			writer.WriteLine("}");
-		}
-		if (Config.ShouldThrowIfMissingRequired())
-		{
-			writer.WriteLine("if (missingRequired.Count > 0)");
-			writer.WriteLine("{");
-			writer.Indent++;
-			writer.WriteLine("System.AggregateException ae = new System.AggregateException(message:\"One or more required arguments missing\", innerExceptions: missingRequired);");
-			writer.WriteLine("throw ae;");
-			writer.Indent--;
-			writer.WriteLine("}");
+			writer.WriteLine("var (instance, errors, _) = ParseCore(args);");
 		}
 		writer.WriteLine("return (instance, errors);");
 		writer.Indent--;
@@ -282,6 +261,28 @@ public class SourceTextGenerator : ISourceTextGenerator
 		var text = writer.InnerWriter.ToString();
 		writer.Close();
 		return text;
+	}
+
+	/// <summary>
+	/// Gets the name of the BehaviourOnError member the generated Parse hands to the runtime policy.
+	/// The order matches how the settings were applied before the policy moved to the runtime library:
+	/// displaying the help text and exiting wins over throwing, and throwing for any error wins over throwing for missing arguments.
+	/// </summary>
+	private string GetEffectiveBehaviourOnError()
+	{
+		if (Config.HelpTextShouldDisplayOnError())
+		{
+			return "DisplayHelpAndExit";
+		}
+		if (Config.ShouldThrowIfAnyError())
+		{
+			return "ThrowIfAnyError";
+		}
+		if (Config.ShouldThrowIfMissingRequired())
+		{
+			return "ThrowIfMissingRequired";
+		}
+		return "ThrowNever";
 	}
 
 	/// <summary>

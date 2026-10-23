@@ -4,8 +4,12 @@
 - Quick action code fix support
 - Overriding program names in generated helptext
 
+### Added
+- `ParseOutcomePolicy.Apply` applies a `BehaviourOnError` setting and the help text to the outcome of a parse. An overload takes the `TextWriter` to write to and the `Action<int>` to call instead of `Environment.Exit`, so the policy can be used and tested without ending the process.
+
 ### Changed
 - The generated `Parse` is split in two. A new `internal static ParseCore(string[] args)` binds the arguments and collects errors without printing, exiting or throwing; `Parse` calls it and then applies the help text and `BehaviourOnError` handling exactly as before. The behaviour of `Parse` does not change, but a class that already declares its own `ParseCore(string[])` no longer compiles.
+- The help and error handling of `Parse` (printing, exit codes 0 and 2, throwing the `AggregateException`) moved out of the generated code into the runtime library, so the generated `Parse` is a single call to the new `ParseOutcomePolicy.Apply`. The output and exit codes are unchanged.
 - The generator is now incremental: it extracts a plain, comparable model of each annotated class and only generates again when that model changes, so edits elsewhere in a project no longer rerun the generator for every annotated class.
 - Diagnostics are now reported at a file path and span instead of a syntax node. Because of this, `#pragma warning disable` and `.editorconfig` severity settings no longer silence the ARG008 warning; use `<NoWarn>ARG008</NoWarn>` in the project file.
 

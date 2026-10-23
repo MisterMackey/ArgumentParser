@@ -23,9 +23,7 @@ namespace ArgumentParser.Tests
 			// Assert
 			Assert.Empty(diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
 			// Should generate handler for displaying help on error
-			Assert.Contains("if (errors.Any())", output);
-			Assert.Contains("System.Console.WriteLine(TestClass.HelpText);", output);
-			Assert.Contains("Environment.Exit(2);", output);
+			Assert.Contains("ArgumentParser.ParseOutcomePolicy.Apply(ArgumentParser.BehaviourOnError.DisplayHelpAndExit, false, TestClass.HelpText, errors, missingRequired);", output);
 		}
 
 		[Fact]
@@ -44,10 +42,7 @@ namespace ArgumentParser.Tests
 			// Assert
 			Assert.Empty(diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
 			// Should generate throw exception for errors
-			Assert.Contains("if (errors.Count > 0)", output);
-			Assert.Contains("new System.AggregateException", output);
-			Assert.Contains("One or more errors occurred ", output);
-			Assert.Contains("throw ", output);
+			Assert.Contains("ArgumentParser.ParseOutcomePolicy.Apply(ArgumentParser.BehaviourOnError.ThrowIfAnyError, false, null, errors, missingRequired);", output);
 		}
 
 		[Fact]
@@ -67,6 +62,7 @@ namespace ArgumentParser.Tests
 			Assert.Empty(diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
 			// Should not generate any error handling code
 			Assert.DoesNotContain("throw ", output);
+			Assert.DoesNotContain("ParseOutcomePolicy", output);
 		}
 
 		[Fact]
@@ -90,10 +86,7 @@ namespace ArgumentParser.Tests
 			// Assert
 			Assert.Empty(diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
 			// Should generate throw exception for missing required parameters
-			Assert.Contains("if (missingRequired.Count > 0)", output);
-			Assert.Contains("new System.AggregateException", output);
-			Assert.Contains("One or more required arguments missing", output);
-			Assert.Contains("throw ", output);
+			Assert.Contains("ArgumentParser.ParseOutcomePolicy.Apply(ArgumentParser.BehaviourOnError.ThrowIfMissingRequired, false, null, errors, missingRequired);", output);
 		}
 	}
 }

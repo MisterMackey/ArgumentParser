@@ -42,8 +42,8 @@ namespace ArgumentParser.Tests
 			// property for DisplayHelp is generated
 			Assert.Contains("public bool DisplayHelp { get; set; }", output);
 			// helptext is written at some point
-			Assert.Contains("if (instance.DisplayHelp)", output);
-			Assert.Contains("System.Console.WriteLine(TestClass.HelpText);", output);
+			Assert.Contains("instance.DisplayHelp, TestClass.HelpText", output);
+			Assert.Contains("ArgumentParser.ParseOutcomePolicy.Apply(", output);
 		}
 
 		[Fact]
@@ -74,8 +74,8 @@ namespace ArgumentParser.Tests
 			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 			Assert.DoesNotContain("public const string HelpText =", output);
 			Assert.DoesNotContain("public bool DisplayHelp { get; set; }", output);
-			Assert.DoesNotContain("if (instance.DisplayHelp)", output);
-			Assert.DoesNotContain("System.Console.WriteLine(TestClass.HelpText);", output);
+			Assert.DoesNotContain("instance.DisplayHelp,", output);
+			Assert.DoesNotContain("TestClass.HelpText", output);
 		}
 
 		[Fact]
@@ -106,8 +106,8 @@ namespace ArgumentParser.Tests
 			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 			Assert.Contains("public const string HelpText =", output);
 			Assert.DoesNotContain("public bool DisplayHelp { get; set; }", output);
-			Assert.DoesNotContain("if (instance.DisplayHelp)", output);
-			Assert.DoesNotContain("System.Console.WriteLine(TestClass.HelpText);", output);
+			Assert.DoesNotContain("instance.DisplayHelp,", output);
+			Assert.DoesNotContain("TestClass.HelpText", output);
 		}
 
 		[Fact]
@@ -138,8 +138,8 @@ namespace ArgumentParser.Tests
 			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 			Assert.DoesNotContain("public const string HelpText =", output);
 			Assert.Contains("public bool DisplayHelp { get; set; }", output);
-			Assert.DoesNotContain("if (instance.DisplayHelp)", output);
-			Assert.DoesNotContain("System.Console.WriteLine(TestClass.HelpText);", output);
+			Assert.DoesNotContain("instance.DisplayHelp,", output);
+			Assert.DoesNotContain("TestClass.HelpText", output);
 		}
 
 		[Fact]
@@ -173,8 +173,8 @@ namespace ArgumentParser.Tests
 			// this property is there in the source text, but not in the generated output
 			Assert.DoesNotContain("public const string HelpText =", output);
 			Assert.Contains("public bool DisplayHelp { get; set; }", output);
-			Assert.Contains("if (instance.DisplayHelp)", output);
-			Assert.Contains("System.Console.WriteLine(TestClass.HelpText);", output);
+			Assert.Contains("instance.DisplayHelp, TestClass.HelpText", output);
+			Assert.Contains("ArgumentParser.ParseOutcomePolicy.Apply(", output);
 		}
 	}
 }

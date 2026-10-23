@@ -287,22 +287,8 @@ Optional arguments:
 
         public static (MyCommandLineArguments result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)
         {
-            var (instance, errors, _) = ParseCore(args);
-            if (instance.DisplayHelp)
-            {
-                System.Console.WriteLine(MyCommandLineArguments.HelpText);
-                Environment.Exit(0);
-            }
-            if (errors.Any())
-            {
-                foreach (var error in errors)
-                {
-                    System.Console.WriteLine(error);
-                }
-                System.Console.WriteLine();
-                System.Console.WriteLine(MyCommandLineArguments.HelpText);
-                Environment.Exit(2);
-            }
+            var (instance, errors, missingRequired) = ParseCore(args);
+            ArgumentParser.ParseOutcomePolicy.Apply(ArgumentParser.BehaviourOnError.DisplayHelpAndExit, instance.DisplayHelp, MyCommandLineArguments.HelpText, errors, missingRequired);
             return (instance, errors);
         }
     }
@@ -314,7 +300,7 @@ The string[] parameter is tokenized and then the tokens are evaluated in a loop 
 
 Parameters marked as required are tracked and checked off when found. At the end of the parse, if any required properties are missing an Exception is added to the error list.
 
-This work is done by a generated `internal static ParseCore(string[] args)` method, which only collects errors: it never prints, exits or throws because of them. `Parse` calls it and then applies the help and error behaviour described below.
+This work is done by a generated `internal static ParseCore(string[] args)` method, which only collects errors: it never prints, exits or throws because of them. `Parse` calls it and then hands the outcome to `ArgumentParser.ParseOutcomePolicy.Apply`, which applies the help and error behaviour described below. That method is public, and an overload takes the output writer and the exit action, so code that must not end the process (a server, a test) can apply the same policy with its own.
 
 By default, if any error is encountered during the parsing, the help text is displayed and the program exits via a call to Environment.Exit(2)
 Also by default, if the help argument is specified on the command line, the help text is displayed and the program exits via a call to Environment.Exit(0)
