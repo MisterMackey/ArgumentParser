@@ -64,22 +64,20 @@ static int RunCommands(string[] args)
 {
 	var (tool, _) = FileTool.Parse(args);
 	Console.WriteLine($"Root={tool.Root}");
-	if (tool.Directories?.List is { } list)
+	Console.WriteLine($"Command={tool.SelectedCommand}");
+	switch (tool.Selected)
 	{
-		Console.WriteLine("Command=directories list");
-		Console.WriteLine($"ShowHidden={list.ShowHidden}");
-	}
-	else if (tool.Directories?.Create is { } create)
-	{
-		Console.WriteLine("Command=directories create");
-		Console.WriteLine($"Name={create.Name}");
-	}
-	else if (tool.Files?.Delete is { } delete)
-	{
-		Console.WriteLine("Command=files delete");
-		Console.WriteLine($"DryRun={tool.Files.DryRun}");
-		Console.WriteLine($"FilePath={delete.FilePath}");
-		Console.WriteLine($"Force={delete.Force}");
+		case ListDirectories list:
+			Console.WriteLine($"ShowHidden={list.ShowHidden}");
+			break;
+		case CreateDirectory create:
+			Console.WriteLine($"Name={create.Name}");
+			break;
+		case DeleteFile delete:
+			Console.WriteLine($"DryRun={tool.Files!.DryRun}");
+			Console.WriteLine($"FilePath={delete.FilePath}");
+			Console.WriteLine($"Force={delete.Force}");
+			break;
 	}
 	return 0;
 }

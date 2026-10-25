@@ -367,6 +367,82 @@ public class GeneratedCommandTreeTests
 	}
 	#endregion
 
+	#region the selected command
+
+	[Fact]
+	public void Selected_IsTheLeafThatWasParsed()
+	{
+		var outcome = Calories().ParseCommand("ingredient", "add", "-n", "rice");
+
+		Assert.Same(outcome.GetPath<object>("Ingredient.Add"), outcome.Get<object>("Selected"));
+		Assert.Equal("ingredient add", outcome.Get<CommandInfo>("SelectedCommand")!.ToString());
+	}
+
+	[Theory]
+	[InlineData(new[] { "ingredient", "update", "12" }, "IngredientUpdate", "ingredient update")]
+	[InlineData(new[] { "--db", "x.db", "meal", "-d", "monday", "list" }, "MealList", "meal list")]
+	[InlineData(new[] { "log", "lunch" }, "LogAdd", "log")]
+	public void Selected_IsFoundAtEveryDepth(string[] args, string leafClass, string path)
+	{
+		var outcome = Calories().ParseCommand(args);
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(leafClass, outcome.Get<object>("Selected")!.GetType().Name);
+		Assert.Equal(path, outcome.Get<CommandInfo>("SelectedCommand")!.ToString());
+	}
+
+	[Fact]
+	public void SelectedCommand_IsTheEntryOfCommands()
+	{
+		var parser = Calories();
+		var outcome = parser.ParseCommand("meal", "list");
+
+		var commands = parser.GetStaticProperty<IReadOnlyList<CommandInfo>>("Commands")!;
+		Assert.Same(commands.Single(c => c.ToString() == "meal list"), outcome.Get<CommandInfo>("SelectedCommand"));
+	}
+
+	[Theory]
+	[InlineData("")]
+	[InlineData("ingredient")]
+	[InlineData("ingredient remove")]
+	[InlineData("--db x.db")]
+	public void Selected_IsNullWhenNoLeafWasReached(string commandLine)
+	{
+		var outcome = Calories().ParseCommand(commandLine.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+		Assert.NotEmpty(outcome.Errors);
+		Assert.Null(outcome.Get<object>("Selected"));
+		Assert.Null(outcome.Get<CommandInfo>("SelectedCommand"));
+	}
+
+	[Fact]
+	public void Selected_IsTheLeafEvenWhenItsArgumentsHaveErrors()
+	{
+		var outcome = Calories().ParseCommand("ingredient", "add", "--kcal", "lots");
+
+		Assert.NotEmpty(outcome.Errors);
+		Assert.Equal("IngredientAdd", outcome.Get<object>("Selected")!.GetType().Name);
+	}
+
+	[Fact]
+	public void Selected_OfTheSmallestTree_IsItsOnlyLeaf()
+	{
+		var parser = GeneratedParser.Compile("""
+			using ArgumentParser;
+			namespace ArgumentParser.Tests;
+
+			[CommandApp("app")]
+			public partial class App { public Run? Run { get; private set; } }
+
+			[ParameterCollection]
+			[Command("run", "Run it")]
+			public partial class Run { }
+			""", "App");
+
+		Assert.Equal("Run", parser.ParseCommand("run").Get<object>("Selected")!.GetType().Name);
+	}
+	#endregion
+
 	#region the Commands table
 
 	private static IReadOnlyList<CommandInfo> Commands() => Calories().GetStaticProperty<IReadOnlyList<CommandInfo>>("Commands")!;

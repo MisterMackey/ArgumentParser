@@ -14,7 +14,8 @@ namespace ArgumentParser.Internal;
 /// and <c>ParseCommand</c>, which parses the arguments of the level and returns whether the help argument of the tree was given
 /// and which help text belongs to the outcome. For the root and the groups it reads the options and flags of the class, then hands
 /// the arguments after the command word to the child it names; for a leaf it calls the parser of its ParameterCollection attribute.
-/// The root also gets the public <c>Parse</c>, which applies the help and error settings of the tree, and the <c>Commands</c> list.
+/// The root also gets the public <c>Parse</c>, which applies the help and error settings of the tree, the <c>Commands</c> list,
+/// and <c>Selected</c> and <c>SelectedCommand</c>, which tell which leaf was parsed.
 /// </summary>
 public static class CommandTreeSourceGenerator
 {
@@ -95,6 +96,8 @@ public static class CommandTreeSourceGenerator
 			WriteParse(writer, className, settings);
 			writer.WriteLine();
 			WriteCommands(writer, tree, settings);
+			writer.WriteLine();
+			WriteSelected(writer, tree);
 		}
 
 		SourceTextGenerator.WriteClassEnd(writer, info.NamespaceName, info.ContainingTypes);
@@ -195,7 +198,7 @@ public static class CommandTreeSourceGenerator
 	{
 		writer.WriteLine("public static IReadOnlyList<global::ArgumentParser.CommandInfo> Commands { get; } = new global::ArgumentParser.CommandInfo[] {");
 		writer.Indent++;
-		foreach (var leaf in tree.Nodes.AsReadOnly().Where(n => n.Source.Node.Kind == CommandNodeKind.Leaf))
+		foreach (var leaf in Leaves(tree))
 		{
 			var info = leaf.Source.Node;
 			var path = string.Join(", ", leaf.Path.AsReadOnly().Select(item => SourceTextGenerator.Literal(item)));
@@ -219,5 +222,59 @@ public static class CommandTreeSourceGenerator
 		}
 		writer.Indent--;
 		writer.WriteLine("};");
+	}
+
+	// Only the commands that were typed are set, so the leaf that was parsed is the one whose properties from the root are all set.
+	// Both members test the leaves in the order of Commands, so SelectedCommand can return the entry with the same index.
+	private static void WriteSelected(IndentedTextWriter writer, CommandTree tree)
+	{
+		var accesses = Leaves(tree).Select(leaf => PropertyAccess(tree, leaf)).ToList();
+		WriteSelectedMember(writer, "object Selected", accesses, accesses.Select(access => string.Join(".", access)).ToList());
+		writer.WriteLine();
+		WriteSelectedMember(writer, "global::ArgumentParser.CommandInfo SelectedCommand", accesses, accesses.Select((_, index) => $"Commands[{index}]").ToList());
+	}
+
+	private static void WriteSelectedMember(IndentedTextWriter writer, string declaration, List<List<string>> accesses, List<string> results)
+	{
+		writer.WriteLine($"public {declaration}");
+		writer.WriteLine("{");
+		writer.Indent++;
+		writer.WriteLine("get");
+		writer.WriteLine("{");
+		writer.Indent++;
+		for (int i = 0; i < accesses.Count; i++)
+		{
+			writer.WriteLine($"if ({string.Join("?.", accesses[i])} is object)");
+			writer.WriteLine("{");
+			writer.Indent++;
+			writer.WriteLine($"return {results[i]};");
+			writer.Indent--;
+			writer.WriteLine("}");
+		}
+		writer.WriteLine("return null;");
+		writer.Indent--;
+		writer.WriteLine("}");
+		writer.Indent--;
+		writer.WriteLine("}");
+	}
+
+	private static IEnumerable<TreeNode> Leaves(CommandTree tree)
+	{
+		return tree.Nodes.AsReadOnly().Where(n => n.Source.Node.Kind == CommandNodeKind.Leaf);
+	}
+
+	// the properties that lead from the root to a leaf: the child with the next name of the path, at every level
+	// (the names of the children of one node are unique, ARG017)
+	private static List<string> PropertyAccess(CommandTree tree, TreeNode leaf)
+	{
+		var properties = new List<string>();
+		var current = tree.Root;
+		foreach (var name in leaf.Path.AsReadOnly())
+		{
+			var child = current.Children.AsReadOnly().First(c => c.CommandName == name);
+			properties.Add(child.PropertyName);
+			current = tree.Nodes.AsReadOnly().First(n => n.Source.Node.TypeName == child.TypeName);
+		}
+		return properties;
 	}
 }

@@ -231,24 +231,27 @@ The generator reports an error when the tree breaks one of these rules (see [the
 - The classes cannot be generic, abstract or static. They can be `internal`, and they can be nested in other types as long as those are `partial` too.
 
 ### Parsing
-The root gets a public `Parse(string[] args)`, which returns the root and the errors, like the `Parse` of a parameter collection. Only the commands that were typed are filled in; the other child properties stay `null`:
+The root gets a public `Parse(string[] args)`, which returns the root and the errors, like the `Parse` of a parameter collection. Only the commands that were typed are filled in; the other child properties stay `null`. `Selected` on the root is the leaf that was parsed, and `SelectedCommand` its entry in [the list of commands](#the-list-of-commands), so a program can switch on the class of the leaf instead of following the child properties:
 
 ```C#
 var (tool, errors) = FileTool.Parse(args);
-if (tool.Directories?.List is { } list)
+switch (tool.Selected)
 {
-	// myFileManagingTool directories list --showhidden
-	ListDirectories(tool.Root, list.ShowHidden);
+	case ListDirectories list:
+		// myFileManagingTool directories list --showhidden
+		ListDirectories(tool.Root, list.ShowHidden);
+		break;
+	case CreateDirectory create:
+		CreateDirectory(tool.Root, create.Name);
+		break;
+	case DeleteFile delete:
+		DeleteFile(tool.Root, delete.FilePath, delete.Force);
+		break;
 }
-else if (tool.Directories?.Create is { } create)
-{
-	CreateDirectory(tool.Root, create.Name);
-}
-else if (tool.Files?.Delete is { } delete)
-{
-	DeleteFile(tool.Root, delete.FilePath, delete.Force);
-}
+Console.WriteLine($"Ran {tool.SelectedCommand}"); // Ran directories list
 ```
+
+The child properties are still set as before, so the options of a group are read from the group, such as `tool.Files`. `Selected` and `SelectedCommand` are `null` when no leaf was reached, for instance when the command is missing or unknown and `behaviourOnError` does not exit. A leaf that was named is selected even when its arguments have errors.
 
 The options of a level come before the name of the next command. `myFileManagingTool --root /tmp directories list` works. In `myFileManagingTool directories list --root /tmp`, though, `--root` reaches `list`, which does not know it, so it reports an `UnexpectedArgumentException`. A leaf is parsed by its own generated parser, on the arguments after its name. It also keeps its own `Parse`, which parses only its own arguments.
 
@@ -349,7 +352,7 @@ A flag that is set states that its hint is true and a flag that is not set state
 In a tree of commands, every leaf hands its annotations on to its entry in the `Commands` list (`CommandInfo.Annotations`).
 
 ### Generated members
-Besides `Parse` and `Commands` on the root, the generator adds `ParseCommand`, `CommandHelpText` and `CommandHelpArgument` to every class of the tree, and `commandFlags` to every leaf. Do not declare members with these names in those classes; there is no diagnostic for it yet, the code just does not compile.
+Besides `Parse`, `Commands`, `Selected` and `SelectedCommand` on the root, the generator adds `ParseCommand`, `CommandHelpText` and `CommandHelpArgument` to every class of the tree, and `commandFlags` to every leaf. Do not declare members with these names in those classes; there is no diagnostic for it yet, the code just does not compile.
 
 A tree is only generated when it has no errors, including the errors of its leaves: fix the reported problems first.
 
