@@ -517,6 +517,133 @@ public class DiagnosticRuleTests
 	}
 	#endregion
 
+	#region command nodes (ARG014 to ARG016)
+	private const string GroupAttribute = "[Command(\"group\", \"A group\")]";
+
+	private const string LeafAttributes = SafeAttribute + "\n[Command(\"leaf\", \"A leaf\")]";
+
+	[Fact]
+	public void CommandNodes_ValidGroupAndRoot_ReportNothingAndGenerateNothingYet()
+	{
+		var group = Diagnose(Option("o", "Output", "Output"), attribute: GroupAttribute);
+		var root = Diagnose(Option("o", "Output", "Output"), attribute: "[CommandApp(\"app\", \"An app\")]");
+
+		Assert.Empty(group.Ids);
+		Assert.Empty(group.Output);
+		Assert.Empty(root.Ids);
+		Assert.Empty(root.Output);
+	}
+
+	[Fact]
+	public void CommandNodes_ValidLeaf_GeneratesItsParserAsBefore()
+	{
+		var leaf = Diagnose(Option("o", "Output", "Output"), attribute: LeafAttributes);
+		var plain = Diagnose(Option("o", "Output", "Output"));
+
+		Assert.Empty(leaf.Ids);
+		Assert.Equal(plain.Output, leaf.Output);
+	}
+
+	[Fact]
+	public void ARG014_InvalidCommandName_IsReportedOnTheAttribute()
+	{
+		var result = Diagnose("", attribute: "[Command(\"bad name\", \"A group\")]");
+
+		var diagnostic = Assert.Single(result.Diagnostics);
+		Assert.Equal("ARG014", diagnostic.Id);
+		Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+		Assert.Equal("Command(\"bad name\", \"A group\")", result.TextAt(diagnostic));
+		Assert.Contains("'bad name'", diagnostic.GetMessage());
+		Assert.Contains("'TestClass'", diagnostic.GetMessage());
+	}
+
+	[Fact]
+	public void ARG014_InvalidNameOfALeaf_IsReportedOnce()
+	{
+		var result = Diagnose("", attribute: SafeAttribute + "\n[Command(\"-leaf\")]");
+
+		Assert.Equal(["ARG014"], result.Ids);
+		// the parser of the leaf is still generated, the name only matters to the tree
+		Assert.NotEmpty(result.Output);
+	}
+
+	[Fact]
+	public void ARG015_PositionalOnAGroup_IsReportedOnTheProperty()
+	{
+		var result = Diagnose(Join(Positional(0, "First"), Option("o", "Output", "Output")), attribute: GroupAttribute);
+
+		var diagnostic = Assert.Single(result.Diagnostics);
+		Assert.Equal("ARG015", diagnostic.Id);
+		Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+		Assert.Equal("First", result.TextAt(diagnostic));
+	}
+
+	[Fact]
+	public void ARG015_PositionalOnARoot_IsReported()
+	{
+		var result = Diagnose(Positional(0, "First"), attribute: "[CommandApp(\"app\")]");
+
+		Assert.Equal(["ARG015"], result.Ids);
+	}
+
+	[Fact]
+	public void ARG015_PositionalOnALeaf_IsNotReported()
+	{
+		var result = Diagnose(Positional(0, "First"), attribute: LeafAttributes);
+
+		Assert.Empty(result.Ids);
+	}
+
+	[Fact]
+	public void ARG016_RootCombinedWithACommand_IsReportedOnceOnTheRoot()
+	{
+		var result = Diagnose("", attribute: "[CommandApp(\"app\")]\n[Command(\"x\")]");
+
+		var diagnostic = Assert.Single(result.Diagnostics);
+		Assert.Equal("ARG016", diagnostic.Id);
+		Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+		Assert.Equal("CommandApp(\"app\")", result.TextAt(diagnostic));
+	}
+
+	[Fact]
+	public void ARG016_RootCombinedWithAParameterCollection_IsReported()
+	{
+		var result = Diagnose("", attribute: "[CommandApp(\"app\")]\n" + SafeAttribute);
+
+		Assert.Equal(["ARG016"], result.Ids);
+	}
+
+	[Theory]
+	[InlineData(GroupAttribute)]
+	[InlineData("[CommandApp(\"app\")]")]
+	[InlineData(LeafAttributes)]
+	public void CommandNodes_NotPartial_ReportARG001Once(string attribute)
+	{
+		var result = Diagnose("", attribute: attribute, modifiers: "public");
+
+		Assert.Equal(["ARG001"], result.Ids);
+	}
+
+	[Fact]
+	public void CommandNodes_OnlyTheRootMayDeclareAParseMethod()
+	{
+		const string parse = "public static int Parse(string[] args) => 0;";
+
+		Assert.Equal(["ARG002"], Diagnose(parse, attribute: "[CommandApp(\"app\")]").Ids);
+		Assert.Empty(Diagnose(parse, attribute: GroupAttribute).Ids);
+	}
+
+	[Fact]
+	public void CommandNodes_ConstructorWithParameters_IsReportedOnceForEachKind()
+	{
+		const string constructor = "public TestClass(int count) { }";
+
+		Assert.Equal(["ARG006"], Diagnose(constructor, attribute: GroupAttribute).Ids);
+		Assert.Equal(["ARG006"], Diagnose(constructor, attribute: "[CommandApp(\"app\")]").Ids);
+		Assert.Equal(["ARG006"], Diagnose(constructor, attribute: LeafAttributes).Ids);
+	}
+	#endregion
+
 	#region generation options (ARG008 to ARG012)
 	private static string Attribute(string mode, string behaviour, string? shortName = null, string? longName = null)
 		=> $"[ParameterCollection(HelpTextGeneration.{mode}, \"{shortName ?? "h"}\", \"{longName ?? "Help"}\", BehaviourOnError.{behaviour})]";

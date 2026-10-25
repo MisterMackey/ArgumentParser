@@ -57,6 +57,75 @@ namespace ArgumentParser
 	}
 
 	/// <summary>
+	/// This attribute marks a class as the root of a tree of commands, such as <c>app ingredient add</c>.
+	/// The root declares the name of the application. Its child commands are the properties
+	/// whose type is a class annotated with <see cref="CommandAttribute"/>, and its own options
+	/// (properties with the Option or Flag attribute) are the options that come before the name of the command.
+	/// The class should be a public partial class with a parameterless constructor and cannot have positional arguments.
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Class, Inherited = false)]
+	public sealed class CommandAppAttribute : Attribute
+	{
+		/// <summary>
+		/// Initializes a new instance of the <see cref="CommandAppAttribute"/> class.
+		/// </summary>
+		/// <param name="name">The name of the application, as users type it.</param>
+		/// <param name="description">The description of the application, used in help text.</param>
+		public CommandAppAttribute(string name, string description = "")
+		{
+			Name = name ?? throw new ArgumentNullException(nameof(name));
+			Description = description ?? "";
+		}
+
+		/// <summary>
+		/// Gets the name of the application.
+		/// </summary>
+		public string Name { get; }
+
+		/// <summary>
+		/// Gets the description of the application to be used in help text.
+		/// </summary>
+		public string Description { get; }
+	}
+
+	/// <summary>
+	/// This attribute marks a class as a node in a tree of commands, and names it.
+	/// A class that also has the <see cref="ParameterCollectionAttribute"/> is a leaf: the command that does the work,
+	/// parsing the arguments that remain after the command names. A class without it is a group of commands
+	/// (such as <c>ingredient</c> in <c>app ingredient add</c>); its child commands are the properties whose type is
+	/// a class with this attribute, and its own options come before the name of the next command.
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Class, Inherited = false)]
+	public sealed class CommandAttribute : Attribute
+	{
+		/// <summary>
+		/// Initializes a new instance of the <see cref="CommandAttribute"/> class.
+		/// </summary>
+		/// <param name="name">The name of the command, as users type it. It cannot be empty, contain whitespace or start with '-'.</param>
+		/// <param name="description">The description of the command, used in help text.</param>
+		public CommandAttribute(string name, string description = "")
+		{
+			Name = name ?? throw new ArgumentNullException(nameof(name));
+			Description = description ?? "";
+		}
+
+		/// <summary>
+		/// Gets the name of the command.
+		/// </summary>
+		public string Name { get; }
+
+		/// <summary>
+		/// Gets the description of the command to be used in help text.
+		/// </summary>
+		public string Description { get; }
+
+		/// <summary>
+		/// Gets or sets how the command behaves, which is carried into the generated data about the command.
+		/// </summary>
+		public CommandAnnotations Annotations { get; set; }
+	}
+
+	/// <summary>
 	/// This attribute is used to define an option parameter for the parser.
 	/// Options are identified by a short name (e.g., -o) or a long name (e.g., --option).
 	/// When an option is used, it is ALWAYS followed by a value (e.g., -o value).

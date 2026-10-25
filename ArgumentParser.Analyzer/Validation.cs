@@ -18,8 +18,9 @@ public static class Validation
 	/// Validates that a class with the ParameterCollection attribute meets the requirements.
 	/// </summary>
 	/// <param name="classDeclaration">The class declaration to validate.</param>
+	/// <param name="checkParseMethod">Whether the class must not already have a Parse(string[]) method, because the generator is going to add one.</param>
 	/// <returns>List of diagnostics if validation fails, empty list if validation passes.</returns>
-	public static ReadOnlyCollection<DiagnosticInfo> ValidateClassDeclaration(ClassDeclarationSyntax classDeclaration)
+	public static ReadOnlyCollection<DiagnosticInfo> ValidateClassDeclaration(ClassDeclarationSyntax classDeclaration, bool checkParseMethod = true)
 	{
 		if (classDeclaration is null)
 		{
@@ -37,7 +38,7 @@ public static class Validation
 		}
 
 		// Validate that the class doesn't already have a Parse method
-		if (classDeclaration.Members.OfType<MethodDeclarationSyntax>()
+		if (checkParseMethod && classDeclaration.Members.OfType<MethodDeclarationSyntax>()
 		    .Any(m => m.Identifier.Text == "Parse" && m.ParameterList.Parameters.Count == 1
 			&& IsStringArray(m.ParameterList.Parameters[0].Type)))
 		{
@@ -62,6 +63,63 @@ public static class Validation
 			    GeneratorDiagnostics.ARG006,
 			    classDeclaration.GetLocation(),
 			    classDeclaration.Identifier.Text));
+		}
+
+		return diagnostics.AsReadOnly();
+	}
+
+	/// <summary>
+	/// Validates the place of a class in a tree of commands: its attributes, its name and its arguments.
+	/// Rules that need the whole tree, such as duplicate names or unreachable commands, are not checked here.
+	/// </summary>
+	/// <param name="node">The node to validate.</param>
+	/// <param name="attributeLocation">Where the Command or CommandApp attribute is applied.</param>
+	/// <param name="hasCommandAttribute">Whether the class has the Command attribute.</param>
+	/// <param name="hasParameterCollectionAttribute">Whether the class has the ParameterCollection attribute.</param>
+	/// <param name="positionals">The properties of the class with the Positional attribute, with their locations.</param>
+	/// <returns>List of diagnostics if validation fails, empty list if validation passes.</returns>
+	public static ReadOnlyCollection<DiagnosticInfo> ValidateCommandNode(
+		CommandNodeInfo node,
+		Location? attributeLocation,
+		bool hasCommandAttribute,
+		bool hasParameterCollectionAttribute,
+		IEnumerable<(string PropertyName, Location? Location)> positionals
+	)
+	{
+		if (node is null)
+		{
+			throw new ArgumentNullException(nameof(node));
+		}
+		if (positionals is null)
+		{
+			throw new ArgumentNullException(nameof(positionals));
+		}
+		var diagnostics = new List<DiagnosticInfo>();
+
+		// The root names the application, it is not a word that users type, so only the commands are held to the naming rules
+		if (node.Kind == CommandNodeKind.Root)
+		{
+			if (hasCommandAttribute)
+			{
+				diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG016, attributeLocation, node.ClassName, "Command"));
+			}
+			if (hasParameterCollectionAttribute)
+			{
+				diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG016, attributeLocation, node.ClassName, "ParameterCollection"));
+			}
+		}
+		else if (node.Name.Length == 0 || node.Name.Any(char.IsWhiteSpace) || node.Name[0] == '-')
+		{
+			diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG014, attributeLocation, node.Name, node.ClassName));
+		}
+
+		// The first positional argument of a group is the name of the next command, so only a leaf can have positionals
+		if (node.Kind != CommandNodeKind.Leaf)
+		{
+			foreach (var (propertyName, location) in positionals)
+			{
+				diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG015, location, node.ClassName, propertyName));
+			}
 		}
 
 		return diagnostics.AsReadOnly();

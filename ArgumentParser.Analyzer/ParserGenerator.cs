@@ -15,6 +15,18 @@ namespace ArgumentParser.Internal
 	public class ParserGenerator : IIncrementalGenerator
 	{
 		/// <summary>
+		/// The name of the pipeline step that holds the models of the classes with the CommandApp attribute.
+		/// Tests use it to see whether a model was reused.
+		/// </summary>
+		public const string RootModelsStepName = "RootModels";
+
+		/// <summary>
+		/// The name of the pipeline step that holds the models of the classes with the Command attribute.
+		/// Tests use it to see whether a model was reused.
+		/// </summary>
+		public const string CommandModelsStepName = "CommandModels";
+
+		/// <summary>
 		/// Initializes the generator. This method is called once per compilation.
 		/// </summary>
 		/// <param name="context"></param>
@@ -31,6 +43,47 @@ namespace ArgumentParser.Internal
 
 			// register output
 			context.RegisterSourceOutput(classModels, GenerateSource);
+
+			// The tree of commands has its own models: they say where a class sits in the tree, not what its arguments are.
+			// A class with [CommandApp] is read by the first provider, so the second one skips it (it would be read twice otherwise).
+			var rootModels = context.SyntaxProvider
+			.ForAttributeWithMetadataName(
+			    "ArgumentParser.CommandAppAttribute",
+			    (node, _) => node is ClassDeclarationSyntax,
+			    ExtractNodeModel
+			    )
+			.WithTrackingName(RootModelsStepName);
+			var commandModels = context.SyntaxProvider
+			.ForAttributeWithMetadataName(
+			    "ArgumentParser.CommandAttribute",
+			    (node, _) => node is ClassDeclarationSyntax,
+			    ExtractCommandModel
+			    )
+			.Where(static model => model is not null)
+			.Select(static (model, _) => model!)
+			.WithTrackingName(CommandModelsStepName);
+
+			// nothing is generated for the tree yet, the models only report their diagnostics
+			context.RegisterSourceOutput(rootModels, ReportNodeDiagnostics);
+			context.RegisterSourceOutput(commandModels, ReportNodeDiagnostics);
+		}
+
+		private static CommandNodeModel ExtractNodeModel(GeneratorAttributeSyntaxContext generatorContext, CancellationToken cancellationToken)
+		{
+			return CommandNodeExtractor.Extract((ClassDeclarationSyntax)generatorContext.TargetNode, (INamedTypeSymbol)generatorContext.TargetSymbol);
+		}
+
+		private static CommandNodeModel? ExtractCommandModel(GeneratorAttributeSyntaxContext generatorContext, CancellationToken cancellationToken)
+		{
+			var symbol = (INamedTypeSymbol)generatorContext.TargetSymbol;
+			return CommandNodeExtractor.HasCommandAppAttribute(symbol)
+				? null
+				: CommandNodeExtractor.Extract((ClassDeclarationSyntax)generatorContext.TargetNode, symbol);
+		}
+
+		private static void ReportNodeDiagnostics(SourceProductionContext context, CommandNodeModel model)
+		{
+			Validation.ReportDiagnostics(context, model.Diagnostics.AsReadOnly());
 		}
 
 		private static ClassModel ExtractModel(GeneratorAttributeSyntaxContext generatorContext, CancellationToken cancellationToken)

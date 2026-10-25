@@ -45,6 +45,51 @@ public class IncrementalityTests
 
 	private const string UnrelatedSource = "public class Unrelated { public int A; }";
 
+	private const string GroupSource = """
+		using ArgumentParser;
+
+		public class Child { }
+
+		[Command("group", "A group")]
+		public partial class Group
+		{
+			[Option("d", "db", "DESCRIPTION")]
+			public string Db { get; set; } = "";
+
+			public Child? Add { get; private set; }
+		}
+		""";
+
+	private const string InvalidNameSource = """
+		using ArgumentParser;
+
+		[Command("bad name")]
+		public partial class Group
+		{
+		}
+		""";
+
+	private const string PositionalOnGroupSource = """
+		using ArgumentParser;
+
+		[CommandApp("app")]
+		public partial class App
+		{
+			[Positional(0, "first")]
+			public string First { get; set; } = "";
+		}
+		""";
+
+	private const string ConflictingAttributesSource = """
+		using ArgumentParser;
+
+		[CommandApp("app")]
+		[Command("x")]
+		public partial class App
+		{
+		}
+		""";
+
 	[Fact]
 	public void SameCompilationTwice_ReusesTheCachedOutput()
 	{
@@ -67,6 +112,9 @@ public class IncrementalityTests
 	[Theory]
 	[InlineData(NotPartialSource, "ARG001")]
 	[InlineData(WarningSource, "ARG008")]
+	[InlineData(InvalidNameSource, "ARG014")]
+	[InlineData(PositionalOnGroupSource, "ARG015")]
+	[InlineData(ConflictingAttributesSource, "ARG016")]
 	public void EditToAnUnrelatedFile_ReusesTheCachedDiagnostics(string source, string expectedRule)
 	{
 		var compilation = TestHelper.CreateCompilation(source).AddSyntaxTrees(Parse(UnrelatedSource));
@@ -97,6 +145,73 @@ public class IncrementalityTests
 	}
 
 	[Fact]
+	public void Group_EditToAnUnrelatedFile_ReusesTheCachedModel()
+	{
+		var driver = RunTwice(
+			GroupSource,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == UnrelatedSource),
+				Parse(UnrelatedSource + "\n// a comment\npublic class AnotherUnrelated { }")));
+
+		Assert.All(ModelReasons(driver, ParserGenerator.CommandModelsStepName), reason => Assert.True(IsReused(reason), reason.ToString()));
+	}
+
+	[Fact]
+	public void Group_EditToAnOptionThatMovesNothing_ReusesTheModel()
+	{
+		// the text is as long as the old one: the node and the locations after it are exactly as they were
+		var driver = RunTwice(
+			GroupSource,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == GroupSource),
+				Parse(GroupSource.Replace("DESCRIPTION", "DESCRIPTIOM"))));
+
+		Assert.All(ModelReasons(driver, ParserGenerator.CommandModelsStepName), reason => Assert.True(IsReused(reason), reason.ToString()));
+	}
+
+	[Fact]
+	public void Group_RenamingTheCommand_ChangesTheModel()
+	{
+		var driver = RunTwice(
+			GroupSource,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == GroupSource),
+				Parse(GroupSource.Replace("\"group\"", "\"groups\""))));
+
+		Assert.All(ModelReasons(driver, ParserGenerator.CommandModelsStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+	}
+
+	[Fact]
+	public void Root_RenamingTheApplication_ChangesTheModelAndNothingElse()
+	{
+		var driver = RunTwice(
+			PositionalOnGroupSource,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == PositionalOnGroupSource),
+				Parse(PositionalOnGroupSource.Replace("\"app\"", "\"apps\""))));
+
+		Assert.All(ModelReasons(driver, ParserGenerator.RootModelsStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+	}
+
+	[Fact]
+	public void EditToTheParserClass_LeavesAGroupInTheSameFileCached()
+	{
+		// the group comes first in the file, so an edit to the parser class after it moves nothing in the group
+		var both = "using ArgumentParser;\n"
+			+ GroupSource.Replace("using ArgumentParser;\n", "").Replace("DESCRIPTION", "OPTION TEXT")
+			+ "\n"
+			+ AnnotatedSource.Replace("using ArgumentParser;\n", "");
+		var driver = RunTwice(
+			both,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == both),
+				Parse(both.Replace("DESCRIPTION", "A different description"))));
+
+		Assert.All(ModelReasons(driver, ParserGenerator.CommandModelsStepName), reason => Assert.True(IsReused(reason), reason.ToString()));
+		Assert.Contains("A different description", driver.GetRunResult().GeneratedTrees.Single().ToString());
+	}
+
+	[Fact]
 	public void FirstRun_ProducesTheOutputFromScratch()
 	{
 		var driver = CreateDriver().RunGenerators(CreateCompilation());
@@ -107,7 +222,12 @@ public class IncrementalityTests
 
 	private static GeneratorDriver RunTwice(Func<Compilation, Compilation> edit)
 	{
-		var compilation = CreateCompilation();
+		return RunTwice(AnnotatedSource, edit);
+	}
+
+	private static GeneratorDriver RunTwice(string source, Func<Compilation, Compilation> edit)
+	{
+		var compilation = CreateCompilation(source);
 		var driver = CreateDriver().RunGenerators(compilation);
 		return driver.RunGenerators(edit(compilation));
 	}
@@ -119,9 +239,9 @@ public class IncrementalityTests
 			driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
 	}
 
-	private static CSharpCompilation CreateCompilation()
+	private static CSharpCompilation CreateCompilation(string source = AnnotatedSource)
 	{
-		return TestHelper.CreateCompilation(AnnotatedSource).AddSyntaxTrees(Parse(UnrelatedSource));
+		return TestHelper.CreateCompilation(source).AddSyntaxTrees(Parse(UnrelatedSource));
 	}
 
 	private static SyntaxTree Parse(string source) => CSharpSyntaxTree.ParseText(source);
@@ -130,6 +250,14 @@ public class IncrementalityTests
 	{
 		var result = driver.GetRunResult().Results.Single();
 		var outputs = result.TrackedOutputSteps[OutputStepName].SelectMany(step => step.Outputs).ToList();
+		Assert.NotEmpty(outputs);
+		return outputs.Select(o => o.Reason);
+	}
+
+	private static IEnumerable<IncrementalStepRunReason> ModelReasons(GeneratorDriver driver, string stepName)
+	{
+		var result = driver.GetRunResult().Results.Single();
+		var outputs = result.TrackedSteps[stepName].SelectMany(step => step.Outputs).ToList();
 		Assert.NotEmpty(outputs);
 		return outputs.Select(o => o.Reason);
 	}

@@ -11,6 +11,7 @@ public static class GeneratorDiagnostics
 	private const string ClassErrorCategory = "ClassDeclaration";
 	private const string AttributeErrorCategory = "AttributeDeclaration";
 	private const string GenerationOptionsCategory = "GenerationOptions";
+	private const string CommandErrorCategory = "CommandDeclaration";
 
 	private const string ARG001_Id = "ARG001";
 	private const string ARG001_Title = "ParameterCollection must be partial";
@@ -65,6 +66,19 @@ public static class GeneratorDiagnostics
 	private const string ARG013_Id = "ARG013";
 	private const string ARG013_Title = "Flag attributes should only be applied to boolean or enum properties";
 	private const string ARG013_Message = "Flag attribute is applied to property '{0}' of type '{1}', but flags can only be applied to boolean or enum properties";
+
+	private const string ARG014_Id = "ARG014";
+	private const string ARG014_Title = "Invalid command name";
+	private const string ARG014_Message = "Command name '{0}' on class '{1}' is not valid. A name must not be empty, contain whitespace or start with '-'.";
+
+	private const string ARG015_Id = "ARG015";
+	private const string ARG015_Title = "Positional argument on a class with child commands";
+	private const string ARG015_Message = "Property '{1}' of class '{0}' cannot be a Positional argument. The first positional argument of a command group or application root " +
+					     "is the name of the next command. Only a leaf command (with the ParameterCollection attribute) can have positional arguments.";
+
+	private const string ARG016_Id = "ARG016";
+	private const string ARG016_Title = "Conflicting command attributes";
+	private const string ARG016_Message = "Class '{0}' has the CommandApp attribute together with the {1} attribute. The root of the command tree cannot also be a command.";
 
 	/// <summary>
 	/// Diagnostic descriptor for ARG001: Classes with ParameterCollection attribute must be partial.
@@ -233,5 +247,44 @@ public static class GeneratorDiagnostics
 	    DiagnosticSeverity.Error,
 	    true,
 	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG013.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG014: A command name must not be empty, contain whitespace or start with '-'.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG014 = new DiagnosticDescriptor(
+	    ARG014_Id,
+	    ARG014_Title,
+	    ARG014_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG014.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG015: A command group or application root cannot have positional arguments.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG015 = new DiagnosticDescriptor(
+	    ARG015_Id,
+	    ARG015_Title,
+	    ARG015_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG015.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG016: The CommandApp attribute cannot be combined with the Command or ParameterCollection attribute.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG016 = new DiagnosticDescriptor(
+	    ARG016_Id,
+	    ARG016_Title,
+	    ARG016_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG016.md"
 	);
 }

@@ -5,6 +5,10 @@
 - Overriding program names in generated helptext
 
 ### Added
+- The first part of command trees (`app ingredient add`): the `CommandApp` and `Command` attributes and the `CommandAnnotations` enum. A `CommandApp` class is the root of the tree and names the application, a `Command` class is a node in it (a leaf when it also has `ParameterCollection`, a group otherwise), and the properties whose type is a node are its child commands. The classes are read and validated, but nothing is generated for them yet, so they cannot be used to parse anything.
+  - ARG014: a command name must not be empty, contain whitespace or start with `-`.
+  - ARG015: a command group or the root cannot have positional arguments, since the first positional argument is the name of the next command.
+  - ARG016: `CommandApp` cannot be combined with `Command` or `ParameterCollection`.
 - `ParseOutcomePolicy.Apply` applies a `BehaviourOnError` setting and the help text to the outcome of a parse. An overload takes the `TextWriter` to write to and the `Action<int>` to call instead of `Environment.Exit`, so the policy can be used and tested without ending the process.
 
 ### Changed

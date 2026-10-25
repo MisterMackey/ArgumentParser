@@ -208,6 +208,85 @@ public class RuntimeLibraryTests
 
 	#endregion
 
+	#region CommandAppAttribute, CommandAttribute and CommandAnnotations
+
+	[Fact]
+	public void CommandApp_StoresNameAndDescription()
+	{
+		var attribute = new CommandAppAttribute("calories", "Track what you eat");
+
+		Assert.Equal("calories", attribute.Name);
+		Assert.Equal("Track what you eat", attribute.Description);
+	}
+
+	[Fact]
+	public void CommandApp_DescriptionIsEmptyByDefault()
+	{
+		Assert.Equal("", new CommandAppAttribute("calories").Description);
+		Assert.Equal("", new CommandAppAttribute("calories", null!).Description);
+	}
+
+	[Fact]
+	public void CommandApp_NullName_Throws()
+	{
+		var exception = Assert.Throws<ArgumentNullException>(() => new CommandAppAttribute(null!));
+
+		Assert.Equal("name", exception.ParamName);
+	}
+
+	[Fact]
+	public void Command_StoresNameDescriptionAndAnnotations()
+	{
+		var attribute = new CommandAttribute("add", "Add an ingredient") { Annotations = CommandAnnotations.Idempotent | CommandAnnotations.OpenWorld };
+
+		Assert.Equal("add", attribute.Name);
+		Assert.Equal("Add an ingredient", attribute.Description);
+		Assert.Equal(CommandAnnotations.Idempotent | CommandAnnotations.OpenWorld, attribute.Annotations);
+	}
+
+	[Fact]
+	public void Command_DescriptionIsEmptyAndAnnotationsAreNoneByDefault()
+	{
+		var attribute = new CommandAttribute("add");
+
+		Assert.Equal("", attribute.Description);
+		Assert.Equal(CommandAnnotations.None, attribute.Annotations);
+		Assert.Equal("", new CommandAttribute("add", null!).Description);
+	}
+
+	[Fact]
+	public void Command_NullName_Throws()
+	{
+		var exception = Assert.Throws<ArgumentNullException>(() => new CommandAttribute(null!));
+
+		Assert.Equal("name", exception.ParamName);
+	}
+
+	[Theory]
+	[InlineData(typeof(CommandAppAttribute))]
+	[InlineData(typeof(CommandAttribute))]
+	public void CommandAttributes_AreRestrictedToClasses_AndNotInherited(Type attributeType)
+	{
+		var usage = GetUsage(attributeType);
+
+		Assert.Equal(AttributeTargets.Class, usage.ValidOn);
+		Assert.False(usage.Inherited);
+		Assert.False(usage.AllowMultiple);
+	}
+
+	[Fact]
+	public void CommandAnnotations_AreFlagsThatCombine()
+	{
+		Assert.Equal(0, (int)CommandAnnotations.None);
+		Assert.Equal(
+			[1, 2, 4, 8],
+			new[] { CommandAnnotations.ReadOnly, CommandAnnotations.Destructive, CommandAnnotations.Idempotent, CommandAnnotations.OpenWorld }.Select(a => (int)a));
+		Assert.True((CommandAnnotations.ReadOnly | CommandAnnotations.Idempotent).HasFlag(CommandAnnotations.Idempotent));
+		Assert.NotNull(typeof(CommandAnnotations).GetCustomAttributes(typeof(FlagsAttribute), inherit: false).SingleOrDefault());
+	}
+
+	#endregion
+
 	#region Exceptions
 
 	public static TheoryData<Type> ConcreteExceptionTypes =>

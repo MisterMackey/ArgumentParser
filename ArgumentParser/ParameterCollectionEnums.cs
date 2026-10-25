@@ -1,4 +1,6 @@
 // this file contains enums used to configure the parser and influence the generated code.
+using System;
+
 namespace ArgumentParser;
 
 /// <summary>
@@ -63,4 +65,37 @@ public enum BehaviourOnError
 	/// Throw an exception only if required arguments are missing.
 	/// </summary>
 	ThrowIfMissingRequired
+}
+
+/// <summary>
+/// Describes how a command behaves, for tools that want to know before running it (for example a tool list for an MCP server).
+/// A command that sets none of these makes no claims.
+/// </summary>
+[Flags]
+public enum CommandAnnotations
+{
+	/// <summary>
+	/// The command makes no claims about its behaviour.
+	/// </summary>
+	None = 0,
+
+	/// <summary>
+	/// The command does not change anything.
+	/// </summary>
+	ReadOnly = 1,
+
+	/// <summary>
+	/// The command may delete or overwrite existing data.
+	/// </summary>
+	Destructive = 2,
+
+	/// <summary>
+	/// Running the command again with the same arguments has no further effect.
+	/// </summary>
+	Idempotent = 4,
+
+	/// <summary>
+	/// The command interacts with things outside of the application, such as other systems.
+	/// </summary>
+	OpenWorld = 8
 }
