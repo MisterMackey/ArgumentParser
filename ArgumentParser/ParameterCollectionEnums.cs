@@ -69,33 +69,38 @@ public enum BehaviourOnError
 
 /// <summary>
 /// Describes how a command behaves, for tools that want to know before running it (for example a tool list for an MCP server).
-/// A command that sets none of these makes no claims.
+/// The values are the hints of a tool of the Model Context Protocol (MCP): a value that is set states that its hint is true,
+/// a value that is not set states that it is false. The default of <see cref="ParameterCollectionAttribute.Annotations"/>
+/// is the MCP default, <see cref="Destructive"/> and <see cref="OpenWorld"/>.
 /// </summary>
 [Flags]
 public enum CommandAnnotations
 {
 	/// <summary>
-	/// The command makes no claims about its behaviour.
+	/// Every hint is false: the command may change things, but only adds to them, running it again has a further effect,
+	/// and it does not reach outside of the application.
 	/// </summary>
 	None = 0,
 
 	/// <summary>
-	/// The command does not change anything.
+	/// The command does not change anything (MCP <c>readOnlyHint</c>, false by default).
+	/// When it is set, MCP ignores <see cref="Destructive"/> and <see cref="Idempotent"/>.
 	/// </summary>
 	ReadOnly = 1,
 
 	/// <summary>
-	/// The command may delete or overwrite existing data.
+	/// The command may delete or overwrite existing data, instead of only adding to it (MCP <c>destructiveHint</c>, true by default).
 	/// </summary>
 	Destructive = 2,
 
 	/// <summary>
-	/// Running the command again with the same arguments has no further effect.
+	/// Running the command again with the same arguments has no further effect (MCP <c>idempotentHint</c>, false by default).
 	/// </summary>
 	Idempotent = 4,
 
 	/// <summary>
-	/// The command interacts with things outside of the application, such as other systems.
+	/// The command interacts with things outside of the application, such as other systems or the web,
+	/// instead of a closed set of its own (MCP <c>openWorldHint</c>, true by default).
 	/// </summary>
 	OpenWorld = 8
 }

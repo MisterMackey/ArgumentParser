@@ -70,7 +70,7 @@ public static class CommandNodeExtractor
 			kind,
 			AttributeReader.StringArgument(nodeAttribute, 0),
 			AttributeReader.StringArgument(nodeAttribute, 1),
-			AnnotationsArgument(nodeAttribute),
+			AnnotationsArgument(parameterCollection),
 			new EquatableArray<ChildCandidate>(children.Select(c => c.Candidate)),
 			kind switch
 			{
@@ -158,12 +158,13 @@ public static class CommandNodeExtractor
 			AttributeReader.IntArgument(data, first + 3, defaults.BehaviourOnError));
 	}
 
-	// Annotations is a named argument, so it is only there when the user wrote it. An enum value arrives as its underlying int.
+	// Annotations is a named argument of ParameterCollection, so it is only there when the user wrote it; otherwise it has the default
+	// of its initializer, which Roslyn does not report. An enum value arrives as its underlying int.
 	private static int AnnotationsArgument(AttributeData? data)
 	{
 		if (data is null)
 		{
-			return 0;
+			return CommandNodeInfo.DefaultAnnotations;
 		}
 		foreach (var argument in data.NamedArguments)
 		{
@@ -172,7 +173,7 @@ public static class CommandNodeExtractor
 				return value;
 			}
 		}
-		return 0;
+		return CommandNodeInfo.DefaultAnnotations;
 	}
 
 	// Only what the class declares itself: a property inherited from a base class is not seen.

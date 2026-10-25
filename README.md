@@ -7,6 +7,7 @@ Licensed under the Apache License, Version 2.0
 	- [About](#about)
 	- [Quickstart](#quickstart)
 		- [Overriding the default behaviour](#overriding-the-default-behaviour)
+		- [Annotations](#annotations)
 		- [Supported types for argument properties](#supported-types-for-argument-properties)
 	- [Inspecting the generated code](#inspecting-the-generated-code)
 	- [Default behaviour](#default-behaviour)
@@ -118,6 +119,22 @@ It is possible to prevent generation of the HelpText, its corresponding argument
 The behaviour when a parsing error is encountered can also be configured.
 
 *Some combinations may not be valid, an error diagnostic is displayed with more info in that case. Example: preventing helptext from generating but still asking for generated code to display the helptext. In this case the helptext must be supplied by the user*
+
+### Annotations
+The `Annotations` property of the ParameterCollection attribute describes how the command behaves, for programs that want to know before running it, such as an MCP server that offers the commands as tools. It does not change parsing or the help text. The values are flags of `CommandAnnotations` and match the hints of an MCP tool:
+
+| Flag | MCP hint | Meaning when set |
+|---|---|---|
+| `ReadOnly` | `readOnlyHint` | The command does not change anything. MCP ignores `Destructive` and `Idempotent` when it is set. |
+| `Destructive` | `destructiveHint` | The command may delete or overwrite data, instead of only adding to it. |
+| `Idempotent` | `idempotentHint` | Running the command again with the same arguments has no further effect. |
+| `OpenWorld` | `openWorldHint` | The command interacts with things outside of the application. |
+
+A flag that is set states that its hint is true and a flag that is not set states that it is false. Without the property, the annotations are the MCP defaults, `Destructive | OpenWorld`. A value that is given replaces the default as a whole, so keep `OpenWorld` when it still applies:
+```C#
+[ParameterCollection(Annotations = CommandAnnotations.ReadOnly | CommandAnnotations.OpenWorld)]
+```
+In a tree of commands, every leaf hands its annotations on to its entry in the generated `Commands` list (`CommandInfo.Annotations`).
 
 ### Supported types for argument properties
 All types are parsed with their respective .Parse method from the BCL.

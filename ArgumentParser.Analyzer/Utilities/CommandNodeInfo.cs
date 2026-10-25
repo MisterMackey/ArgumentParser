@@ -136,7 +136,13 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 	public string Description { get; }
 
 	/// <summary>
-	/// Gets the value of the Annotations argument of the Command attribute, as the numeric value of CommandAnnotations.
+	/// The numeric value of the default of the Annotations of the ParameterCollection attribute: Destructive | OpenWorld, the MCP default.
+	/// </summary>
+	public const int DefaultAnnotations = 2 | 8;
+
+	/// <summary>
+	/// Gets the value of the Annotations argument of the ParameterCollection attribute of a leaf, as the numeric value of CommandAnnotations.
+	/// A group or the root has no ParameterCollection attribute, so it has <see cref="DefaultAnnotations"/>, which nothing uses.
 	/// </summary>
 	public int Annotations { get; }
 

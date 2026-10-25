@@ -404,7 +404,7 @@ public class CommandNodeExtractionTests
 		Assert.Equal("CaloriesApp", node.ClassName);
 		Assert.Equal("Tree", node.NamespaceName);
 		Assert.Equal("Tree.CaloriesApp", node.TypeName);
-		Assert.Equal(0, node.Annotations);
+		Assert.Equal(CommandNodeInfo.DefaultAnnotations, node.Annotations);
 		Assert.Empty(Ids(model));
 	}
 
@@ -454,15 +454,30 @@ public class CommandNodeExtractionTests
 	}
 
 	[Fact]
-	public void Annotations_AreReadAsTheirNumericValue()
+	public void Annotations_AreReadFromTheParameterCollectionOfALeaf()
 	{
-		var combined = Extract("[Command(\"x\", \"d\", Annotations = CommandAnnotations.ReadOnly | CommandAnnotations.Idempotent)] public partial class Group { }", "Group");
-		var single = Extract("[Command(\"x\", Annotations = CommandAnnotations.Destructive)] public partial class Group { }", "Group");
-		var none = Extract("[Command(\"x\")] public partial class Group { }", "Group");
+		var combined = Extract("[ParameterCollection(Annotations = CommandAnnotations.ReadOnly | CommandAnnotations.Idempotent)] [Command(\"x\")] public partial class Leaf { }", "Leaf");
+		var none = Extract("[ParameterCollection(Annotations = CommandAnnotations.None)] [Command(\"x\")] public partial class Leaf { }", "Leaf");
+		var omitted = Extract("[ParameterCollection] [Command(\"x\")] public partial class Leaf { }", "Leaf");
 
 		Assert.Equal((int)(CommandAnnotations.ReadOnly | CommandAnnotations.Idempotent), combined.Node.Annotations);
-		Assert.Equal((int)CommandAnnotations.Destructive, single.Node.Annotations);
 		Assert.Equal(0, none.Node.Annotations);
+		Assert.Equal(CommandNodeInfo.DefaultAnnotations, omitted.Node.Annotations);
+	}
+
+	[Fact]
+	public void DefaultAnnotations_AreTheDefaultOfTheAttribute()
+	{
+		Assert.Equal(CommandNodeInfo.DefaultAnnotations, (int)new ParameterCollectionAttribute().Annotations);
+	}
+
+	[Fact]
+	public void Annotations_OfALeaf_ChangeTheNode()
+	{
+		var original = Extract("[ParameterCollection] [Command(\"x\")] public partial class Leaf { }", "Leaf");
+		var edited = Extract("[ParameterCollection(Annotations = CommandAnnotations.ReadOnly)] [Command(\"x\")] public partial class Leaf { }", "Leaf");
+
+		Assert.NotEqual(original.Node, edited.Node);
 	}
 
 	[Fact]
@@ -691,7 +706,6 @@ public class CommandNodeExtractionTests
 	[Theory]
 	[InlineData("[Command(\"ingredient\", \"Manage ingredients\")]", "[Command(\"ingredients\", \"Manage ingredients\")]")]
 	[InlineData("[Command(\"ingredient\", \"Manage ingredients\")]", "[Command(\"ingredient\", \"Manage them\")]")]
-	[InlineData("[Command(\"ingredient\", \"Manage ingredients\")]", "[Command(\"ingredient\", \"Manage ingredients\", Annotations = CommandAnnotations.ReadOnly)]")]
 	[InlineData("[Command(\"ingredient\", \"Manage ingredients\")]", "[ParameterCollection] [Command(\"ingredient\", \"Manage ingredients\")]")]
 	[InlineData("public Child Add { get; private set; }", "public Child Remove { get; private set; }")]
 	[InlineData("public Child Add { get; private set; }", "public Plain Add { get; private set; }")]

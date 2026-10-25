@@ -613,6 +613,19 @@ public class AttributeExtractionTests
 	}
 
 	[Fact]
+	public void Configuration_Annotations_AreNoConstructorArgument()
+	{
+		var alone = Configuration("""[ParameterCollection(Annotations = CommandAnnotations.ReadOnly)]""");
+		var afterOthers = Configuration("""[ParameterCollection(HelpTextGeneration.None, "?", Annotations = CommandAnnotations.ReadOnly)]""");
+
+		Assert.Equal("GenerateAll", alone.HelpTextGenerationMode);
+		Assert.Equal("h", alone.HelpArgumentShortName);
+		Assert.Equal("None", afterOthers.HelpTextGenerationMode);
+		Assert.Equal("?", afterOthers.HelpArgumentShortName);
+		Assert.Equal("Help", afterOthers.HelpArgumentLongName);
+	}
+
+	[Fact]
 	public void Configuration_FullyQualifiedEnumValues_UseTheMemberName()
 	{
 		var config = Configuration("""[global::ArgumentParser.ParameterCollection(global::ArgumentParser.HelpTextGeneration.GenerateTextOnly, behaviourOnError: global::ArgumentParser.BehaviourOnError.ThrowNever)]""");

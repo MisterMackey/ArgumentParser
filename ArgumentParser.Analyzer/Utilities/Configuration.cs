@@ -58,8 +58,9 @@ public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 		var namedArguments = attribute.ArgumentList?.Arguments
 			.Where(arg => arg.NameColon != null)
 			.ToDictionary(arg => arg.NameColon!.Name.ToString(), arg => ArgumentValue(arg, semanticModel));
+		// a property set by name (Annotations = ...) is no constructor argument
 		var positionalArguments = attribute.ArgumentList?.Arguments
-			.Where(arg => arg.NameColon == null)
+			.Where(arg => arg.NameColon == null && arg.NameEquals == null)
 			.Select(arg => ArgumentValue(arg, semanticModel))
 			.ToList();
 		// make sure to update this part if the attribute changes

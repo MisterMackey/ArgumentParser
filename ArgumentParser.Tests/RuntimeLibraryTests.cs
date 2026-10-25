@@ -20,6 +20,22 @@ public class RuntimeLibraryTests
 	}
 
 	[Fact]
+	public void ParameterCollection_AnnotationsDefaultToTheMcpDefaults()
+	{
+		var attribute = new ParameterCollectionAttribute();
+
+		Assert.Equal(CommandAnnotations.Destructive | CommandAnnotations.OpenWorld, attribute.Annotations);
+	}
+
+	[Fact]
+	public void ParameterCollection_StoresAnnotations()
+	{
+		var attribute = new ParameterCollectionAttribute { Annotations = CommandAnnotations.ReadOnly };
+
+		Assert.Equal(CommandAnnotations.ReadOnly, attribute.Annotations);
+	}
+
+	[Fact]
 	public void ParameterCollection_StoresEveryArgument()
 	{
 		var attribute = new ParameterCollectionAttribute(HelpTextGeneration.None, "?", "Assist", BehaviourOnError.ThrowNever);
@@ -259,22 +275,18 @@ public class RuntimeLibraryTests
 	}
 
 	[Fact]
-	public void Command_StoresNameDescriptionAndAnnotations()
+	public void Command_StoresNameAndDescription()
 	{
-		var attribute = new CommandAttribute("add", "Add an ingredient") { Annotations = CommandAnnotations.Idempotent | CommandAnnotations.OpenWorld };
+		var attribute = new CommandAttribute("add", "Add an ingredient");
 
 		Assert.Equal("add", attribute.Name);
 		Assert.Equal("Add an ingredient", attribute.Description);
-		Assert.Equal(CommandAnnotations.Idempotent | CommandAnnotations.OpenWorld, attribute.Annotations);
 	}
 
 	[Fact]
-	public void Command_DescriptionIsEmptyAndAnnotationsAreNoneByDefault()
+	public void Command_DescriptionIsEmptyByDefault()
 	{
-		var attribute = new CommandAttribute("add");
-
-		Assert.Equal("", attribute.Description);
-		Assert.Equal(CommandAnnotations.None, attribute.Annotations);
+		Assert.Equal("", new CommandAttribute("add").Description);
 		Assert.Equal("", new CommandAttribute("add", null!).Description);
 	}
 

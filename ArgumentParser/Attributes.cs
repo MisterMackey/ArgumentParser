@@ -54,6 +54,18 @@ namespace ArgumentParser
 			HelpArgumentLongName = helpArgumentLongName;
 			BehaviourOnError = behaviourOnError;
 		}
+
+		/// <summary>
+		/// Gets or sets how the command that this class parses behaves, which is carried into the generated data about it
+		/// (<see cref="CommandInfo.Annotations"/> when the class is a leaf of a tree of commands). Each value that is set states that
+		/// one of the hints of a tool of the Model Context Protocol (MCP) is true, and each value that is not set states that it is false.
+		/// The default is that of MCP for a tool without annotations: <see cref="CommandAnnotations.Destructive"/> and
+		/// <see cref="CommandAnnotations.OpenWorld"/>. A value that is given replaces the default as a whole, so
+		/// <c>Annotations = CommandAnnotations.ReadOnly</c> also states that the command does not reach outside of the application;
+		/// write <c>CommandAnnotations.ReadOnly | CommandAnnotations.OpenWorld</c> to keep that part of the default.
+		/// The annotations do not change how arguments are parsed or how help text looks.
+		/// </summary>
+		public CommandAnnotations Annotations { get; set; } = CommandAnnotations.Destructive | CommandAnnotations.OpenWorld;
 	}
 
 	/// <summary>
@@ -164,10 +176,6 @@ namespace ArgumentParser
 		/// </summary>
 		public string Description { get; }
 
-		/// <summary>
-		/// Gets or sets how the command behaves, which is carried into the generated data about the command.
-		/// </summary>
-		public CommandAnnotations Annotations { get; set; }
 	}
 
 	/// <summary>

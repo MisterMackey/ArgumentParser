@@ -53,8 +53,8 @@ public class GeneratedCommandTreeTests
 			public MealList? List { get; private set; }
 		}
 
-		[ParameterCollection]
-		[Command("add", "Add an ingredient", Annotations = CommandAnnotations.Idempotent)]
+		[ParameterCollection(Annotations = CommandAnnotations.Idempotent)]
+		[Command("add", "Add an ingredient")]
 		public partial class IngredientAdd
 		{
 			[Option("n", "name", "Name of the ingredient", true)]
@@ -64,16 +64,16 @@ public class GeneratedCommandTreeTests
 			public double Kcal { get; set; }
 		}
 
-		[ParameterCollection]
-		[Command("update", "Change an ingredient", Annotations = CommandAnnotations.Idempotent | CommandAnnotations.Destructive)]
+		[ParameterCollection(Annotations = CommandAnnotations.Idempotent | CommandAnnotations.Destructive)]
+		[Command("update", "Change an ingredient")]
 		public partial class IngredientUpdate
 		{
 			[Positional(0, "Id of the ingredient", true)]
 			public int Id { get; set; }
 		}
 
-		[ParameterCollection]
-		[Command("list", "List meals", Annotations = CommandAnnotations.ReadOnly)]
+		[ParameterCollection(Annotations = CommandAnnotations.ReadOnly)]
+		[Command("list", "List meals")]
 		public partial class MealList
 		{
 			[Flag("a", "all", "Include everything")]
@@ -390,7 +390,7 @@ public class GeneratedCommandTreeTests
 		Assert.Equal(CommandAnnotations.Idempotent, commands["ingredient add"].Annotations);
 		Assert.Equal(CommandAnnotations.Idempotent | CommandAnnotations.Destructive, commands["ingredient update"].Annotations);
 		Assert.Equal(CommandAnnotations.ReadOnly, commands["meal list"].Annotations);
-		Assert.Equal(CommandAnnotations.None, commands["log"].Annotations);
+		Assert.Equal(CommandAnnotations.Destructive | CommandAnnotations.OpenWorld, commands["log"].Annotations);
 	}
 
 	[Fact]
@@ -848,8 +848,8 @@ public class GeneratedCommandTreeTests
 			[CommandApp("app")]
 			public partial class App { public Run? Run { get; private set; } }
 
-			[ParameterCollection]
-			[Command("run", "Run it", Annotations = (CommandAnnotations)(-1))]
+			[ParameterCollection(Annotations = (CommandAnnotations)(-1))]
+			[Command("run", "Run it")]
 			public partial class Run { }
 			""", "App");
 
