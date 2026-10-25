@@ -69,7 +69,7 @@ namespace ArgumentParser
 	}
 
 	/// <summary>
-	/// This attribute marks a class as the root of a tree of commands, such as <c>app ingredient add</c>.
+	/// This attribute marks a class as the root of a tree of commands, such as <c>myFileManagingTool directories list</c>.
 	/// The root declares the name of the application. Its child commands are the properties
 	/// whose type is a class annotated with <see cref="CommandAttribute"/>, and its own options
 	/// (properties with the Option or Flag attribute) are the options that come before the name of the command.
@@ -146,7 +146,7 @@ namespace ArgumentParser
 	/// This attribute marks a class as a node in a tree of commands, and names it.
 	/// A class that also has the <see cref="ParameterCollectionAttribute"/> is a leaf: the command that does the work,
 	/// parsing the arguments that remain after the command names. A class without it is a group of commands
-	/// (such as <c>ingredient</c> in <c>app ingredient add</c>); its child commands are the properties whose type is
+	/// (such as <c>directories</c> in <c>myFileManagingTool directories list</c>); its child commands are the properties whose type is
 	/// a class with this attribute, and its own options come before the name of the next command.
 	/// The class cannot be generic or abstract, and a group cannot have required members. A child command must be declared
 	/// by the class itself: properties inherited from a base class are not child commands. Classes nested in other types

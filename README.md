@@ -7,8 +7,15 @@ Licensed under the Apache License, Version 2.0
 	- [About](#about)
 	- [Quickstart](#quickstart)
 		- [Overriding the default behaviour](#overriding-the-default-behaviour)
-		- [Annotations](#annotations)
 		- [Supported types for argument properties](#supported-types-for-argument-properties)
+	- [Command trees](#command-trees)
+		- [Declaring a tree](#declaring-a-tree)
+		- [Parsing](#parsing)
+		- [Help and errors](#help-and-errors)
+		- [The list of commands](#the-list-of-commands)
+		- [Annotations](#annotations)
+		- [Generated members](#generated-members)
+		- [Rules of a tree](#rules-of-a-tree)
 	- [Inspecting the generated code](#inspecting-the-generated-code)
 	- [Default behaviour](#default-behaviour)
 	- [Diagnostics and Errors](#diagnostics-and-errors)
@@ -120,22 +127,6 @@ The behaviour when a parsing error is encountered can also be configured.
 
 *Some combinations may not be valid, an error diagnostic is displayed with more info in that case. Example: preventing helptext from generating but still asking for generated code to display the helptext. In this case the helptext must be supplied by the user*
 
-### Annotations
-The `Annotations` property of the ParameterCollection attribute describes how the command behaves, for programs that want to know before running it, such as an MCP server that offers the commands as tools. It does not change parsing or the help text. The values are flags of `CommandAnnotations` and match the hints of an MCP tool:
-
-| Flag | MCP hint | Meaning when set |
-|---|---|---|
-| `ReadOnly` | `readOnlyHint` | The command does not change anything. MCP ignores `Destructive` and `Idempotent` when it is set. |
-| `Destructive` | `destructiveHint` | The command may delete or overwrite data, instead of only adding to it. |
-| `Idempotent` | `idempotentHint` | Running the command again with the same arguments has no further effect. |
-| `OpenWorld` | `openWorldHint` | The command interacts with things outside of the application. |
-
-A flag that is set states that its hint is true and a flag that is not set states that it is false. Without the property, the annotations are the MCP defaults, `Destructive | OpenWorld`. A value that is given replaces the default as a whole, so keep `OpenWorld` when it still applies:
-```C#
-[ParameterCollection(Annotations = CommandAnnotations.ReadOnly | CommandAnnotations.OpenWorld)]
-```
-In a tree of commands, every leaf hands its annotations on to its entry in the generated `Commands` list (`CommandInfo.Annotations`).
-
 ### Supported types for argument properties
 All types are parsed with their respective .Parse method from the BCL.
 ```C#
@@ -161,6 +152,226 @@ DateTime
 
 Custom enum types are also supported. When used in combination with a Flag, the amount of times the flag is repeated (int) will be casted as the enum type.
 For Positionals and Options, the supplied string value will be used in a TryParse construction.
+
+## Command trees
+Instead of one flat set of arguments, an application can have commands, in the form `appname subcommand action`:
+```
+myFileManagingTool directories list --showhidden
+myFileManagingTool directories create photos
+myFileManagingTool --root /tmp files delete old.txt --force
+```
+Such an application is declared as a tree of classes. The generator adds the code that hands the arguments to the right command, a help text for every level, and a list of the commands, which a program can use to describe them elsewhere.
+
+### Declaring a tree
+A tree has three kinds of classes. The diagnostics and the rest of this section call them root, group and leaf:
+- The **root** is the application (`myFileManagingTool`), marked with `[CommandApp(name, description)]`. The name is used in the help text.
+- A **group** is a subcommand that holds other commands (`directories`), marked with `[Command(name, description)]`.
+- A **leaf** is the action that does the work (`list`), marked with `[Command(name, description)]` and `[ParameterCollection]`. Its arguments are declared like those of any other parameter collection.
+
+The commands below the root or a group are its properties whose type is a class with `[Command]`. The generated code sets them, so declare them as `{ get; private set; }`. Groups can hold groups, and the root can hold leaves directly.
+
+```C#
+using ArgumentParser;
+
+[CommandApp("myFileManagingTool", "Manage files and directories")]
+public partial class FileTool
+{
+	[Option("r", "root", "Directory to work in")]
+	public string Root { get; set; } = ".";
+
+	public DirectoriesCommand? Directories { get; private set; }
+	public FilesCommand? Files { get; private set; }
+}
+
+[Command("directories", "Work with directories")]
+public partial class DirectoriesCommand
+{
+	public ListDirectories? List { get; private set; }
+	public CreateDirectory? Create { get; private set; }
+}
+
+[Command("files", "Work with files")]
+public partial class FilesCommand
+{
+	public DeleteFile? Delete { get; private set; }
+}
+
+[ParameterCollection(Annotations = CommandAnnotations.ReadOnly)]
+[Command("list", "List the directories")]
+public partial class ListDirectories
+{
+	[Flag("", "showhidden", "Include hidden directories")]
+	public bool ShowHidden { get; set; }
+}
+
+[ParameterCollection(Annotations = CommandAnnotations.Idempotent)]
+[Command("create", "Create a directory")]
+public partial class CreateDirectory
+{
+	[Positional(0, "Name of the new directory", true)]
+	public string Name { get; set; } = "";
+}
+
+[ParameterCollection(Annotations = CommandAnnotations.Destructive | CommandAnnotations.Idempotent)]
+[Command("delete", "Delete a file")]
+public partial class DeleteFile
+{
+	[Positional(0, "Path of the file", true)]
+	public string FilePath { get; set; } = "";
+
+	[Flag("f", "force", "Also delete read-only files")]
+	public bool Force { get; set; }
+}
+```
+
+The generator reports an error when the tree breaks one of these rules (see [the rules](#rules-of-a-tree) below):
+- The root and groups can have `[Option]` and `[Flag]` properties, but no `[Positional]` ones: the first argument that is not an option is the name of the next command. They cannot have `required` members either.
+- A class must declare its child commands itself; properties inherited from a base class are not child commands. A command class can be the type of one child property only.
+- The children of one command need different names. An option or flag cannot reuse a short or long name of a command above it, or a name of the help argument. Commands side by side may share names.
+- The classes cannot be generic, abstract or static. They can be `internal`, and they can be nested in other types as long as those are `partial` too.
+
+### Parsing
+The root gets a public `Parse(string[] args)`, which returns the root and the errors, like the `Parse` of a parameter collection. Only the commands that were typed are filled in; the other child properties stay `null`:
+
+```C#
+var (tool, errors) = FileTool.Parse(args);
+if (tool.Directories?.List is { } list)
+{
+	// myFileManagingTool directories list --showhidden
+	ListDirectories(tool.Root, list.ShowHidden);
+}
+else if (tool.Directories?.Create is { } create)
+{
+	CreateDirectory(tool.Root, create.Name);
+}
+else if (tool.Files?.Delete is { } delete)
+{
+	DeleteFile(tool.Root, delete.FilePath, delete.Force);
+}
+```
+
+The options of a level come before the name of the next command. `myFileManagingTool --root /tmp directories list` works. In `myFileManagingTool directories list --root /tmp`, though, `--root` reaches `list`, which does not know it, so it reports an `UnexpectedArgumentException`. A leaf is parsed by its own generated parser, on the arguments after its name. It also keeps its own `Parse`, which parses only its own arguments.
+
+### Help and errors
+`[CommandApp]` takes the same help and error settings as `[ParameterCollection]`, with the same defaults, and they apply to the whole tree:
+```C#
+[CommandApp("myFileManagingTool", "Manage files and directories",
+	HelpTextGeneration.GenerateAll,
+	helpArgumentShortName: "h",
+	helpArgumentLongName: "Help",
+	behaviourOnError: BehaviourOnError.DisplayHelpAndExit)]
+```
+The help text of every level is generated, so only these help modes can be used:
+
+| HelpTextGeneration | Result |
+|---|---|
+| `GenerateAll` (default) | Every level has a help text, and the help argument can be given on every level. |
+| `GenerateTextOnly` | Every level has a help text, but there is no help argument. |
+| `None` | No help text and no help argument. It cannot be combined with `DisplayHelpAndExit`, as there is no help to display. |
+
+The help argument shows the help of the level where it appears, then the program exits with code 0. `myFileManagingTool -h` and `myFileManagingTool -h directories list` show the help of the application:
+```
+myFileManagingTool - Manage files and directories
+
+Usage:
+	myFileManagingTool [options] <command> [command args]
+
+Commands:
+	directories: Work with directories
+	files: Work with files
+
+Options:
+	Option: -r | --root : Directory to work in
+	Flag: -h | --Help : Display help text
+```
+`myFileManagingTool directories list -h` shows the help of `list`. It has the full path, the arguments of `list`, and the options of the levels above it, with the command they have to come before:
+```
+myFileManagingTool directories list - List the directories
+
+Usage:
+	myFileManagingTool [myFileManagingTool options] directories list [optional args] (required args)
+
+Required arguments:
+	None
+
+Optional arguments:
+	Flag: --showhidden : Include hidden directories
+	Flag: -h | --Help : Display help text
+
+Options of myFileManagingTool, before 'directories':
+	Option: -r | --root : Directory to work in
+```
+
+When parsing fails, `behaviourOnError` decides what happens, as described in [Behaviour on error](#behaviour-on-error). With `DisplayHelpAndExit` the errors are followed by the help of the deepest level that was reached:
+- `myFileManagingTool directories` reports a `MissingCommandException` (`Missing command. Expected one of: list, create.`) and shows the help of `directories`.
+- `myFileManagingTool directories remove` reports an `UnknownCommandException` (`Unknown command 'remove'. Expected one of: list, create.`) and shows the same help.
+- An error in the arguments of `list` shows the help of `list`.
+
+The help text of every level is also a public constant, `CommandHelpText`, on its class. The `HelpText` of a leaf stays the help text of its own `Parse`. The settings of a leaf's `[ParameterCollection]` also only apply to that `Parse`. The tree ignores them, and the generator warns when a leaf in a tree sets them (ARG029).
+
+### The list of commands
+The root also gets a static `Commands` list, with a `CommandInfo` for every leaf:
+
+| Member | Content |
+|---|---|
+| `Path` | The words that select the command, such as `["directories", "list"]`. `ToString()` joins them with spaces. |
+| `Description` | The description of the command. |
+| `Annotations` | How the command behaves, see [Annotations](#annotations). |
+| `HelpText` | The help text of the command, as the tree shows it (empty with `HelpTextGeneration.None`). |
+| `Parse(string[] args)` | Parses the arguments that come after the path into the class of the leaf, and returns it with the errors. It does not include the options of the levels above, and it never prints, exits or throws because of the arguments. The help argument is accepted but does nothing; show `HelpText` instead. |
+
+With it, the commands can be offered somewhere else without listing them by hand, for example as tools for an AI agent:
+```C#
+foreach (var command in FileTool.Commands)
+{
+	var toolName = string.Join("_", command.Path); // directories_list
+	RegisterTool(toolName, command.Description, command.Annotations);
+}
+
+var list = FileTool.Commands.Single(c => c.ToString() == "directories list");
+var (result, errors) = list.Parse(["--showhidden"]); // result is a ListDirectories
+```
+
+### Annotations
+The `Annotations` property of the ParameterCollection attribute describes how the command behaves, for programs that want to know before running it, such as an MCP server that offers the commands as tools. It does not change parsing or the help text. The values are flags of `CommandAnnotations` and match the hints of an MCP tool:
+
+| Flag | MCP hint | Meaning when set |
+|---|---|---|
+| `ReadOnly` | `readOnlyHint` | The command does not change anything. MCP ignores `Destructive` and `Idempotent` when it is set. |
+| `Destructive` | `destructiveHint` | The command may delete or overwrite data, instead of only adding to it. |
+| `Idempotent` | `idempotentHint` | Running the command again with the same arguments has no further effect. |
+| `OpenWorld` | `openWorldHint` | The command interacts with things outside of the application. |
+
+A flag that is set states that its hint is true and a flag that is not set states that it is false. Without the property, the annotations are the MCP defaults, `Destructive | OpenWorld`. A value that is given replaces the default as a whole, so keep `OpenWorld` when it still applies:
+```C#
+[ParameterCollection(Annotations = CommandAnnotations.ReadOnly | CommandAnnotations.OpenWorld)]
+```
+In a tree of commands, every leaf hands its annotations on to its entry in the `Commands` list (`CommandInfo.Annotations`).
+
+### Generated members
+Besides `Parse` and `Commands` on the root, the generator adds `ParseCommand`, `CommandHelpText` and `CommandHelpArgument` to every class of the tree, and `commandFlags` to every leaf. Do not declare members with these names in those classes; there is no diagnostic for it yet, the code just does not compile.
+
+A tree is only generated when it has no errors, including the errors of its leaves: fix the reported problems first.
+
+### Rules of a tree
+| Rule | Problem |
+|---|---|
+| [ARG014](ArgumentParser.Analyzer/docs/rules/ARG014.md) | A command name is empty, contains whitespace or starts with `-`. |
+| [ARG015](ArgumentParser.Analyzer/docs/rules/ARG015.md) | A group or the root has positional arguments. |
+| [ARG016](ArgumentParser.Analyzer/docs/rules/ARG016.md) | `CommandApp` is combined with `Command` or `ParameterCollection`. |
+| [ARG017](ArgumentParser.Analyzer/docs/rules/ARG017.md) | Two children of one command have the same name. |
+| [ARG018](ArgumentParser.Analyzer/docs/rules/ARG018.md) | A command class is the type of more than one child property, or the root is a child. |
+| [ARG019](ArgumentParser.Analyzer/docs/rules/ARG019.md) (warning) | A `Command` class is not reached from any `CommandApp` class. |
+| [ARG020](ArgumentParser.Analyzer/docs/rules/ARG020.md) | A group or the root has no child commands. |
+| [ARG021](ArgumentParser.Analyzer/docs/rules/ARG021.md) | A leaf has child commands. |
+| [ARG022](ArgumentParser.Analyzer/docs/rules/ARG022.md) | A child command property has no setter the generated code can call. |
+| [ARG023](ArgumentParser.Analyzer/docs/rules/ARG023.md) | A class of the tree is generic, or nested in a generic type. |
+| [ARG024](ArgumentParser.Analyzer/docs/rules/ARG024.md) | A class of the tree is abstract or static. |
+| [ARG025](ArgumentParser.Analyzer/docs/rules/ARG025.md) | The root or a group has `required` members. |
+| [ARG026](ArgumentParser.Analyzer/docs/rules/ARG026.md) | An `Option`, `Flag` or `Positional` property has a command class as its type. |
+| [ARG027](ArgumentParser.Analyzer/docs/rules/ARG027.md) | An option or flag uses a name of a command above it, or of the help argument. |
+| [ARG028](ArgumentParser.Analyzer/docs/rules/ARG028.md) | `CommandApp` uses a help mode a tree cannot use, or `None` with `DisplayHelpAndExit`. |
+| [ARG029](ArgumentParser.Analyzer/docs/rules/ARG029.md) (warning) | A leaf in a tree sets help or error settings that the tree does not use. |
 
 ## Inspecting the generated code
 
@@ -350,7 +561,7 @@ Independent of `behaviourOnError`, `HelpTextGeneration.GenerateAll` and `Generat
 
 ## Diagnostics and Errors
 
-see [AnalyzerRelease.Shipped.md](ArgumentParser/AnalyzerReleases.Shipped.md)
+see [AnalyzerReleases.Shipped.md](ArgumentParser.Analyzer/AnalyzerReleases.Shipped.md) for the released rules, [AnalyzerReleases.UnShipped.md](ArgumentParser.Analyzer/AnalyzerReleases.UnShipped.md) for the rules that are not released yet, and [docs/rules](ArgumentParser.Analyzer/docs/rules) for a page per rule.
 
 ## Known bugs (past and present)
 v1.1.1
