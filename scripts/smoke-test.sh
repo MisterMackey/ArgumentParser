@@ -4,7 +4,7 @@
 #
 # Each expected output entry must match a whole output line, or, when prefixed with "~", appear anywhere in the output.
 # An entry prefixed with "!" must NOT appear. The first argument after the expectations selects the scenario in
-# ExampleConsole/Program.cs (lenient, strict, required) or, when absent, the default MyCommandLineArguments.
+# ExampleConsole/Program.cs (lenient, strict, required, commands, commandlist) or, when absent, the default MyCommandLineArguments.
 
 set -u
 
@@ -224,6 +224,58 @@ $'Threw: AggregateException: MissingRequiredArgumentException' \
 check "no arguments throws" 3 \
 $'Threw: AggregateException: MissingRequiredArgumentException' \
 	required
+
+echo "== commands scenario: a tree of commands (FileToolCommands.cs), displays help and exits on error"
+check "leaf below a group with its flag" 0 \
+$'Root=.\nCommand=directories list\nShowHidden=True' \
+	commands directories list --showhidden
+check "leaf with a required positional" 0 \
+$'Command=directories create\nName=photos' \
+	commands directories create photos
+check "options of the root and of a group, each before the next command word" 0 \
+$'Root=/tmp\nCommand=files delete\nDryRun=True\nFilePath=old.txt\nForce=True' \
+	commands --root /tmp files -n delete old.txt --force
+check "short name of a root option" 0 \
+$'Root=/tmp\nCommand=directories list\nShowHidden=False' \
+	commands -r /tmp directories list
+check "no command shows the problem and the help of the root, exits with 2" 2 \
+$'~Missing command. Expected one of: directories, files.\nmyFileManagingTool - Manage files and directories\n~directories: Work with directories\n!Root=' \
+	commands
+check "missing command below a group shows the help of the group" 2 \
+$'~Missing command. Expected one of: list, create.\nmyFileManagingTool directories - Work with directories\n~list: List the directories' \
+	commands directories
+check "unknown command shows the help of the group" 2 \
+$'~Unknown command \'remove\'. Expected one of: list, create.\nmyFileManagingTool directories - Work with directories' \
+	commands directories remove
+check "missing required argument of a leaf shows the help of the leaf" 2 \
+$'~Missing required argument: Name\nmyFileManagingTool directories create - Create a directory\n~Position: 0: Name of the new directory' \
+	commands directories create
+check "an option of the root after the command word reaches the leaf, which does not know it" 2 \
+$'~Unknown argument \'--root\'\nmyFileManagingTool directories list - List the directories\n!Root=' \
+	commands directories list --root /tmp
+check "help on the root, exits with 0" 0 \
+$'myFileManagingTool - Manage files and directories\n~myFileManagingTool [options] <command> [command args]\n~Option: -r | --root : Directory to work in\n!Root=' \
+	commands -h
+check "help before a command word shows the help of the level it is given on" 0 \
+$'myFileManagingTool - Manage files and directories\n!myFileManagingTool directories list\n!Root=' \
+	commands -h directories list
+check "help on a group" 0 \
+$'myFileManagingTool directories - Work with directories\n~create: Create a directory\n~Options of myFileManagingTool, before \'directories\':' \
+	commands directories --Help
+check "help on a leaf shows its arguments and the options of every level above" 0 \
+$'myFileManagingTool files delete - Delete a file\n~Position: 0: Path of the file\n~Flag: -f | --force : Also delete read-only files\n~Options of myFileManagingTool, before \'files\':\n~Options of files, before \'delete\':\n~Flag: -n | --dryrun : Only show what would be done\n!Command=' \
+	commands files delete -h
+
+echo "== commandlist scenario: the Commands list of the tree"
+check "every leaf with its path, description and annotations" 0 \
+$'directories_list: List the directories (ReadOnly)\ndirectories_create: Create a directory (Idempotent)\nfiles_delete: Delete a file (Destructive, Idempotent)' \
+	commandlist
+check "a command of the list parses the arguments after its path" 0 \
+$'Result=CreateDirectory\nName=photos\n!Error:' \
+	commandlist directories create photos
+check "a command of the list collects errors instead of exiting" 1 \
+$'Result=CreateDirectory\nError: MissingRequiredArgumentException: Missing required argument: Name\n!myFileManagingTool' \
+	commandlist directories create
 
 echo
 echo "$((total - failed)) of $total smoke checks passed"
