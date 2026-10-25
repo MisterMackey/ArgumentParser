@@ -21,7 +21,6 @@ $(ANALYZER_STAMP): $(ANALYZER_SOURCES) | $(STAMP_DIR)
 
 $(RESTORE_EXAMPLE_STAMP): $(ANALYZER_STAMP) | $(STAMP_DIR)
 	dotnet remove ExampleConsole package Aot.ArgumentParser || true
-	dotnet nuget locals all --clear
 	dotnet restore
 	dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg --version $$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' ArgumentParser/ArgumentParser.csproj)
 	touch $@
