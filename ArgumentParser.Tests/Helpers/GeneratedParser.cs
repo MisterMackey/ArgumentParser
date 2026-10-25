@@ -35,11 +35,12 @@ public sealed class GeneratedParser
 	/// Compiles the source plus the generated parser and loads the result.
 	/// Fails the test with the compiler errors if the combination does not compile.
 	/// The generated file contains no using directives, so by default the compilation gets the global usings
-	/// that ImplicitUsings provides in an SDK style project.
+	/// that ImplicitUsings provides in an SDK style project. Further source files can be given to test a class declared in several files.
 	/// </summary>
-	public static GeneratedParser Compile(string source, string className = "TestClass", bool implicitUsings = true)
+	public static GeneratedParser Compile(string source, string className = "TestClass", bool implicitUsings = true, params string[] otherFiles)
 	{
-		var syntaxTrees = new List<SyntaxTree> { CSharpSyntaxTree.ParseText(source) };
+		var syntaxTrees = new List<SyntaxTree> { CSharpSyntaxTree.ParseText(source, path: "File0.cs") };
+		syntaxTrees.AddRange(otherFiles.Select((text, index) => CSharpSyntaxTree.ParseText(text, path: $"File{index + 1}.cs")));
 		if (implicitUsings)
 		{
 			syntaxTrees.Add(CSharpSyntaxTree.ParseText(ImplicitUsingsSource));
@@ -126,6 +127,16 @@ public sealed class GeneratedParser
 		return (T?)field?.GetValue(null);
 	}
 
+	/// <summary>
+	/// Reads a public static property of the generated class (for example Commands).
+	/// </summary>
+	public T? GetStaticProperty<T>(string name)
+	{
+		var property = GetParameterCollectionType().GetProperty(name, BindingFlags.Public | BindingFlags.Static)
+			?? throw new InvalidOperationException($"{className} has no public static property {name}.");
+		return (T?)property.GetValue(null);
+	}
+
 	private Type GetParameterCollectionType()
 	{
 		return assembly.GetType($"{DefaultNamespace}.{className}")
@@ -182,5 +193,25 @@ public sealed class ParseOutcome(object instance, IReadOnlyList<ArgumentParserEx
 		var property = Instance.GetType().GetProperty(propertyName)
 			?? throw new InvalidOperationException($"{Instance.GetType().FullName} has no property {propertyName}.");
 		return (T?)property.GetValue(Instance);
+	}
+
+	/// <summary>
+	/// Reads a property of the parsed instance by following a path of property names, such as <c>Ingredient.Add.Name</c>.
+	/// A null along the way gives null.
+	/// </summary>
+	public T? GetPath<T>(string path)
+	{
+		object? current = Instance;
+		foreach (var name in path.Split('.'))
+		{
+			if (current is null)
+			{
+				return default;
+			}
+			var property = current.GetType().GetProperty(name)
+				?? throw new InvalidOperationException($"{current.GetType().FullName} has no property {name}.");
+			current = property.GetValue(current);
+		}
+		return (T?)current;
 	}
 }

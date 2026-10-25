@@ -12,13 +12,6 @@ namespace ArgumentParser.Internal.Utilities;
 /// </summary>
 public static class CommandNodeExtractor
 {
-	private const string CommandAppAttributeName = "ArgumentParser.CommandAppAttribute";
-	private const string CommandAttributeName = "ArgumentParser.CommandAttribute";
-	private const string ParameterCollectionAttributeName = "ArgumentParser.ParameterCollectionAttribute";
-	private const string OptionAttributeName = "ArgumentParser.OptionAttribute";
-	private const string FlagAttributeName = "ArgumentParser.FlagAttribute";
-	private const string PositionalAttributeName = "ArgumentParser.PositionalAttribute";
-
 	/// <summary>
 	/// Determines whether a class has the CommandApp attribute.
 	/// </summary>
@@ -30,7 +23,7 @@ public static class CommandNodeExtractor
 		{
 			throw new ArgumentNullException(nameof(symbol));
 		}
-		return FindAttribute(symbol.GetAttributes(), CommandAppAttributeName) is not null;
+		return AttributeReader.Find(symbol.GetAttributes(), AttributeReader.CommandApp) is not null;
 	}
 
 	/// <summary>
@@ -38,8 +31,9 @@ public static class CommandNodeExtractor
 	/// </summary>
 	/// <param name="classDeclaration">The declaration of the class.</param>
 	/// <param name="symbol">The symbol of the class.</param>
+	/// <param name="semanticModel">The semantic model of the tree the class is in.</param>
 	/// <returns>The node and the diagnostics found while reading it.</returns>
-	public static CommandNodeModel Extract(ClassDeclarationSyntax classDeclaration, INamedTypeSymbol symbol)
+	public static CommandNodeModel Extract(ClassDeclarationSyntax classDeclaration, INamedTypeSymbol symbol, SemanticModel semanticModel)
 	{
 		if (classDeclaration is null)
 		{
@@ -49,11 +43,15 @@ public static class CommandNodeExtractor
 		{
 			throw new ArgumentNullException(nameof(symbol));
 		}
+		if (semanticModel is null)
+		{
+			throw new ArgumentNullException(nameof(semanticModel));
+		}
 
 		var attributes = symbol.GetAttributes();
-		var commandApp = FindAttribute(attributes, CommandAppAttributeName);
-		var command = FindAttribute(attributes, CommandAttributeName);
-		var hasParameterCollection = FindAttribute(attributes, ParameterCollectionAttributeName) is not null;
+		var commandApp = AttributeReader.Find(attributes, AttributeReader.CommandApp);
+		var command = AttributeReader.Find(attributes, AttributeReader.Command);
+		var hasParameterCollection = AttributeReader.Find(attributes, AttributeReader.ParameterCollection) is not null;
 
 		// the root wins when attributes are combined, the conflict is reported on it
 		var kind = commandApp is not null ? CommandNodeKind.Root
@@ -66,19 +64,45 @@ public static class CommandNodeExtractor
 		var node = new CommandNodeInfo(
 			classDeclaration.Identifier.Text,
 			containingNamespace is { IsGlobalNamespace: false } ? containingNamespace.ToDisplayString() : null,
+			ContainingType.ReadAll(symbol),
 			symbol.ToDisplayString(),
 			kind,
-			StringArgument(nodeAttribute, 0),
-			StringArgument(nodeAttribute, 1),
+			AttributeReader.StringArgument(nodeAttribute, 0),
+			AttributeReader.StringArgument(nodeAttribute, 1),
 			AnnotationsArgument(nodeAttribute),
 			new EquatableArray<ChildCandidate>(children.Select(c => c.Candidate)));
 
 		var diagnostics = new List<DiagnosticInfo>();
-		// a leaf is also a ParameterCollection, which reports on the class itself
-		if (kind != CommandNodeKind.Leaf)
+		// the class may be declared in several parts, in several files: the arguments of every part count
+		var parts = DeclarationParts.Read(symbol, classDeclaration, semanticModel);
+		var declarations = parts.Select(p => p.Declaration).ToList();
+		var factories = DeclarationParts.AttributeFactories(parts).ToList();
+		var options = factories.SelectMany(f => f.GetOptionAttributes()).ToList();
+		var flags = factories.SelectMany(f => f.GetFlagAttributes()).ToList();
+		// A class with the ParameterCollection attribute (a leaf, or a root that wrongly has it too, ARG016) is also read by that pipeline,
+		// which reports on the class itself and on its arguments: checking them here too would report everything twice.
+		// Its options and flags are still read, so their names can be compared with those of the commands above it.
+		if (!hasParameterCollection)
 		{
-			diagnostics.AddRange(Validation.ValidateClassDeclaration(classDeclaration, checkParseMethod: kind == CommandNodeKind.Root));
+			diagnostics.AddRange(Validation.ValidateClassDeclaration(classDeclaration, checkParseMethod: kind == CommandNodeKind.Root, declarations));
+			// positionals cannot be used here (ValidateCommandNode reports them), only a command class as their type is reported like on the others
+			var positionals = factories.SelectMany(f => f.GetPositionalAttributes()).ToList();
+			diagnostics.AddRange(Validation.ValidateAttributes(options, flags, Array.Empty<PropertyAndAttributeInfo>(), declarations));
+			diagnostics.AddRange(Validation.ValidateCommandClassArguments(
+				Array.Empty<PropertyAndAttributeInfo>(),
+				Array.Empty<PropertyAndAttributeInfo>(),
+				positionals,
+				declarations));
 		}
+		var arguments = new NodeArguments(new EquatableArray<PropertyAndAttributeInfo>(options), new EquatableArray<PropertyAndAttributeInfo>(flags));
+		var argumentLocations = options.Concat(flags)
+			.Select(a => new PropertyLocation(a.PropertyName, LocationInfo.From(ArgumentLocation(declarations, a.PropertyName))));
+		diagnostics.AddRange(Validation.ValidateNodeDeclaration(
+			node,
+			classDeclaration.Identifier.GetLocation(),
+			ContainingType.IsGenericOrInGeneric(symbol),
+			symbol.IsAbstract,
+			kind == CommandNodeKind.Leaf ? [] : ReadRequiredMembers(symbol)));
 		diagnostics.AddRange(Validation.ValidateCommandNode(
 			node,
 			nodeAttribute?.ApplicationSyntaxReference?.GetSyntax().GetLocation(),
@@ -88,28 +112,21 @@ public static class CommandNodeExtractor
 
 		return new CommandNodeModel(
 			node,
+			arguments,
 			LocationInfo.From(classDeclaration.Identifier.GetLocation()),
 			new EquatableArray<PropertyLocation>(children.Select(c => new PropertyLocation(c.Candidate.PropertyName, LocationInfo.From(c.Location)))),
+			new EquatableArray<PropertyLocation>(argumentLocations),
 			new EquatableArray<DiagnosticInfo>(diagnostics));
 	}
 
-	private static AttributeData? FindAttribute(IEnumerable<AttributeData> attributes, string attributeName)
+	// the whole declaration, like the rules about arguments in Validation
+	private static Location? ArgumentLocation(IEnumerable<ClassDeclarationSyntax> declarations, string propertyName)
 	{
-		return attributes.FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString() == attributeName);
-	}
-
-	private static bool HasAttribute(IPropertySymbol property, string attributeName)
-	{
-		return FindAttribute(property.GetAttributes(), attributeName) is not null;
-	}
-
-	private static string StringArgument(AttributeData? data, int index)
-	{
-		if (data is null || data.ConstructorArguments.Length <= index)
-		{
-			return string.Empty;
-		}
-		return data.ConstructorArguments[index].Value?.ToString() ?? string.Empty;
+		return declarations
+			.SelectMany(c => c.Members)
+			.OfType<PropertyDeclarationSyntax>()
+			.FirstOrDefault(p => p.Identifier.Text == propertyName)
+			?.GetLocation();
 	}
 
 	// Annotations is a named argument, so it is only there when the user wrote it. An enum value arrives as its underlying int.
@@ -129,11 +146,21 @@ public static class CommandNodeExtractor
 		return 0;
 	}
 
+	// Only what the class declares itself: a property inherited from a base class is not seen.
+	// An explicit interface implementation is left out, it cannot be reached by its name from the generated code.
 	private static IEnumerable<IPropertySymbol> InstanceProperties(INamedTypeSymbol symbol)
 	{
 		return symbol.GetMembers()
 			.OfType<IPropertySymbol>()
-			.Where(p => !p.IsStatic && !p.IsIndexer && !p.IsImplicitlyDeclared);
+			.Where(p => !p.IsStatic && !p.IsIndexer && !p.IsImplicitlyDeclared && p.ExplicitInterfaceImplementations.Length == 0);
+	}
+
+	private static List<(string PropertyName, Location? Location)> ReadRequiredMembers(INamedTypeSymbol symbol)
+	{
+		return symbol.GetMembers()
+			.Where(m => m is IPropertySymbol { IsRequired: true } or IFieldSymbol { IsRequired: true })
+			.Select(m => (m.Name, m.Locations.FirstOrDefault()))
+			.ToList();
 	}
 
 	// A property may be a child command when its type is a class declared in this compilation.
@@ -148,11 +175,11 @@ public static class CommandNodeExtractor
 			{
 				continue;
 			}
-			var hasArgumentAttribute = HasAttribute(property, OptionAttributeName)
-				|| HasAttribute(property, FlagAttributeName)
-				|| HasAttribute(property, PositionalAttributeName);
+			var hasArgumentAttribute = AttributeReader.Has(property, AttributeReader.Option)
+				|| AttributeReader.Has(property, AttributeReader.Flag)
+				|| AttributeReader.Has(property, AttributeReader.Positional);
 			var candidate = new ChildCandidate(
-				property.Name,
+				ContainingType.EscapeIdentifier(property.Name),
 				type.ToDisplayString(),
 				property.SetMethod is { IsInitOnly: false },
 				hasArgumentAttribute);
@@ -161,10 +188,11 @@ public static class CommandNodeExtractor
 		return candidates;
 	}
 
+	// a positional of a command class type is reported by ARG026 instead
 	private static List<(string PropertyName, Location? Location)> ReadPositionals(INamedTypeSymbol symbol)
 	{
 		return InstanceProperties(symbol)
-			.Where(p => HasAttribute(p, PositionalAttributeName))
+			.Where(p => AttributeReader.Has(p, AttributeReader.Positional) && !AttributeReader.IsCommandClass(p.Type))
 			.Select(p => (p.Name, p.Locations.FirstOrDefault()))
 			.ToList();
 	}

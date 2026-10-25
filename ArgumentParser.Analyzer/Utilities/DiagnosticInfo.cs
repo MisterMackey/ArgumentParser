@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -60,6 +61,26 @@ public sealed class DiagnosticInfo : IEquatable<DiagnosticInfo>
 		var arguments = (messageArgs ?? Array.Empty<object?>())
 			.Select(a => Convert.ToString(a, CultureInfo.InvariantCulture) ?? "");
 		return new DiagnosticInfo(descriptor, LocationInfo.From(location), new EquatableArray<string>(arguments));
+	}
+
+	/// <summary>
+	/// Creates a diagnostic description for a location that was already turned into plain data.
+	/// </summary>
+	/// <param name="descriptor">The descriptor of the rule that was broken.</param>
+	/// <param name="location">The location in source, if any.</param>
+	/// <param name="messageArgs">The arguments for the message of the descriptor.</param>
+	/// <returns>The diagnostic description.</returns>
+	public static DiagnosticInfo FromLocationInfo(DiagnosticDescriptor descriptor, LocationInfo? location, IEnumerable<string> messageArgs)
+	{
+		if (descriptor is null)
+		{
+			throw new ArgumentNullException(nameof(descriptor));
+		}
+		if (messageArgs is null)
+		{
+			throw new ArgumentNullException(nameof(messageArgs));
+		}
+		return new DiagnosticInfo(descriptor, location, new EquatableArray<string>(messageArgs));
 	}
 
 	/// <summary>

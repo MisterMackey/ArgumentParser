@@ -27,7 +27,7 @@ namespace ArgumentParser.Tests
 
 			// Assert
 			Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
-			Assert.Contains("public static (TestClass result, List<ArgumentParser.ArgumentParserException> errors) Parse(string[] args)", output);
+			Assert.Contains("public static (TestClass result, List<global::ArgumentParser.ArgumentParserException> errors) Parse(string[] args)", output);
 			Assert.Contains("Output", output);
 		}
 

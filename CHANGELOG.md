@@ -5,19 +5,38 @@
 - Overriding program names in generated helptext
 
 ### Added
-- The first part of command trees (`app ingredient add`): the `CommandApp` and `Command` attributes and the `CommandAnnotations` enum. A `CommandApp` class is the root of the tree and names the application, a `Command` class is a node in it (a leaf when it also has `ParameterCollection`, a group otherwise), and the properties whose type is a node are its child commands. The classes are read and validated, but nothing is generated for them yet, so they cannot be used to parse anything.
+- Command trees (`app ingredient add`): the `CommandApp` and `Command` attributes and the `CommandAnnotations` enum. A `CommandApp` class is the root of the tree and names the application, a `Command` class is a node in it (a leaf when it also has `ParameterCollection`, a group otherwise), and the properties whose type is a node are its child commands. For the root and every group the generator adds an internal `ParseCore`, which reads the `Option` and `Flag` properties of the class and hands the arguments after the command word to the child it names. The root also gets a public `Parse(string[])`, which returns the root with only the typed path filled in, and a static `Commands` list with a `CommandInfo` (path, description, annotations and a `Parse` method) for every leaf. The options of a level must come before the next command word. A leaf is parsed as it always was, on the arguments after its command word. This is not finished: help text for the levels of the tree, the `BehaviourOnError` and help settings for the whole tree (the root `Parse` only returns the errors for now) and documentation are still to come.
   - ARG014: a command name must not be empty, contain whitespace or start with `-`.
   - ARG015: a command group or the root cannot have positional arguments, since the first positional argument is the name of the next command.
   - ARG016: `CommandApp` cannot be combined with `Command` or `ParameterCollection`.
+  - ARG017: the children of one command must have different names.
+  - ARG018: a command class can be the type of one child command property only (not two, in one class or in two), and the root of none.
+  - ARG019 (warning): a `Command` class that no `CommandApp` class reaches is never selected.
+  - ARG020: a group or the root needs at least one child command.
+  - ARG021: a leaf (a class with `ParameterCollection`) cannot have child commands.
+  - ARG022: a child command property needs a setter the generated code can call (`{ get; private set; }`).
+  - ARG023: a class of the tree cannot be generic (or nested in a generic type).
+  - ARG024: a class of the tree cannot be abstract or static.
+  - ARG025: the root and groups cannot have `required` members.
+  - ARG026: an `Option`, `Flag` or `Positional` property cannot have a command class as its type, in any class. Such a property declares a child command; keep argument and command attributes on separate types.
+  - ARG027: an option or flag cannot have a short or long name that a command above it (its group, their groups or the root) already uses. Commands side by side may share names.
+  - Classes of the tree can be nested in other (partial) types: the generated code declares the surrounding types again. Options and flags of a group or the root are read from every part of a partial class, also from other files. Child commands and options that are inherited from a base class are not supported yet. An explicit interface implementation is never a child command.
+- `MissingCommandException` and `UnknownCommandException` for a command that is missing or not one of the commands of its group, `CommandInfo` for the entries of `Commands`, and `ArgumentTokenizer.TokenizeLeadingArguments`, which tokenizes only the options and flags before the first other argument.
 - `ParseOutcomePolicy.Apply` applies a `BehaviourOnError` setting and the help text to the outcome of a parse. An overload takes the `TextWriter` to write to and the `Action<int>` to call instead of `Environment.Exit`, so the policy can be used and tested without ending the process.
 
 ### Changed
+- The generated parser file is named `<Namespace>.<Outer>.<ClassName>_Parser.g.cs` (the namespace and the types the class is nested in are part of the name) instead of `<ClassName>_Parser.g.cs`. Two classes with the same name in different namespaces made the generator fail with a duplicate file name, which is much more likely with command trees (an `Add` below each of two groups).
 - The generated `Parse` is split in two. A new `internal static ParseCore(string[] args)` binds the arguments and collects errors without printing, exiting or throwing; `Parse` calls it and then applies the help text and `BehaviourOnError` handling exactly as before. The behaviour of `Parse` does not change, but a class that already declares its own `ParseCore(string[])` no longer compiles.
 - The help and error handling of `Parse` (printing, exit codes 0 and 2, throwing the `AggregateException`) moved out of the generated code into the runtime library, so the generated `Parse` is a single call to the new `ParseOutcomePolicy.Apply`. The output and exit codes are unchanged.
 - The generator is now incremental: it extracts a plain, comparable model of each annotated class and only generates again when that model changes, so edits elsewhere in a project no longer rerun the generator for every annotated class.
 - Diagnostics are now reported at a file path and span instead of a syntax node. Because of this, `#pragma warning disable` and `.editorconfig` severity settings no longer silence the ARG008 warning; use `<NoWarn>ARG008</NoWarn>` in the project file.
 
 ### Fixed
+- A `ParameterCollection` class declared in several parts (in one file or in several) only had the `Option`, `Flag` and `Positional` properties of the part with the attribute. The arguments of every part are read now, and the checks for an existing `Parse`, constructors, `HelpText` and `DisplayHelp` look at every part too.
+- An `internal` (or otherwise not public) `ParameterCollection` class did not compile, because the generated part was always declared `public`. The generated part now has no access modifier and takes the one of the class.
+- A class in a namespace with a segment named `ArgumentParser` (such as `MyApp.ArgumentParser`) did not compile, because the generated code named the library types `ArgumentParser.X`, which then pointed into that namespace. The generated code uses `global::ArgumentParser.X` now.
+- A class named after a keyword (`@event`) made the generator fail on the file name, and a class nested in such a type was declared again without its `@`.
+- A `ParameterCollection` class nested in another type got a generated parser in a new top level class with the same name instead of in the nested class. The generated code now declares the surrounding types (which must be partial) again.
 - A class in the global namespace produced generated code that did not compile (`namespace <global namespace>`).
 - Required arguments were tracked in static state, so after one `Parse` call that supplied them later calls in the same process no longer reported them missing. The tracking is now local to each call.
 - Names and descriptions containing quotes or backslashes (and help text containing triple quotes) produced generated code that did not compile. They are now escaped.

@@ -287,6 +287,69 @@ public class RuntimeLibraryTests
 
 	#endregion
 
+	#region CommandInfo
+
+	private static CommandInfo Info(Func<string[], (object, IReadOnlyList<ArgumentParserException>)>? parse = null, IReadOnlyList<string>? path = null)
+		=> new(path ?? ["ingredient", "add"], "Add an ingredient", CommandAnnotations.Idempotent, parse ?? (_ => ("result", [])));
+
+	[Fact]
+	public void CommandInfo_KeepsWhatItWasGiven()
+	{
+		var info = Info();
+
+		Assert.Equal(["ingredient", "add"], info.Path);
+		Assert.Equal("Add an ingredient", info.Description);
+		Assert.Equal(CommandAnnotations.Idempotent, info.Annotations);
+		Assert.Equal("ingredient add", info.ToString());
+	}
+
+	[Fact]
+	public void CommandInfo_CopiesThePath()
+	{
+		var path = new List<string> { "a", "b" };
+		var info = Info(path: path);
+
+		path.Add("c");
+
+		Assert.Equal(["a", "b"], info.Path);
+	}
+
+	[Fact]
+	public void CommandInfo_NullDescription_BecomesEmpty()
+	{
+		var info = new CommandInfo(["x"], null!, CommandAnnotations.None, _ => ("r", []));
+
+		Assert.Equal("", info.Description);
+	}
+
+	[Fact]
+	public void CommandInfo_NullArguments_Throw()
+	{
+		Assert.Throws<ArgumentNullException>(() => new CommandInfo(null!, "d", CommandAnnotations.None, _ => ("r", [])));
+		Assert.Throws<ArgumentNullException>(() => new CommandInfo(["x"], "d", CommandAnnotations.None, null!));
+		Assert.Throws<ArgumentNullException>(() => Info().Parse(null!));
+	}
+
+	[Fact]
+	public void CommandInfo_Parse_HandsTheArgumentsToTheDelegateAndReturnsItsOutcome()
+	{
+		string[] received = [];
+		var error = new UnexpectedArgumentException("x");
+		var info = Info(args =>
+		{
+			received = args;
+			return ("the result", [error]);
+		});
+
+		var (result, errors) = info.Parse(["--name", "rice"]);
+
+		Assert.Equal(["--name", "rice"], received);
+		Assert.Equal("the result", result);
+		Assert.Same(error, Assert.Single(errors));
+	}
+
+	#endregion
+
 	#region Exceptions
 
 	public static TheoryData<Type> ConcreteExceptionTypes =>
@@ -295,6 +358,8 @@ public class RuntimeLibraryTests
 		typeof(MissingRequiredArgumentException),
 		typeof(InvalidArgumentValueException),
 		typeof(InvalidTokenTypeException),
+		typeof(MissingCommandException),
+		typeof(UnknownCommandException),
 	];
 
 	[Theory]

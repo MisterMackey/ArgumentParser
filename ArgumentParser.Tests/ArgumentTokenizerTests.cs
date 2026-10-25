@@ -423,5 +423,112 @@ namespace ArgumentParser.Tests
 			Assert.Equal("verbose", flagToken.Name);
 			Assert.Equal(expectedCount, flagToken.Level);
 		}
+
+		#region TokenizeLeadingArguments
+
+		[Fact]
+		public void TokenizeLeadingArguments_NoArguments_HasNoCommand()
+		{
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments([], _options, _flags);
+
+			Assert.Empty(tokens);
+			Assert.Empty(errors);
+			Assert.Equal(0, commandIndex);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_StopsAtTheFirstArgumentThatIsNotAnOptionOrFlag()
+		{
+			string[] args = ["--output", "out.txt", "-v", "add", "--input", "in.txt"];
+
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(args, _options, _flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(3, commandIndex);
+			Assert.Equal(2, tokens.Count);
+			var option = Assert.IsType<OptionToken>(tokens[0]);
+			Assert.Equal("output", option.Name);
+			Assert.Equal("out.txt", option.Value);
+			var flag = Assert.IsType<FlagToken>(tokens[1]);
+			Assert.Equal("v", flag.Name);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_OnlyOptions_ReturnsTheLengthAsTheCommandIndex()
+		{
+			string[] args = ["-o", "out.txt", "--verbose"];
+
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(args, _options, _flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(2, tokens.Count);
+			Assert.Equal(args.Length, commandIndex);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_ValueOfAnOptionIsNotTheCommand_EvenWhenItLooksLikeOne()
+		{
+			string[] args = ["--output", "add", "add"];
+
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(args, _options, _flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(2, commandIndex);
+			Assert.Equal("add", Assert.IsType<OptionToken>(Assert.Single(tokens)).Value);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_UnknownOption_IsAnErrorAndTokenizingContinues()
+		{
+			string[] args = ["--bogus", "-v", "run"];
+
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(args, _options, _flags);
+
+			Assert.IsType<UnexpectedArgumentException>(Assert.Single(errors));
+			Assert.IsType<FlagToken>(Assert.Single(tokens));
+			Assert.Equal(2, commandIndex);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_OptionWithoutAValueAtTheEnd_IsAnError()
+		{
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(["--output"], _options, _flags);
+
+			Assert.Empty(tokens);
+			Assert.IsType<MissingRequiredArgumentException>(Assert.Single(errors));
+			Assert.Equal(1, commandIndex);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_CountsRepeatedFlagsIntoALevel()
+		{
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(["-vv", "--verbose", "run"], _options, _flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(3, Assert.IsType<FlagToken>(Assert.Single(tokens)).Level);
+			Assert.Equal(2, commandIndex);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_CanBeCalledAgainOnTheSameTokenizer()
+		{
+			_tokenizer.TokenizeLeadingArguments(["-v", "run"], _options, _flags);
+
+			var (tokens, _, _) = _tokenizer.TokenizeLeadingArguments(["-f", "run"], _options, _flags);
+
+			Assert.Equal("f", Assert.IsType<FlagToken>(Assert.Single(tokens)).Name);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_NullArguments_ThrowsArgumentNullException()
+		{
+			string[] validArgs = ["--output", "file.txt"];
+
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeLeadingArguments(null!, _options, _flags));
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeLeadingArguments(validArgs, null!, _flags));
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeLeadingArguments(validArgs, _options, null!));
+		}
+
+		#endregion
 	}
 }

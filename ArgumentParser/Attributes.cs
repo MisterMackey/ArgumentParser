@@ -62,6 +62,9 @@ namespace ArgumentParser
 	/// whose type is a class annotated with <see cref="CommandAttribute"/>, and its own options
 	/// (properties with the Option or Flag attribute) are the options that come before the name of the command.
 	/// The class should be a public partial class with a parameterless constructor and cannot have positional arguments.
+	/// It cannot be generic, abstract or have required members. A child command must be declared by the class itself:
+	/// properties inherited from a base class are not child commands. Classes nested in other types are supported
+	/// as long as the types around them are partial too.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class, Inherited = false)]
 	public sealed class CommandAppAttribute : Attribute
@@ -94,6 +97,9 @@ namespace ArgumentParser
 	/// parsing the arguments that remain after the command names. A class without it is a group of commands
 	/// (such as <c>ingredient</c> in <c>app ingredient add</c>); its child commands are the properties whose type is
 	/// a class with this attribute, and its own options come before the name of the next command.
+	/// The class cannot be generic or abstract, and a group cannot have required members. A child command must be declared
+	/// by the class itself: properties inherited from a base class are not child commands. Classes nested in other types
+	/// are supported as long as the types around them are partial too.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class, Inherited = false)]
 	public sealed class CommandAttribute : Attribute

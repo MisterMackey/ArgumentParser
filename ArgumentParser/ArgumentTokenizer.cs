@@ -126,18 +126,41 @@ namespace ArgumentParser
 		/// </returns>
 		public (List<Token> result, List<ArgumentParserException> err) TokenizeArguments(string[] args, OptionAttribute[] options, PositionalAttribute[] positionals, FlagAttribute[] flags)
 		{
+			if (positionals is null)
+				throw new System.ArgumentNullException(nameof(positionals));
+			var (tokens, errors, _) = Tokenize(args, options, positionals, flags, stopAtFirstPositional: false);
+			return (tokens, errors);
+		}
+
+		/// <summary>
+		/// Tokenizes the options and flags at the start of the arguments, up to the first argument that is neither.
+		/// That argument is the name of a command, so everything from it on belongs to the command and is left alone.
+		/// An option consumes the argument after it as its value, whatever that looks like.
+		/// </summary>
+		/// <param name="args">The array of arguments to tokenize.</param>
+		/// <param name="options">The array of option attributes to match against.</param>
+		/// <param name="flags">The array of flag attributes to match against.</param>
+		/// <returns>A tuple containing a list of tokens, a list of errors, and the index of the first argument that was not tokenized
+		/// (the length of <paramref name="args"/> when there is none).
+		/// The order of the tokens is not guaranteed, as with <see cref="TokenizeArguments"/>.</returns>
+		public (List<Token> result, List<ArgumentParserException> err, int commandIndex) TokenizeLeadingArguments(string[] args, OptionAttribute[] options, FlagAttribute[] flags)
+		{
+			return Tokenize(args, options, System.Array.Empty<PositionalAttribute>(), flags, stopAtFirstPositional: true);
+		}
+
+		private (List<Token> result, List<ArgumentParserException> err, int commandIndex) Tokenize(string[] args, OptionAttribute[] options, PositionalAttribute[] positionals, FlagAttribute[] flags, bool stopAtFirstPositional)
+		{
 			flagRepeatCounts.Clear();
 			if (args is null)
 				throw new System.ArgumentNullException(nameof(args));
 			if (options is null)
 				throw new System.ArgumentNullException(nameof(options));
-			if (positionals is null)
-				throw new System.ArgumentNullException(nameof(positionals));
 			if (flags is null)
 				throw new System.ArgumentNullException(nameof(flags));
 			var tokens = new List<Token>();
 			var errors = new List<ArgumentParserException>();
 			var positionalIndex = 0;
+			var commandIndex = args.Length;
 
 			for (int i = 0; i < args.Length; i++)
 			{
@@ -151,13 +174,18 @@ namespace ArgumentParser
 				{
 					ProcessShortNameArguments(arg, args, ref i, options, flags, tokens, errors);
 				}
+				else if (stopAtFirstPositional)
+				{
+					commandIndex = i;
+					break;
+				}
 				else
 				{
 					ProcessPositionalArgument(arg, positionals, ref positionalIndex, tokens, errors);
 				}
 			}
 			AddFlagTokensWithLevels(tokens);
-			return (tokens, errors);
+			return (tokens, errors, commandIndex);
 		}
 	}
 

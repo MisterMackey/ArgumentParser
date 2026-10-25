@@ -28,18 +28,322 @@ public class CommandNodeExtractionTests
 		var tree = compilation.SyntaxTrees.Single();
 		var semanticModel = compilation.GetSemanticModel(tree);
 		var declaration = tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().First(c => c.Identifier.Text == className);
-		return CommandNodeExtractor.Extract(declaration, (INamedTypeSymbol)semanticModel.GetDeclaredSymbol(declaration)!);
+		return CommandNodeExtractor.Extract(declaration, (INamedTypeSymbol)semanticModel.GetDeclaredSymbol(declaration)!, semanticModel);
 	}
 
 	private static IReadOnlyList<string> Ids(CommandNodeModel model)
 	{
-		return Enumerable.Range(0, model.Diagnostics.Count).Select(i => model.Diagnostics[i].Id).ToList();
+		return model.Diagnostics.AsReadOnly().Select(item => item.Id).ToList();
 	}
 
 	private static IReadOnlyList<ChildCandidate> Children(CommandNodeModel model)
 	{
-		return Enumerable.Range(0, model.Node.Children.Count).Select(i => model.Node.Children[i]).ToList();
+		return model.Node.Children.AsReadOnly().ToList();
 	}
+
+	#region Arguments of groups and roots
+
+	[Fact]
+	public void Group_ReadsItsOptionsAndFlags()
+	{
+		var model = Extract("""
+			public enum Level { None, Some }
+
+			[Command("group")]
+			public partial class Group
+			{
+				[Option("d", "db", "the database")] public string Db { get; set; } = "";
+				[Option("", "level", "how much", true)] public Level Level { get; set; }
+				[Flag("v", "verbose", "talk")] public bool Verbose { get; set; }
+				public string Ignored { get; set; } = "";
+			}
+			""", "Group");
+
+		Assert.Equal(["Db", "Level"], model.Arguments.Options.AsReadOnly().Select(item => item.PropertyName));
+		Assert.Equal(["Verbose"], model.Arguments.Flags.AsReadOnly().Select(item => item.PropertyName));
+		Assert.True(model.Arguments.Options[1].Attribute.Required);
+		Assert.True(model.Arguments.Options[1].IsEnum);
+		Assert.Equal("the database", model.Arguments.Options[0].Attribute.Description);
+	}
+
+	[Fact]
+	public void Root_ReadsItsOptionsAndFlags()
+	{
+		var model = Extract("""
+			[CommandApp("app")]
+			public partial class App
+			{
+				[Option("d", "db", "the database")] public string Db { get; set; } = "";
+				[Flag("v", "verbose", "talk")] public bool Verbose { get; set; }
+			}
+			""", "App");
+
+		Assert.Equal(1, model.Arguments.Options.Count);
+		Assert.Equal(1, model.Arguments.Flags.Count);
+	}
+
+	[Fact]
+	public void Leaf_ReadsItsOptionsAndFlagsButLeavesTheirRulesToTheParameterCollectionPipeline()
+	{
+		var model = Extract("""
+			[ParameterCollection]
+			[Command("leaf")]
+			public partial class Leaf
+			{
+				[Option("d", "db", "the database")] public string Db { get; set; } = "";
+				[Option("d", "other", "the same short name")] public string Other { get; set; } = "";
+				[Flag("v", "verbose", "more output")] public bool Verbose { get; set; }
+				[Positional(0, "a file")] public string File { get; set; } = "";
+			}
+			""", "Leaf");
+
+		// the names are compared along the tree (ARG027); the duplicate (ARG003) is reported by the other pipeline
+		Assert.Equal(["Db", "Other"], model.Arguments.Options.AsReadOnly().Select(o => o.PropertyName));
+		Assert.Equal(["Verbose"], model.Arguments.Flags.AsReadOnly().Select(f => f.PropertyName));
+		Assert.Equal(["Db", "Other", "Verbose"], model.ArgumentLocations.AsReadOnly().Select(l => l.PropertyName));
+		Assert.Empty(Ids(model));
+	}
+
+	[Fact]
+	public void Group_PositionalsAreNotReadAsArguments()
+	{
+		var model = Extract("""
+			[Command("group")]
+			public partial class Group
+			{
+				[Positional(0, "first")] public string First { get; set; } = "";
+			}
+			""", "Group");
+
+		Assert.Equal(NodeArguments.Empty, model.Arguments);
+		Assert.Equal(["ARG015"], Ids(model));
+	}
+
+	[Fact]
+	public void Group_PositionalOfACommandClassType_IsReportedAsThatAndNotAsAPositional()
+	{
+		var model = Extract("""
+			[Command("group")]
+			public partial class Group
+			{
+				[Positional(0, "first")] public Leaf? First { get; set; }
+			}
+
+			[ParameterCollection] [Command("leaf")] public partial class Leaf { }
+			""", "Group");
+
+		Assert.Equal(["ARG026"], Ids(model));
+	}
+
+	[Theory]
+	[InlineData("[Option(\"o\", \"one\", \"a\")] public string A { get; set; } = \"\"; [Option(\"o\", \"two\", \"b\")] public string B { get; set; } = \"\";", "ARG003")]
+	[InlineData("[Option(\"a\", \"same\", \"a\")] public string A { get; set; } = \"\"; [Flag(\"b\", \"same\", \"b\")] public bool B { get; set; }", "ARG003")]
+	[InlineData("[Option(\"a\", \"one\", \"a\")] public Plain A { get; set; } = new();", "ARG007")]
+	[InlineData("[Flag(\"a\", \"one\", \"a\")] public string A { get; set; } = \"\";", "ARG013")]
+	public void Group_AttributesAreValidatedLikeThoseOfAParameterCollection(string members, string expectedRule)
+	{
+		foreach (var attribute in new[] { "[Command(\"group\")]", "[CommandApp(\"app\")]" })
+		{
+			var model = Extract($"{attribute} public partial class Group {{ {members} }}", "Group");
+
+			Assert.Contains(expectedRule, Ids(model));
+			Assert.True(model.HasErrors);
+		}
+	}
+
+	[Fact]
+	public void Group_ArgumentsHaveNoEffectOnTheNode()
+	{
+		var plain = Extract("[Command(\"group\")] public partial class Group { }", "Group");
+		var withOption = Extract("[Command(\"group\")] public partial class Group { [Option(\"o\", \"one\", \"a\")] public string A { get; set; } = \"\"; }", "Group");
+
+		Assert.Equal(plain.Node, withOption.Node);
+		Assert.NotEqual(plain.Source, withOption.Source);
+	}
+	#endregion
+
+	#region Declaration rules (ARG023 to ARG025) and declaration shapes
+
+	[Theory]
+	[InlineData("[Command(\"g\")] public partial class Node<T> { }", "Node")]
+	[InlineData("[CommandApp(\"a\")] public partial class Node<T, U> { }", "Node")]
+	[InlineData("public partial class Outer<T> { [Command(\"g\")] public partial class Node { } }", "Node")]
+	[InlineData("[ParameterCollection] [Command(\"g\")] public partial class Node<T> { }", "Node")]
+	public void ARG023_GenericClassOrGenericContainer_IsReported(string types, string className)
+	{
+		var model = Extract(types, className);
+
+		Assert.Contains("ARG023", Ids(model));
+		Assert.True(model.HasErrors);
+	}
+
+	[Theory]
+	[InlineData("[Command(\"g\")] public partial class Node { }")]
+	[InlineData("public partial class Outer { [CommandApp(\"a\")] public partial class Node { } }")]
+	public void ARG023_ConcreteClass_IsNotReported(string types)
+	{
+		Assert.DoesNotContain("ARG023", Ids(Extract(types, "Node")));
+	}
+
+	[Theory]
+	[InlineData("[Command(\"g\")] public abstract partial class Node { }")]
+	[InlineData("[CommandApp(\"a\")] public abstract partial class Node { }")]
+	[InlineData("[ParameterCollection] [Command(\"g\")] public abstract partial class Node { }")]
+	public void ARG024_AbstractClass_IsReportedOnTheClassName(string types)
+	{
+		var model = Extract(types, "Node");
+
+		Assert.Contains("ARG024", Ids(model));
+		var diagnostic = model.Diagnostics.AsReadOnly().First(d => d.Id == "ARG024");
+		Assert.Equal(model.ClassLocation, diagnostic.Location);
+	}
+
+	[Fact]
+	public void ARG024_ClassThatIsNotAbstract_IsNotReported()
+	{
+		Assert.DoesNotContain("ARG024", Ids(Extract("[Command(\"g\")] public sealed partial class Node { }", "Node")));
+	}
+
+	[Theory]
+	[InlineData("[Command(\"g\")]")]
+	[InlineData("[CommandApp(\"a\")]")]
+	public void ARG025_RequiredMembersOfAGroupOrRoot_AreReportedOnEachMember(string attribute)
+	{
+		var model = Extract($$"""
+			{{attribute}}
+			public partial class Node
+			{
+				public required string Name { get; set; }
+				public required int Count;
+				public string Fine { get; set; } = "";
+			}
+			""", "Node");
+
+		var diagnostics = model.Diagnostics.AsReadOnly().Where(d => d.Id == "ARG025").ToList();
+		Assert.Equal(2, diagnostics.Count);
+		Assert.Contains("'Name'", diagnostics[0].ToDiagnostic().GetMessage() + diagnostics[1].ToDiagnostic().GetMessage());
+		Assert.Contains("'Count'", diagnostics[0].ToDiagnostic().GetMessage() + diagnostics[1].ToDiagnostic().GetMessage());
+	}
+
+	[Fact]
+	public void ARG025_RequiredMembersOfALeaf_AreNotReportedByTheTree()
+	{
+		var model = Extract("""
+			[ParameterCollection]
+			[Command("leaf")]
+			public partial class Node
+			{
+				public required string Name { get; set; }
+			}
+			""", "Node");
+
+		Assert.DoesNotContain("ARG025", Ids(model));
+	}
+
+	[Fact]
+	public void ExplicitInterfaceImplementation_IsNotAChildCandidate()
+	{
+		var model = Extract("""
+			public interface IHas { Child? Other { get; set; } }
+			public class Child { }
+
+			[Command("g")]
+			public partial class Node : IHas
+			{
+				public Child? Real { get; private set; }
+				Child? IHas.Other { get; set; }
+			}
+			""", "Node");
+
+		Assert.Equal(["Real"], Children(model).Select(c => c.PropertyName));
+	}
+
+	[Fact]
+	public void InheritedProperties_AreNotChildCandidates_ThisIsDocumentedAsUnsupported()
+	{
+		var model = Extract("""
+			public class Child { }
+			public class Base { public Child? Inherited { get; protected set; } }
+
+			[Command("g")]
+			public partial class Node : Base
+			{
+				public Child? Own { get; private set; }
+			}
+			""", "Node");
+
+		Assert.Equal(["Own"], Children(model).Select(c => c.PropertyName));
+	}
+
+	[Fact]
+	public void ContainingTypes_AreReadOutermostFirstWithTheirKeyword()
+	{
+		var model = Extract("""
+			public partial class Outer
+			{
+				public partial struct Middle
+				{
+					public partial record Inner
+					{
+						public partial record struct Deepest
+						{
+							[Command("g")]
+							public partial class Node { }
+						}
+					}
+				}
+			}
+			""", "Node");
+
+		var containing = model.Node.ContainingTypes.AsReadOnly().Select(item => (item.Keyword, item.Name)).ToList();
+		Assert.Equal([("class", "Outer"), ("struct", "Middle"), ("record", "Inner"), ("record struct", "Deepest")], containing);
+		Assert.Equal("Tree.Outer.Middle.Inner.Deepest.Node", ContainingType.QualifiedName(model.Node.NamespaceName, model.Node.ContainingTypes, model.Node.ClassName));
+	}
+
+	[Fact]
+	public void ContainingTypes_AreNotNeededForATopLevelClassAndPartOfTheNodeEquality()
+	{
+		var topLevel = Extract("[Command(\"g\")] public partial class Node { }", "Node");
+		var nested = Extract("public partial class Outer { [Command(\"g\")] public partial class Node { } }", "Node");
+
+		Assert.Equal(0, topLevel.Node.ContainingTypes.Count);
+		Assert.NotEqual(topLevel.Node, nested.Node);
+		Assert.Equal("Tree.Node", ContainingType.QualifiedName(topLevel.Node.NamespaceName, topLevel.Node.ContainingTypes, topLevel.Node.ClassName));
+	}
+
+	[Fact]
+	public void Group_OptionsInAnotherFile_AreReadAndValidatedWithTheirLocation()
+	{
+		const string other = """
+			using ArgumentParser;
+			namespace Tree;
+
+			public partial class Node
+			{
+				[Option("o", "other", "Another file")] public string Other { get; set; } = "";
+				[Option("o", "again", "Same short name")] public string Again { get; set; } = "";
+			}
+			""";
+		const string first = """
+			using ArgumentParser;
+			namespace Tree;
+
+			[Command("g")]
+			public partial class Node { }
+			""";
+		var compilation = TestHelper.CreateCompilation(first).AddSyntaxTrees(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(other, path: "Other.cs"));
+		var tree = compilation.SyntaxTrees.First();
+		var semanticModel = compilation.GetSemanticModel(tree);
+		var declaration = tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().Single();
+
+		var model = CommandNodeExtractor.Extract(declaration, (INamedTypeSymbol)semanticModel.GetDeclaredSymbol(declaration)!, semanticModel);
+
+		Assert.Equal(["Other", "Again"], model.Arguments.Options.AsReadOnly().Select(item => item.PropertyName));
+		var duplicates = model.Diagnostics.AsReadOnly().Where(d => d.Id == "ARG003").ToList();
+		Assert.Equal(2, duplicates.Count);
+		Assert.All(duplicates, d => Assert.Equal("Other.cs", d.Location!.FilePath));
+	}
+	#endregion
 
 	#region Reading the node
 
@@ -246,7 +550,7 @@ public class CommandNodeExtractionTests
 		var model = Extract(types, "CaloriesApp");
 
 		var lines = (Preamble + types).Split('\n').ToList();
-		Assert.Equal(["Ingredient", "Meal"], Enumerable.Range(0, model.ChildLocations.Count).Select(i => model.ChildLocations[i].PropertyName));
+		Assert.Equal(["Ingredient", "Meal"], model.ChildLocations.AsReadOnly().Select(item => item.PropertyName));
 		Assert.Equal(
 			lines.FindIndex(l => l.Contains("Ingredient {", StringComparison.Ordinal)),
 			model.ChildLocations[0].Location!.LineSpan.Start.Line);
@@ -302,14 +606,29 @@ public class CommandNodeExtractionTests
 	}
 
 	[Fact]
-	public void EditingAnOption_DoesNotChangeTheNode_NorTheModelWhenNothingMoves()
+	public void EditingAnOption_DoesNotChangeTheNode_ButChangesTheArguments()
 	{
 		var original = Extract(Group, "IngredientGroup");
 
 		// the new text is as long as the old one, so nothing after it moves
 		var edited = Extract(Group.Replace("the database", "new database"), "IngredientGroup");
 
+		Assert.Equal(original.Node, edited.Node);
+		Assert.NotEqual(original.Arguments, edited.Arguments);
+		Assert.NotEqual(original.Source, edited.Source);
+		Assert.NotEqual(original, edited);
+	}
+
+	[Fact]
+	public void EditingSomethingThatIsNotInTheModel_KeepsTheModelWhenNothingMoves()
+	{
+		const string withInitializer = "public string Db { get; set; } = \"a\";";
+		var original = Extract(Group.Replace("public string Db { get; set; }", withInitializer), "IngredientGroup");
+
+		var edited = Extract(Group.Replace("public string Db { get; set; }", withInitializer.Replace("\"a\"", "\"b\"")), "IngredientGroup");
+
 		Assert.Equal(original, edited);
+		Assert.Equal(original.GetHashCode(), edited.GetHashCode());
 	}
 
 	[Fact]
@@ -359,7 +678,7 @@ public class CommandNodeExtractionTests
 	{
 		var model = Extract($"[Command(\"{name}\")] public partial class Group {{ }}", "Group");
 
-		var diagnostic = Assert.Single(Enumerable.Range(0, model.Diagnostics.Count).Select(i => model.Diagnostics[i]));
+		var diagnostic = Assert.Single(model.Diagnostics.AsReadOnly());
 		Assert.Equal("ARG014", diagnostic.Id);
 		Assert.Contains("'Group'", diagnostic.ToDiagnostic().GetMessage(), StringComparison.Ordinal);
 	}
@@ -422,7 +741,7 @@ public class CommandNodeExtractionTests
 			""", "Node");
 
 		Assert.Equal(["ARG015", "ARG015"], Ids(model));
-		var messages = Enumerable.Range(0, model.Diagnostics.Count).Select(i => model.Diagnostics[i].ToDiagnostic().GetMessage()).ToList();
+		var messages = model.Diagnostics.AsReadOnly().Select(item => item.ToDiagnostic().GetMessage()).ToList();
 		Assert.Contains("'First'", messages[0], StringComparison.Ordinal);
 		Assert.Contains("'Second'", messages[1], StringComparison.Ordinal);
 		Assert.Contains("'Node'", messages[0], StringComparison.Ordinal);
@@ -451,7 +770,7 @@ public class CommandNodeExtractionTests
 		var model = Extract($"{attributes} public partial class App {{ }}", "App");
 
 		Assert.Equal(CommandNodeKind.Root, model.Node.Kind);
-		var diagnostic = Assert.Single(Enumerable.Range(0, model.Diagnostics.Count).Select(i => model.Diagnostics[i]));
+		var diagnostic = Assert.Single(model.Diagnostics.AsReadOnly());
 		Assert.Equal("ARG016", diagnostic.Id);
 		Assert.Contains($"{other} attribute", diagnostic.ToDiagnostic().GetMessage(), StringComparison.Ordinal);
 	}

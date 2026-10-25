@@ -80,6 +80,58 @@ public static class GeneratorDiagnostics
 	private const string ARG016_Title = "Conflicting command attributes";
 	private const string ARG016_Message = "Class '{0}' has the CommandApp attribute together with the {1} attribute. The root of the command tree cannot also be a command.";
 
+	private const string ARG017_Id = "ARG017";
+	private const string ARG017_Title = "Duplicate command name";
+	private const string ARG017_Message = "Command name '{0}' is used by more than one child command of '{1}'. The names of the children of one command must be unique.";
+
+	private const string ARG018_Id = "ARG018";
+	private const string ARG018_Title = "Command class used more than once";
+	private const string ARG018_Message = "Class '{0}' is the type of property '{2}' of '{1}', but it is also the type of another child command property, or it is the root of the tree. " +
+					     "A command class must be the type of exactly one child command property, and the root of none.";
+
+	private const string ARG019_Id = "ARG019";
+	private const string ARG019_Title = "Command class is not part of a tree";
+	private const string ARG019_Message = "Command class '{0}' cannot be reached from a class with the CommandApp attribute, so it can never be selected. " +
+					     "Declare it as a property of its parent command.";
+
+	private const string ARG020_Id = "ARG020";
+	private const string ARG020_Title = "Command group without commands";
+	private const string ARG020_Message = "Class '{0}' has no child commands. Add a property whose type is a command class, " +
+					     "or give a command class the ParameterCollection attribute to make it a leaf command.";
+
+	private const string ARG021_Id = "ARG021";
+	private const string ARG021_Title = "Leaf command with child commands";
+	private const string ARG021_Message = "Property '{1}' of leaf command '{0}' declares a child command, but a class with the ParameterCollection attribute cannot have child commands. " +
+					     "Remove the ParameterCollection attribute to make the class a command group.";
+
+	private const string ARG022_Id = "ARG022";
+	private const string ARG022_Title = "Child command property cannot be set";
+	private const string ARG022_Message = "Property '{1}' of '{0}' declares a child command, but it has no setter the generated code can call. " +
+					     "Give it a private setter; an init-only setter does not work.";
+
+	private const string ARG023_Id = "ARG023";
+	private const string ARG023_Title = "Generic command class";
+	private const string ARG023_Message = "Command class '{0}' is generic or nested in a generic type. The classes of a command tree are created by the generated parser, which cannot supply type arguments.";
+
+	private const string ARG024_Id = "ARG024";
+	private const string ARG024_Title = "Abstract command class";
+	private const string ARG024_Message = "Command class '{0}' is abstract or static. The generated parser creates an object of every class in the command tree, so it must be a concrete class.";
+
+	private const string ARG025_Id = "ARG025";
+	private const string ARG025_Title = "Required member on a command group";
+	private const string ARG025_Message = "Member '{1}' of '{0}' has the required modifier, but the generated parser creates groups and the root of a command tree without setting it. " +
+					     "Remove the required modifier.";
+
+	private const string ARG026_Id = "ARG026";
+	private const string ARG026_Title = "Argument of a command class type";
+	private const string ARG026_Message = "Property '{0}' has the {1} attribute, but its type '{2}' is a command class. A property of a command class type declares a child command " +
+					     "and cannot also be an argument. Keep the argument attributes and the command attributes on separate types.";
+
+	private const string ARG027_Id = "ARG027";
+	private const string ARG027_Title = "Argument name used by a parent command";
+	private const string ARG027_Message = "Property '{1}' of '{0}' has the {2} name '{3}', which '{4}' above it in the command tree already uses. " +
+					     "A command cannot reuse the option and flag names of the commands it is part of. Rename one of the two.";
+
 	/// <summary>
 	/// Diagnostic descriptor for ARG001: Classes with ParameterCollection attribute must be partial.
 	/// </summary>
@@ -286,5 +338,148 @@ public static class GeneratorDiagnostics
 	    DiagnosticSeverity.Error,
 	    true,
 	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG016.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG017: The children of one command must have different names.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG017 = new DiagnosticDescriptor(
+	    ARG017_Id,
+	    ARG017_Title,
+	    ARG017_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG017.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG018: A command class can be the child of one property only.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG018 = new DiagnosticDescriptor(
+	    ARG018_Id,
+	    ARG018_Title,
+	    ARG018_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG018.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG019: A command class that cannot be reached from a CommandApp class is never selected.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG019 = new DiagnosticDescriptor(
+	    ARG019_Id,
+	    ARG019_Title,
+	    ARG019_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Warning,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG019.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG020: A command group or application root needs at least one child command.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG020 = new DiagnosticDescriptor(
+	    ARG020_Id,
+	    ARG020_Title,
+	    ARG020_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG020.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG021: A leaf command cannot have child commands.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG021 = new DiagnosticDescriptor(
+	    ARG021_Id,
+	    ARG021_Title,
+	    ARG021_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG021.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG022: A child command property needs a setter that the generated code can call.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG022 = new DiagnosticDescriptor(
+	    ARG022_Id,
+	    ARG022_Title,
+	    ARG022_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG022.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG023: A class of a command tree cannot be generic.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG023 = new DiagnosticDescriptor(
+	    ARG023_Id,
+	    ARG023_Title,
+	    ARG023_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG023.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG024: A class of a command tree cannot be abstract.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG024 = new DiagnosticDescriptor(
+	    ARG024_Id,
+	    ARG024_Title,
+	    ARG024_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG024.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG025: A command group or the root cannot have required members.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG025 = new DiagnosticDescriptor(
+	    ARG025_Id,
+	    ARG025_Title,
+	    ARG025_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG025.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG026: An argument cannot have a command class as its type.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG026 = new DiagnosticDescriptor(
+	    ARG026_Id,
+	    ARG026_Title,
+	    ARG026_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG026.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG027: A command cannot reuse an option or flag name of a command above it.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG027 = new DiagnosticDescriptor(
+	    ARG027_Id,
+	    ARG027_Title,
+	    ARG027_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG027.md"
 	);
 }

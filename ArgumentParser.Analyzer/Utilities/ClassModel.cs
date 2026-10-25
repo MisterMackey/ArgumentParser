@@ -21,6 +21,11 @@ public sealed class ClassModel : IEquatable<ClassModel>
 	public string? NamespaceName { get; }
 
 	/// <summary>
+	/// Gets the types the class is nested in, the outermost first.
+	/// </summary>
+	public EquatableArray<ContainingType> ContainingTypes { get; }
+
+	/// <summary>
 	/// Gets the name of the assembly the class is in, which the help text uses as the program name.
 	/// </summary>
 	public string ProgramName { get; }
@@ -53,7 +58,7 @@ public sealed class ClassModel : IEquatable<ClassModel>
 	/// <summary>
 	/// Gets a value indicating whether any of the diagnostics is an error.
 	/// </summary>
-	public bool HasErrors => Enumerable.Range(0, Diagnostics.Count).Any(i => Diagnostics[i].Severity == DiagnosticSeverity.Error);
+	public bool HasErrors => Diagnostics.AsReadOnly().Any(item => item.Severity == DiagnosticSeverity.Error);
 
 	/// <summary>
 	/// Gets a value indicating whether a parser can be generated for the class.
@@ -71,6 +76,7 @@ public sealed class ClassModel : IEquatable<ClassModel>
 	/// <param name="flags">The properties with a Flag attribute.</param>
 	/// <param name="positionals">The properties with a Positional attribute.</param>
 	/// <param name="diagnostics">The diagnostics found while reading the class.</param>
+	/// <param name="containingTypes">The types the class is nested in, the outermost first.</param>
 	public ClassModel(
 		string className,
 		string? namespaceName,
@@ -79,7 +85,8 @@ public sealed class ClassModel : IEquatable<ClassModel>
 		EquatableArray<PropertyAndAttributeInfo> options,
 		EquatableArray<PropertyAndAttributeInfo> flags,
 		EquatableArray<PropertyAndAttributeInfo> positionals,
-		EquatableArray<DiagnosticInfo> diagnostics)
+		EquatableArray<DiagnosticInfo> diagnostics,
+		EquatableArray<ContainingType> containingTypes = default)
 	{
 		ClassName = className ?? throw new ArgumentNullException(nameof(className));
 		NamespaceName = namespaceName;
@@ -89,6 +96,7 @@ public sealed class ClassModel : IEquatable<ClassModel>
 		Flags = flags;
 		Positionals = positionals;
 		Diagnostics = diagnostics;
+		ContainingTypes = containingTypes;
 	}
 
 	/// <inheritdoc/>
@@ -97,6 +105,7 @@ public sealed class ClassModel : IEquatable<ClassModel>
 		return other is not null
 			&& ClassName == other.ClassName
 			&& NamespaceName == other.NamespaceName
+			&& ContainingTypes.Equals(other.ContainingTypes)
 			&& ProgramName == other.ProgramName
 			&& Equals(Configuration, other.Configuration)
 			&& Options.Equals(other.Options)
@@ -117,6 +126,7 @@ public sealed class ClassModel : IEquatable<ClassModel>
 		int hash = 17;
 		hash = hash * 23 + ClassName.GetHashCode();
 		hash = hash * 23 + (NamespaceName?.GetHashCode() ?? 0);
+		hash = hash * 23 + ContainingTypes.GetHashCode();
 		hash = hash * 23 + ProgramName.GetHashCode();
 		hash = hash * 23 + (Configuration?.GetHashCode() ?? 0);
 		hash = hash * 23 + Options.GetHashCode();

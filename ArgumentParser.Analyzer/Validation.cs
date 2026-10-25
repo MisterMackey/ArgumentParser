@@ -19,14 +19,19 @@ public static class Validation
 	/// </summary>
 	/// <param name="classDeclaration">The class declaration to validate.</param>
 	/// <param name="checkParseMethod">Whether the class must not already have a Parse(string[]) method, because the generator is going to add one.</param>
+	/// <param name="parts">Every part of the class, whose members all count. Only <paramref name="classDeclaration"/> when left out.</param>
 	/// <returns>List of diagnostics if validation fails, empty list if validation passes.</returns>
-	public static ReadOnlyCollection<DiagnosticInfo> ValidateClassDeclaration(ClassDeclarationSyntax classDeclaration, bool checkParseMethod = true)
+	public static ReadOnlyCollection<DiagnosticInfo> ValidateClassDeclaration(
+		ClassDeclarationSyntax classDeclaration,
+		bool checkParseMethod = true,
+		IReadOnlyList<ClassDeclarationSyntax>? parts = null)
 	{
 		if (classDeclaration is null)
 		{
 			throw new ArgumentNullException(nameof(classDeclaration));
 		}
 		var diagnostics = new List<DiagnosticInfo>();
+		var members = Members(classDeclaration, parts);
 
 		// Validate that the class is partial
 		if (!classDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword))
@@ -38,7 +43,7 @@ public static class Validation
 		}
 
 		// Validate that the class doesn't already have a Parse method
-		if (checkParseMethod && classDeclaration.Members.OfType<MethodDeclarationSyntax>()
+		if (checkParseMethod && members.OfType<MethodDeclarationSyntax>()
 		    .Any(m => m.Identifier.Text == "Parse" && m.ParameterList.Parameters.Count == 1
 			&& IsStringArray(m.ParameterList.Parameters[0].Type)))
 		{
@@ -51,12 +56,12 @@ public static class Validation
 		// Validate that the class has a constructor with no parameters
 		// or no constructor at all (which implies a default constructor).
 		// Static constructors are not instance constructors, and a primary constructor replaces the default one.
-		var instanceConstructors = classDeclaration.Members
+		var instanceConstructors = members
 			.OfType<ConstructorDeclarationSyntax>()
 			.Where(c => !c.Modifiers.Any(SyntaxKind.StaticKeyword))
 			.ToList();
 		var hasParameterlessConstructor = instanceConstructors.Any(c => c.ParameterList.Parameters.Count == 0);
-		var hasPrimaryConstructorWithParameters = classDeclaration.ParameterList?.Parameters.Count > 0;
+		var hasPrimaryConstructorWithParameters = (parts ?? new[] { classDeclaration }).Any(c => c.ParameterList?.Parameters.Count > 0);
 		if (!hasParameterlessConstructor && (instanceConstructors.Count > 0 || hasPrimaryConstructorWithParameters))
 		{
 			diagnostics.Add(DiagnosticInfo.Create(
@@ -126,6 +131,48 @@ public static class Validation
 	}
 
 	/// <summary>
+	/// Validates how a class of a tree of commands is declared. The generated parser creates an object of every class in the tree
+	/// and assigns its properties, so the class must be concrete and, for a group or the root, have nothing it must set.
+	/// </summary>
+	/// <param name="node">The node to validate.</param>
+	/// <param name="classLocation">Where the name of the class is.</param>
+	/// <param name="isGeneric">Whether the class, or a type it is nested in, has type parameters.</param>
+	/// <param name="isAbstract">Whether the class is abstract or static.</param>
+	/// <param name="requiredMembers">The members with the required modifier that a group or the root has, with their locations.</param>
+	/// <returns>List of diagnostics if validation fails, empty list if validation passes.</returns>
+	public static ReadOnlyCollection<DiagnosticInfo> ValidateNodeDeclaration(
+		CommandNodeInfo node,
+		Location? classLocation,
+		bool isGeneric,
+		bool isAbstract,
+		IEnumerable<(string MemberName, Location? Location)> requiredMembers
+	)
+	{
+		if (node is null)
+		{
+			throw new ArgumentNullException(nameof(node));
+		}
+		if (requiredMembers is null)
+		{
+			throw new ArgumentNullException(nameof(requiredMembers));
+		}
+		var diagnostics = new List<DiagnosticInfo>();
+		if (isGeneric)
+		{
+			diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG023, classLocation, node.ClassName));
+		}
+		if (isAbstract)
+		{
+			diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG024, classLocation, node.ClassName));
+		}
+		foreach (var (memberName, location) in requiredMembers)
+		{
+			diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG025, location, node.ClassName, memberName));
+		}
+		return diagnostics.AsReadOnly();
+	}
+
+	/// <summary>
 	/// Validates that the attributes don't have conflicting values.
 	/// </summary>
 	/// <param name="provider">The argument provider to validate.</param>
@@ -144,10 +191,41 @@ public static class Validation
 		{
 			throw new ArgumentNullException(nameof(provider));
 		}
-		var options = provider.GetOptionArguments();
-		var flags = provider.GetFlagArguments();
-		var positionals = provider.GetPositionalArguments();
-		var diagnostics = new List<DiagnosticInfo>();
+		return ValidateAttributes(provider.GetOptionArguments(), provider.GetFlagArguments(), provider.GetPositionalArguments(), new[] { classDeclarationSyntax });
+	}
+
+	/// <summary>
+	/// Validates that the attributes don't have conflicting values.
+	/// </summary>
+	/// <param name="options">The option arguments to validate.</param>
+	/// <param name="flags">The flag arguments to validate.</param>
+	/// <param name="positionals">The positional arguments to validate.</param>
+	/// <param name="classDeclarations">The parts of the class that declares the arguments, which is where the diagnostics are located.</param>
+	/// <returns>List of diagnostics if validation fails, empty list if validation passes.</returns>
+	public static ReadOnlyCollection<DiagnosticInfo> ValidateAttributes(
+		IReadOnlyList<PropertyAndAttributeInfo> options,
+		IReadOnlyList<PropertyAndAttributeInfo> flags,
+		IReadOnlyList<PropertyAndAttributeInfo> positionals,
+		IReadOnlyList<ClassDeclarationSyntax> classDeclarations
+	)
+	{
+		if (options is null)
+		{
+			throw new ArgumentNullException(nameof(options));
+		}
+		if (flags is null)
+		{
+			throw new ArgumentNullException(nameof(flags));
+		}
+		if (positionals is null)
+		{
+			throw new ArgumentNullException(nameof(positionals));
+		}
+		if (classDeclarations is null)
+		{
+			throw new ArgumentNullException(nameof(classDeclarations));
+		}
+		var diagnostics = new List<DiagnosticInfo>(ValidateCommandClassArguments(options, flags, positionals, classDeclarations));
 
 		// Check for duplicate short names
 		var duplicateShortNames = options.
@@ -167,7 +245,7 @@ public static class Validation
 
 		foreach (var option in duplicateOptions)
 		{
-			var location = GetLocation(option, classDeclarationSyntax);
+			var location = GetLocation(option, classDeclarations);
 			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG003,
 			    location,
@@ -176,7 +254,7 @@ public static class Validation
 		}
 		foreach (var flag in duplicateFlags)
 		{
-			var location = GetLocation(flag, classDeclarationSyntax);
+			var location = GetLocation(flag, classDeclarations);
 			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG003,
 			    location,
@@ -200,7 +278,7 @@ public static class Validation
 			.Where(x => duplicateLongNames.Contains(x.Attribute.LongName));
 		foreach (var option in duplicateLongOptions)
 		{
-			var location = GetLocation(option, classDeclarationSyntax);
+			var location = GetLocation(option, classDeclarations);
 			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG003,
 			    location,
@@ -209,7 +287,7 @@ public static class Validation
 		}
 		foreach (var flag in duplicateLongFlags)
 		{
-			var location = GetLocation(flag, classDeclarationSyntax);
+			var location = GetLocation(flag, classDeclarations);
 			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG003,
 			    location,
@@ -224,7 +302,7 @@ public static class Validation
 		    .ToList();
 		foreach (var position in duplicatePositions)
 		{
-			var location = GetLocation(position, classDeclarationSyntax);
+			var location = GetLocation(position, classDeclarations);
 			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG004,
 			    location,
@@ -235,7 +313,7 @@ public static class Validation
 		var invalidPositions = positionals.Where(p => p.Attribute.Position < 0 || p.Attribute.Position >= positionals.Count).ToList();
 		foreach (var position in invalidPositions)
 		{
-			var location = GetLocation(position, classDeclarationSyntax);
+			var location = GetLocation(position, classDeclarations);
 			diagnostics.Add(DiagnosticInfo.Create(
 			    GeneratorDiagnostics.ARG005,
 			    location,
@@ -243,16 +321,17 @@ public static class Validation
 		}
 
 		// Check for unsupported property types (for properties that don't specify custom parsing)
+		// A command class is reported by ARG026, which says more than that the type is not supported.
 		var allProperties = options
 			.Concat(positionals)
 			.Concat(flags)
-			.Where(x => !x.HasParseMethod)
+			.Where(x => !x.HasParseMethod && !x.IsCommandClass)
 			.ToList();
 		foreach (var prop in allProperties)
 		{
 			if (!IsSupportedPropertyType(prop))
 			{
-				var location = GetLocation(prop, classDeclarationSyntax);
+				var location = GetLocation(prop, classDeclarations);
 				diagnostics.Add(DiagnosticInfo.Create(
 					GeneratorDiagnostics.ARG007,
 					location,
@@ -265,10 +344,11 @@ public static class Validation
 		{
 			if (flag.PropertyType != "bool"
 				&& !flag.IsEnum
+				&& !flag.IsCommandClass
 			)
 
 			{
-				var location = GetLocation(flag, classDeclarationSyntax);
+				var location = GetLocation(flag, classDeclarations);
 				diagnostics.Add(DiagnosticInfo.Create(
 					GeneratorDiagnostics.ARG013,
 					location,
@@ -281,17 +361,67 @@ public static class Validation
 	}
 
 	/// <summary>
+	/// Validates that no argument has a command class as its type. A property of a command class type declares a child command,
+	/// so the attributes of an argument and of a command must be on separate types.
+	/// </summary>
+	/// <param name="options">The option arguments to validate.</param>
+	/// <param name="flags">The flag arguments to validate.</param>
+	/// <param name="positionals">The positional arguments to validate.</param>
+	/// <param name="classDeclarations">The parts of the class that declares the arguments, which is where the diagnostics are located.</param>
+	/// <returns>The diagnostics, one for every argument of a command class type.</returns>
+	public static ReadOnlyCollection<DiagnosticInfo> ValidateCommandClassArguments(
+		IReadOnlyList<PropertyAndAttributeInfo> options,
+		IReadOnlyList<PropertyAndAttributeInfo> flags,
+		IReadOnlyList<PropertyAndAttributeInfo> positionals,
+		IReadOnlyList<ClassDeclarationSyntax> classDeclarations
+	)
+	{
+		if (options is null)
+		{
+			throw new ArgumentNullException(nameof(options));
+		}
+		if (flags is null)
+		{
+			throw new ArgumentNullException(nameof(flags));
+		}
+		if (positionals is null)
+		{
+			throw new ArgumentNullException(nameof(positionals));
+		}
+		if (classDeclarations is null)
+		{
+			throw new ArgumentNullException(nameof(classDeclarations));
+		}
+		var diagnostics = new List<DiagnosticInfo>();
+		foreach (var (arguments, attributeName) in new[] { (options, "Option"), (flags, "Flag"), (positionals, "Positional") })
+		{
+			foreach (var argument in arguments.Where(a => a.IsCommandClass))
+			{
+				diagnostics.Add(DiagnosticInfo.Create(
+					GeneratorDiagnostics.ARG026,
+					GetLocation(argument, classDeclarations),
+					argument.PropertyName,
+					attributeName,
+					argument.PropertyType));
+			}
+		}
+		return diagnostics.AsReadOnly();
+	}
+
+	/// <summary>
 	/// Inspect the generation options in combination with the arguments and the class declaration.
 	/// </summary>
 	/// <param name="config"></param>
 	/// <param name="provider"></param>
-	/// <param name="classDeclarationSyntax"></param>
+	/// <param name="classDeclarationSyntax">The part of the class with the ParameterCollection attribute.</param>
+	/// <param name="parts">Every part of the class, whose members all count. Only <paramref name="classDeclarationSyntax"/> when left out.</param>
 	/// <returns></returns>
 	/// <exception cref="ArgumentNullException"></exception>
 	public static ReadOnlyCollection<DiagnosticInfo> ValidateGenerationOptions(
 		GeneratorConfiguration config,
 		ArgumentProvider provider,
-		ClassDeclarationSyntax classDeclarationSyntax
+		ClassDeclarationSyntax classDeclarationSyntax,
+		IReadOnlyList<ClassDeclarationSyntax>? parts = null
 	)
 	{
 		if (config is null)
@@ -308,6 +438,7 @@ public static class Validation
 		}
 
 		var diagnostics = new List<DiagnosticInfo>();
+		var members = Members(classDeclarationSyntax, parts);
 
 		// Find the ParameterCollectionAttribute location
 		var parameterCollectionAttribute = classDeclarationSyntax.AttributeLists
@@ -326,7 +457,7 @@ public static class Validation
 		}
 
 		// Check if helptext property should be displayed
-		bool hasHelpTextConst = classDeclarationSyntax.Members
+		bool hasHelpTextConst = members
 			.OfType<FieldDeclarationSyntax>()
 			.Any(f => f.Modifiers.Any(SyntaxKind.ConstKeyword) &&
 				 f.Declaration.Variables.Any(v => v.Identifier.Text == "HelpText"));
@@ -350,7 +481,7 @@ public static class Validation
 		// Check for user-defined DisplayHelp property when generator is creating one (ARG011)
 		if (config.HelpArgumentShouldBeGenerated())
 		{
-			bool hasDisplayHelpProperty = classDeclarationSyntax.Members
+			bool hasDisplayHelpProperty = members
 				.OfType<PropertyDeclarationSyntax>()
 				.Any(p => p.Identifier.Text == "DisplayHelp");
 
@@ -427,9 +558,16 @@ public static class Validation
 		return elementType is "string" or "String" or "System.String" or "global::System.String";
 	}
 
-	private static Location? GetLocation(PropertyAndAttributeInfo info, ClassDeclarationSyntax classDeclarationSyntax)
+	private static List<MemberDeclarationSyntax> Members(ClassDeclarationSyntax classDeclaration, IReadOnlyList<ClassDeclarationSyntax>? parts)
 	{
-		var property = classDeclarationSyntax.DescendantNodes()
+		return (parts ?? new[] { classDeclaration }).SelectMany(c => c.Members).ToList();
+	}
+
+	// the members of the class itself: a property with the same name in a nested class is not one of its arguments
+	private static Location? GetLocation(PropertyAndAttributeInfo info, IEnumerable<ClassDeclarationSyntax> classDeclarations)
+	{
+		var property = classDeclarations
+		    .SelectMany(c => c.Members)
 		    .OfType<PropertyDeclarationSyntax>()
 		    .FirstOrDefault(p => p.Identifier.Text == info.PropertyName);
 		if (property != null)

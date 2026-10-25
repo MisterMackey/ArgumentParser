@@ -36,7 +36,9 @@ public class DiagnosticRuleTests
 		string members,
 		string attribute = SafeAttribute,
 		string modifiers = "public partial",
-		string classNameSuffix = "")
+		string classNameSuffix = "",
+		bool includeTreeRules = false,
+		string? otherPart = null)
 	{
 		var source = $$"""
 			using System;
@@ -55,8 +57,28 @@ public class DiagnosticRuleTests
 			{{members}}
 			}
 			""";
-		var (diagnostics, output) = TestHelper.GetGeneratedOutput(source);
-		return new Result(diagnostics.Where(d => d.Id.StartsWith("ARG", StringComparison.Ordinal)).ToList(), output, source);
+		// another part of the same class, in a file of its own (Other1.cs)
+		var otherFiles = otherPart is null ? [] : new[]
+		{
+			$$"""
+			using ArgumentParser;
+
+			namespace Diagnostics;
+
+			public partial class TestClass{{classNameSuffix}}
+			{
+			{{otherPart}}
+			}
+			"""
+		};
+		var (diagnostics, output) = TestHelper.GetGeneratedOutput(source, otherFiles);
+		// A class on its own is not a tree: it would be a group without commands or a command without a root.
+		// The rules about the tree are tested with whole trees, so they are left out unless asked for.
+		var treeRules = new[] { "ARG017", "ARG018", "ARG019", "ARG020", "ARG021", "ARG022" };
+		return new Result(
+			diagnostics.Where(d => d.Id.StartsWith("ARG", StringComparison.Ordinal) && (includeTreeRules || !treeRules.Contains(d.Id))).ToList(),
+			output,
+			source);
 	}
 
 	private static string Option(string shortName, string longName, string name, string type = "string", bool required = false)
@@ -518,12 +540,13 @@ public class DiagnosticRuleTests
 	#endregion
 
 	#region command nodes (ARG014 to ARG016)
+	// The rules about a tree as a whole (ARG017 to ARG022) are tested in CommandTreeLinkerTests; a class on its own is not a tree.
 	private const string GroupAttribute = "[Command(\"group\", \"A group\")]";
 
 	private const string LeafAttributes = SafeAttribute + "\n[Command(\"leaf\", \"A leaf\")]";
 
 	[Fact]
-	public void CommandNodes_ValidGroupAndRoot_ReportNothingAndGenerateNothingYet()
+	public void CommandNodes_ValidGroupAndRootOnTheirOwn_ReportNoNodeRulesAndGenerateNothing()
 	{
 		var group = Diagnose(Option("o", "Output", "Output"), attribute: GroupAttribute);
 		var root = Diagnose(Option("o", "Output", "Output"), attribute: "[CommandApp(\"app\", \"An app\")]");
@@ -613,6 +636,19 @@ public class DiagnosticRuleTests
 		Assert.Equal(["ARG016"], result.Ids);
 	}
 
+	[Fact]
+	public void ARG016_RootCombinedWithAParameterCollection_ReportsTheRulesOfTheClassAndItsArgumentsOnce()
+	{
+		// both pipelines see the class: the one of the ParameterCollection attribute reports what is wrong with the class and its arguments
+		var members = Join(Option("s", "One", "A"), Option("s", "Two", "B"), "public static int Parse(string[] args) => 0;", "public TestClass(int count) { }");
+
+		var notPartial = Diagnose(members, attribute: "[CommandApp(\"app\")]\n" + SafeAttribute, modifiers: "public");
+		var partial = Diagnose(Option("s", "One", "A") + "\n" + Option("s", "Two", "B"), attribute: "[CommandApp(\"app\")]\n" + SafeAttribute);
+
+		Assert.Equal(["ARG001", "ARG002", "ARG006", "ARG016"], notPartial.Ids);
+		Assert.Equal(["ARG003", "ARG003", "ARG016"], partial.Ids);
+	}
+
 	[Theory]
 	[InlineData(GroupAttribute)]
 	[InlineData("[CommandApp(\"app\")]")]
@@ -641,6 +677,75 @@ public class DiagnosticRuleTests
 		Assert.Equal(["ARG006"], Diagnose(constructor, attribute: GroupAttribute).Ids);
 		Assert.Equal(["ARG006"], Diagnose(constructor, attribute: "[CommandApp(\"app\")]").Ids);
 		Assert.Equal(["ARG006"], Diagnose(constructor, attribute: LeafAttributes).Ids);
+	}
+	#endregion
+
+	#region ARG026
+	// a command class nested in the class under test, so every kind of class can refer to it
+	private const string CommandClass = "[ParameterCollection] [Command(\"cmd\")] public partial class Cmd { }";
+
+	public static TheoryData<string, string> CommandClassArguments()
+	{
+		var data = new TheoryData<string, string>();
+		var arguments = new[]
+		{
+			"[Option(\"c\", \"Cmd\", \"desc\")]",
+			"[Flag(\"c\", \"Cmd\", \"desc\")]",
+			"[Positional(0, \"desc\")]",
+			"[Option(\"c\", \"Cmd\", \"desc\")] [ParsedWithMethod(\"Read\")]",
+		};
+		foreach (var attribute in new[] { SafeAttribute, LeafAttributes, GroupAttribute, "[CommandApp(\"app\")]" })
+		{
+			foreach (var argument in arguments)
+			{
+				data.Add(attribute, argument);
+			}
+		}
+		return data;
+	}
+
+	[Theory]
+	[MemberData(nameof(CommandClassArguments))]
+	public void ARG026_ArgumentOfACommandClassType_IsTheOnlyRuleReported(string attribute, string argument)
+	{
+		var property = $"{argument} public Cmd? Command {{ get; set; }}";
+		var result = Diagnose(Join(CommandClass, property), attribute: attribute);
+
+		var diagnostic = Assert.Single(result.Diagnostics);
+		Assert.Equal("ARG026", diagnostic.Id);
+		Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+		// like the other rules about arguments, it is reported on the whole property
+		Assert.Equal(property, result.TextAt(diagnostic));
+	}
+
+	[Fact]
+	public void ARG026_MessageNamesThePropertyTheAttributeAndTheType()
+	{
+		var result = Diagnose(Join(CommandClass, "[Flag(\"c\", \"Cmd\", \"desc\")] public Cmd? Command { get; set; }"));
+
+		var message = Assert.Single(result.Rule("ARG026")).GetMessage();
+		Assert.Contains("'Command'", message);
+		Assert.Contains("Flag attribute", message);
+		Assert.Contains("'Diagnostics.TestClass.Cmd?'", message);
+	}
+
+	[Fact]
+	public void ARG026_OnTheRoot_LeavesTheTreeRulesQuiet()
+	{
+		var result = Diagnose(
+			Join(CommandClass, "[Option(\"c\", \"Cmd\", \"desc\")] public Cmd? Command { get; set; }"),
+			attribute: "[CommandApp(\"app\")]",
+			includeTreeRules: true);
+
+		Assert.Equal(["ARG026"], result.Ids);
+	}
+
+	[Fact]
+	public void ARG026_TypeThatIsNotACommandClass_IsNotReported()
+	{
+		var result = Diagnose("[Option(\"c\", \"Cmd\", \"desc\")] [ParsedWithMethod(\"Read\")] public Custom? Command { get; set; }");
+
+		Assert.Empty(result.Rule("ARG026"));
 	}
 	#endregion
 
@@ -795,6 +900,49 @@ public class DiagnosticRuleTests
 
 		Assert.Empty(result.Ids);
 		Assert.Contains("FlagAttribute(\"?\", \"Helpme\"", result.Output, StringComparison.Ordinal);
+	}
+	#endregion
+
+	#region classes in several parts
+	[Fact]
+	public void Parts_ArgumentsOfEveryPart_AreGenerated()
+	{
+		var result = Diagnose(Option("o", "Output", "Output"), otherPart: Join(Flag("v", "Verbose", "Verbose"), Positional(0, "Input")));
+
+		Assert.Empty(result.Ids);
+		Assert.Contains("\"Output\"", result.Output, StringComparison.Ordinal);
+		Assert.Contains("\"Verbose\"", result.Output, StringComparison.Ordinal);
+		Assert.Contains("Input", result.Output, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void Parts_DuplicateNamesAcrossParts_AreReportedInTheFileOfEachProperty()
+	{
+		var result = Diagnose(Option("s", "One", "A"), otherPart: Option("s", "Two", "B"));
+
+		Assert.Equal(Repeat("ARG003", 2), result.Ids);
+		Assert.Equal(["", "Other1.cs"], result.Diagnostics.Select(d => d.Location.GetLineSpan().Path).Order(StringComparer.Ordinal));
+		Assert.Empty(result.Output);
+	}
+
+	[Fact]
+	public void Parts_PositionsAreCountedOverEveryPart()
+	{
+		var result = Diagnose(Positional(1, "Second"), otherPart: Positional(0, "First"));
+
+		Assert.Empty(result.Ids);
+	}
+
+	[Theory]
+	[InlineData("public static int Parse(string[] args) => 0;", "GenerateTextOnly", "ARG002")]
+	[InlineData("public TestClass(int count) { }", "GenerateTextOnly", "ARG006")]
+	[InlineData("public bool DisplayHelp { get; set; }", "GenerateAll", "ARG011")]
+	[InlineData("public const string HelpText = \"text\";", "GenerateTextOnly", "ARG012")]
+	public void Parts_MembersOfAnotherPart_AreCheckedLikeTheirOwn(string member, string mode, string rule)
+	{
+		var result = Diagnose(Option("o", "Output", "Output"), Attribute(mode, "ThrowNever"), otherPart: member);
+
+		Assert.Equal([rule], result.Ids);
 	}
 	#endregion
 
@@ -980,7 +1128,7 @@ public class DiagnosticRuleTests
 	{
 		var warnings = Descriptors.Where(d => d.DefaultSeverity == DiagnosticSeverity.Warning).Select(d => d.Id);
 
-		Assert.Equal(["ARG008"], warnings);
+		Assert.Equal(["ARG008", "ARG019"], warnings);
 	}
 	#endregion
 }

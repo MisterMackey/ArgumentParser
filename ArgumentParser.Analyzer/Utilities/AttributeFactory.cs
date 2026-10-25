@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using ArgumentParser.Internal.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -34,11 +35,6 @@ public class AttributeFactory
 		_properties = properties;
 	}
 
-	private const string OptionAttributeName = "ArgumentParser.OptionAttribute";
-	private const string PositionalAttributeName = "ArgumentParser.PositionalAttribute";
-	private const string FlagAttributeName = "ArgumentParser.FlagAttribute";
-	private const string ParsedWithMethodAttributeName = "ArgumentParser.ParsedWithMethodAttribute";
-
 	/// <summary>
 	/// Gets all properties with OptionAttributes and creates PropertyAndAttributeInfo instances for them.
 	/// </summary>
@@ -46,7 +42,7 @@ public class AttributeFactory
 	public IList<PropertyAndAttributeInfo> GetOptionAttributes()
 	{
 		return _properties
-			.Where(p => HasAttribute(p, OptionAttributeName))
+			.Where(p => HasAttribute(p, AttributeReader.Option))
 			.Select(CreateOptionAttribute)
 			.ToList();
 	}
@@ -58,7 +54,7 @@ public class AttributeFactory
 	public IList<PropertyAndAttributeInfo> GetPositionalAttributes()
 	{
 		return _properties
-			.Where(p => HasAttribute(p, PositionalAttributeName))
+			.Where(p => HasAttribute(p, AttributeReader.Positional))
 			.Select(CreatePositionalInfo)
 			.ToList();
 	}
@@ -70,7 +66,7 @@ public class AttributeFactory
 	public IList<PropertyAndAttributeInfo> GetFlagAttributes()
 	{
 		return _properties
-			.Where(p => HasAttribute(p, FlagAttributeName))
+			.Where(p => HasAttribute(p, AttributeReader.Flag))
 			.Select(CreateFlagAttribute)
 			.ToList();
 	}
@@ -83,41 +79,16 @@ public class AttributeFactory
 				&& symbol.ContainingType.ToDisplayString() == attributeName);
 	}
 
-	private static AttributeData? FindAttribute(IPropertySymbol? property, string attributeName)
-	{
-		return property?.GetAttributes()
-			.FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString() == attributeName);
-	}
-
-	// The attribute properties are get-only, so every value reaches the generator as a constructor argument,
-	// whether the user wrote it positionally or by name. Omitted optional arguments are filled with their defaults by Roslyn.
-	private static string StringArgument(AttributeData? data, int index)
-	{
-		if (data == null || data.ConstructorArguments.Length <= index)
-		{
-			return string.Empty;
-		}
-		return data.ConstructorArguments[index].Value?.ToString() ?? string.Empty;
-	}
-
-	private static bool BoolArgument(AttributeData? data, int index)
-	{
-		if (data == null || data.ConstructorArguments.Length <= index)
-		{
-			return false;
-		}
-		return data.ConstructorArguments[index].Value is true;
-	}
-
 	private static PropertyAndAttributeInfo CreateInfo(PropertyDeclarationSyntax property, IPropertySymbol? propertySymbol, AttributeInfo attribute)
 	{
-		var parsedWithMethod = StringArgument(FindAttribute(propertySymbol, ParsedWithMethodAttributeName), 0);
+		var parsedWithMethod = AttributeReader.StringArgument(AttributeReader.Find(propertySymbol, AttributeReader.ParsedWithMethod), 0);
 		return new PropertyAndAttributeInfo
 		{
 			Attribute = attribute,
 			PropertyName = property.Identifier.Text,
 			PropertyType = propertySymbol?.Type.ToDisplayString() ?? "string", //default, no parsing
 			IsEnum = propertySymbol?.Type.TypeKind == TypeKind.Enum,
+			IsCommandClass = AttributeReader.IsCommandClass(propertySymbol?.Type),
 			ParseMethodName = parsedWithMethod
 		};
 	}
@@ -130,8 +101,8 @@ public class AttributeFactory
 	private PropertyAndAttributeInfo CreateFlagAttribute(PropertyDeclarationSyntax property)
 	{
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
-		var data = FindAttribute(propertySymbol, FlagAttributeName);
-		var attribute = new AttributeInfo(StringArgument(data, 0), StringArgument(data, 1), StringArgument(data, 2), false, -1);
+		var data = AttributeReader.Find(propertySymbol, AttributeReader.Flag);
+		var attribute = new AttributeInfo(AttributeReader.StringArgument(data, 0), AttributeReader.StringArgument(data, 1), AttributeReader.StringArgument(data, 2), false, -1);
 		return CreateInfo(property, propertySymbol, attribute);
 	}
 
@@ -143,8 +114,8 @@ public class AttributeFactory
 	private PropertyAndAttributeInfo CreateOptionAttribute(PropertyDeclarationSyntax property)
 	{
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
-		var data = FindAttribute(propertySymbol, OptionAttributeName);
-		var attribute = new AttributeInfo(StringArgument(data, 0), StringArgument(data, 1), StringArgument(data, 2), BoolArgument(data, 3), -1);
+		var data = AttributeReader.Find(propertySymbol, AttributeReader.Option);
+		var attribute = new AttributeInfo(AttributeReader.StringArgument(data, 0), AttributeReader.StringArgument(data, 1), AttributeReader.StringArgument(data, 2), AttributeReader.BoolArgument(data, 3), -1);
 		return CreateInfo(property, propertySymbol, attribute);
 	}
 
@@ -156,9 +127,9 @@ public class AttributeFactory
 	private PropertyAndAttributeInfo CreatePositionalInfo(PropertyDeclarationSyntax property)
 	{
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
-		var data = FindAttribute(propertySymbol, PositionalAttributeName);
-		var position = int.Parse(StringArgument(data, 0), CultureInfo.InvariantCulture);
-		var attribute = new AttributeInfo("", "", StringArgument(data, 1), BoolArgument(data, 2), position);
+		var data = AttributeReader.Find(propertySymbol, AttributeReader.Positional);
+		var position = int.Parse(AttributeReader.StringArgument(data, 0), CultureInfo.InvariantCulture);
+		var attribute = new AttributeInfo("", "", AttributeReader.StringArgument(data, 1), AttributeReader.BoolArgument(data, 2), position);
 		return CreateInfo(property, propertySymbol, attribute);
 	}
 }
@@ -187,6 +158,11 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	/// Indicates whether the property type is an enum.
 	/// </summary>
 	public bool IsEnum { get; set; }
+
+	/// <summary>
+	/// Indicates whether the property type is a class with the Command or the CommandApp attribute, which an argument cannot have.
+	/// </summary>
+	public bool IsCommandClass { get; set; }
 
 	/// <summary>
 	/// The name of the method used for parsing the property value.
@@ -219,7 +195,7 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	public override int GetHashCode()
 	{
 		return 17 * 23 + (PropertyName?.GetHashCode() ?? 0) * 31 + (PropertyType?.GetHashCode() ?? 0) * 37 + (IsEnum ? 1 : 0) * 43 +
-		       Attribute.GetHashCode() * 41;
+		       (IsCommandClass ? 1 : 0) * 47 + Attribute.GetHashCode() * 41;
 	}
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
@@ -239,6 +215,7 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 		return PropertyName == other.PropertyName &&
 			PropertyType == other.PropertyType &&
 			IsEnum == other.IsEnum &&
+			IsCommandClass == other.IsCommandClass &&
 			ParseMethodName == other.ParseMethodName &&
 			Attribute.Equals(other.Attribute);
 	}

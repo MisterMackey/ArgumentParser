@@ -111,6 +111,11 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 	public string? NamespaceName { get; }
 
 	/// <summary>
+	/// Gets the types the class is nested in, the outermost first.
+	/// </summary>
+	public EquatableArray<ContainingType> ContainingTypes { get; }
+
+	/// <summary>
 	/// Gets the type of the class as it is displayed. A property whose type is this one is a child command of the class that declares it.
 	/// </summary>
 	public string TypeName { get; }
@@ -145,6 +150,7 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 	/// </summary>
 	/// <param name="className">The name of the class.</param>
 	/// <param name="namespaceName">The namespace of the class, if any.</param>
+	/// <param name="containingTypes">The types the class is nested in, the outermost first.</param>
 	/// <param name="typeName">The type of the class as it is displayed.</param>
 	/// <param name="kind">The role of the class in the tree.</param>
 	/// <param name="name">The name of the command, or of the application for the root.</param>
@@ -154,6 +160,7 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 	public CommandNodeInfo(
 		string className,
 		string? namespaceName,
+		EquatableArray<ContainingType> containingTypes,
 		string typeName,
 		CommandNodeKind kind,
 		string name,
@@ -163,6 +170,7 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 	{
 		ClassName = className ?? throw new ArgumentNullException(nameof(className));
 		NamespaceName = namespaceName;
+		ContainingTypes = containingTypes;
 		TypeName = typeName ?? throw new ArgumentNullException(nameof(typeName));
 		Kind = kind;
 		Name = name ?? throw new ArgumentNullException(nameof(name));
@@ -177,6 +185,7 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 		return other is not null
 			&& ClassName == other.ClassName
 			&& NamespaceName == other.NamespaceName
+			&& ContainingTypes.Equals(other.ContainingTypes)
 			&& TypeName == other.TypeName
 			&& Kind == other.Kind
 			&& Name == other.Name
@@ -197,6 +206,7 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 		int hash = 17;
 		hash = hash * 23 + ClassName.GetHashCode();
 		hash = hash * 23 + (NamespaceName?.GetHashCode() ?? 0);
+		hash = hash * 23 + ContainingTypes.GetHashCode();
 		hash = hash * 23 + TypeName.GetHashCode();
 		hash = hash * 23 + Kind.GetHashCode();
 		hash = hash * 23 + Name.GetHashCode();

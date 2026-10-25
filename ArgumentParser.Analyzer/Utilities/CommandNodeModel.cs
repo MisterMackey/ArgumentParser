@@ -64,6 +64,11 @@ public sealed class CommandNodeModel : IEquatable<CommandNodeModel>
 	public CommandNodeInfo Node { get; }
 
 	/// <summary>
+	/// Gets the options and flags of the node.
+	/// </summary>
+	public NodeArguments Arguments { get; }
+
+	/// <summary>
 	/// Gets where the class is declared, or null when it has no source location.
 	/// </summary>
 	public LocationInfo? ClassLocation { get; }
@@ -74,6 +79,11 @@ public sealed class CommandNodeModel : IEquatable<CommandNodeModel>
 	public EquatableArray<PropertyLocation> ChildLocations { get; }
 
 	/// <summary>
+	/// Gets where the options and flags of <see cref="Arguments"/> are declared.
+	/// </summary>
+	public EquatableArray<PropertyLocation> ArgumentLocations { get; }
+
+	/// <summary>
 	/// Gets the diagnostics found while reading the class.
 	/// </summary>
 	public EquatableArray<DiagnosticInfo> Diagnostics { get; }
@@ -81,24 +91,35 @@ public sealed class CommandNodeModel : IEquatable<CommandNodeModel>
 	/// <summary>
 	/// Gets a value indicating whether any of the diagnostics is an error.
 	/// </summary>
-	public bool HasErrors => Enumerable.Range(0, Diagnostics.Count).Any(i => Diagnostics[i].Severity == DiagnosticSeverity.Error);
+	public bool HasErrors => Diagnostics.AsReadOnly().Any(item => item.Severity == DiagnosticSeverity.Error);
+
+	/// <summary>
+	/// Gets the part of the model that linking needs, which holds no locations.
+	/// </summary>
+	public CommandNodeSource Source => new CommandNodeSource(Node, Arguments, HasErrors);
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="CommandNodeModel"/> class.
 	/// </summary>
 	/// <param name="node">The node.</param>
+	/// <param name="arguments">The options and flags of the node.</param>
 	/// <param name="classLocation">Where the class is declared.</param>
 	/// <param name="childLocations">Where the properties that may be child commands are declared.</param>
+	/// <param name="argumentLocations">Where the options and flags are declared.</param>
 	/// <param name="diagnostics">The diagnostics found while reading the class.</param>
 	public CommandNodeModel(
 		CommandNodeInfo node,
+		NodeArguments arguments,
 		LocationInfo? classLocation,
 		EquatableArray<PropertyLocation> childLocations,
+		EquatableArray<PropertyLocation> argumentLocations,
 		EquatableArray<DiagnosticInfo> diagnostics)
 	{
 		Node = node ?? throw new ArgumentNullException(nameof(node));
+		Arguments = arguments ?? throw new ArgumentNullException(nameof(arguments));
 		ClassLocation = classLocation;
 		ChildLocations = childLocations;
+		ArgumentLocations = argumentLocations;
 		Diagnostics = diagnostics;
 	}
 
@@ -107,8 +128,10 @@ public sealed class CommandNodeModel : IEquatable<CommandNodeModel>
 	{
 		return other is not null
 			&& Node.Equals(other.Node)
+			&& Arguments.Equals(other.Arguments)
 			&& Equals(ClassLocation, other.ClassLocation)
 			&& ChildLocations.Equals(other.ChildLocations)
+			&& ArgumentLocations.Equals(other.ArgumentLocations)
 			&& Diagnostics.Equals(other.Diagnostics);
 	}
 
@@ -123,8 +146,10 @@ public sealed class CommandNodeModel : IEquatable<CommandNodeModel>
 	{
 		int hash = 17;
 		hash = hash * 23 + Node.GetHashCode();
+		hash = hash * 23 + Arguments.GetHashCode();
 		hash = hash * 23 + (ClassLocation?.GetHashCode() ?? 0);
 		hash = hash * 23 + ChildLocations.GetHashCode();
+		hash = hash * 23 + ArgumentLocations.GetHashCode();
 		hash = hash * 23 + Diagnostics.GetHashCode();
 		return hash;
 	}

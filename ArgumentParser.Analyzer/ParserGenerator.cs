@@ -27,6 +27,18 @@ namespace ArgumentParser.Internal
 		public const string CommandModelsStepName = "CommandModels";
 
 		/// <summary>
+		/// The name of the pipeline step that holds the nodes of all models, without their locations.
+		/// It stays equal when an edit only moves code around. Tests use it to see whether linking can be skipped.
+		/// </summary>
+		public const string NodeSourcesStepName = "NodeSources";
+
+		/// <summary>
+		/// The name of the pipeline step that holds the linked trees and the rules they break.
+		/// Tests use it to see whether a tree was reused.
+		/// </summary>
+		public const string LinkedTreesStepName = "LinkedTrees";
+
+		/// <summary>
 		/// Initializes the generator. This method is called once per compilation.
 		/// </summary>
 		/// <param name="context"></param>
@@ -36,7 +48,7 @@ namespace ArgumentParser.Internal
 			// The pipeline compares that data, so output is only generated again when it changed.
 			var classModels = context.SyntaxProvider
 			.ForAttributeWithMetadataName(
-			    "ArgumentParser.ParameterCollectionAttribute", // Fully qualified name of the attribute
+			    AttributeReader.ParameterCollection,
 			    (node, _) => node is ClassDeclarationSyntax,
 			    ExtractModel
 			    );
@@ -48,14 +60,14 @@ namespace ArgumentParser.Internal
 			// A class with [CommandApp] is read by the first provider, so the second one skips it (it would be read twice otherwise).
 			var rootModels = context.SyntaxProvider
 			.ForAttributeWithMetadataName(
-			    "ArgumentParser.CommandAppAttribute",
+			    AttributeReader.CommandApp,
 			    (node, _) => node is ClassDeclarationSyntax,
 			    ExtractNodeModel
 			    )
 			.WithTrackingName(RootModelsStepName);
 			var commandModels = context.SyntaxProvider
 			.ForAttributeWithMetadataName(
-			    "ArgumentParser.CommandAttribute",
+			    AttributeReader.Command,
 			    (node, _) => node is ClassDeclarationSyntax,
 			    ExtractCommandModel
 			    )
@@ -63,14 +75,32 @@ namespace ArgumentParser.Internal
 			.Select(static (model, _) => model!)
 			.WithTrackingName(CommandModelsStepName);
 
-			// nothing is generated for the tree yet, the models only report their diagnostics
+			// the models report what is wrong with a node by itself
 			context.RegisterSourceOutput(rootModels, ReportNodeDiagnostics);
 			context.RegisterSourceOutput(commandModels, ReportNodeDiagnostics);
+
+			// All nodes together are linked into trees. A model holds the locations of the class and its properties and the
+			// diagnostics (which have locations too), so an edit that only moves code (a line added above the class) changes it.
+			// A source is the same model without them. Linking only sees the sources, so after such an edit the sources compare
+			// equal, linking and generating the trees are skipped, and only the diagnostics are reported again from the new models.
+			var nodeModels = rootModels.Collect()
+			.Combine(commandModels.Collect())
+			.Select(static (pair, _) => new EquatableArray<CommandNodeModel>(pair.Left.Concat(pair.Right)));
+			var nodeSources = nodeModels
+			.Select(static (models, _) => new EquatableArray<CommandNodeSource>(models.AsReadOnly().Select(item => item.Source)))
+			.WithTrackingName(NodeSourcesStepName);
+			var linked = nodeSources
+			.Select(static (sources, _) => CommandTreeLinker.Link(sources.AsReadOnly()))
+			.WithTrackingName(LinkedTreesStepName);
+
+			// the rules the trees break are reported, and the trees without errors are generated
+			context.RegisterSourceOutput(linked.Combine(nodeModels), ReportLinkDiagnostics);
+			context.RegisterSourceOutput(linked, GenerateTrees);
 		}
 
 		private static CommandNodeModel ExtractNodeModel(GeneratorAttributeSyntaxContext generatorContext, CancellationToken cancellationToken)
 		{
-			return CommandNodeExtractor.Extract((ClassDeclarationSyntax)generatorContext.TargetNode, (INamedTypeSymbol)generatorContext.TargetSymbol);
+			return CommandNodeExtractor.Extract((ClassDeclarationSyntax)generatorContext.TargetNode, (INamedTypeSymbol)generatorContext.TargetSymbol, generatorContext.SemanticModel);
 		}
 
 		private static CommandNodeModel? ExtractCommandModel(GeneratorAttributeSyntaxContext generatorContext, CancellationToken cancellationToken)
@@ -78,12 +108,37 @@ namespace ArgumentParser.Internal
 			var symbol = (INamedTypeSymbol)generatorContext.TargetSymbol;
 			return CommandNodeExtractor.HasCommandAppAttribute(symbol)
 				? null
-				: CommandNodeExtractor.Extract((ClassDeclarationSyntax)generatorContext.TargetNode, symbol);
+				: CommandNodeExtractor.Extract((ClassDeclarationSyntax)generatorContext.TargetNode, symbol, generatorContext.SemanticModel);
 		}
 
 		private static void ReportNodeDiagnostics(SourceProductionContext context, CommandNodeModel model)
 		{
 			Validation.ReportDiagnostics(context, model.Diagnostics.AsReadOnly());
+		}
+
+		private static void ReportLinkDiagnostics(SourceProductionContext context, (LinkResult Result, EquatableArray<CommandNodeModel> Models) input)
+		{
+			Validation.ReportDiagnostics(context, CommandTreeLinker.ToDiagnostics(input.Result, input.Models.AsReadOnly()).AsReadOnly());
+		}
+
+		private static void GenerateTrees(SourceProductionContext context, LinkResult result)
+		{
+			for (int i = 0; i < result.Trees.Count; i++)
+			{
+				var tree = result.Trees[i];
+				if (tree.HasErrors)
+				{
+					continue;
+				}
+				for (int j = 0; j < tree.Nodes.Count; j++)
+				{
+					var node = tree.Nodes[j];
+					if (node.Source.Node.Kind != CommandNodeKind.Leaf)
+					{
+						context.AddSource(CommandTreeSourceGenerator.HintName(node), CommandTreeSourceGenerator.Generate(tree, node));
+					}
+				}
+			}
 		}
 
 		private static ClassModel ExtractModel(GeneratorAttributeSyntaxContext generatorContext, CancellationToken cancellationToken)
@@ -93,6 +148,8 @@ namespace ArgumentParser.Internal
 			var className = classDeclaration.Identifier.Text;
 			var containingNamespace = generatorContext.TargetSymbol.ContainingNamespace;
 			var namespaceName = containingNamespace is { IsGlobalNamespace: false } ? containingNamespace.ToDisplayString() : null;
+			var symbol = (INamedTypeSymbol)generatorContext.TargetSymbol;
+			var containingTypes = ContainingType.ReadAll(symbol);
 			var programName = semanticModel.Compilation.Assembly.Name ?? "";
 
 			ClassModel Rejected(IEnumerable<DiagnosticInfo> diagnostics)
@@ -105,11 +162,16 @@ namespace ArgumentParser.Internal
 					default,
 					default,
 					default,
-					new EquatableArray<DiagnosticInfo>(diagnostics));
+					new EquatableArray<DiagnosticInfo>(diagnostics),
+					containingTypes);
 			}
 
+			// the class may be declared in several parts, in several files: the members of every part count
+			var parts = DeclarationParts.Read(symbol, classDeclaration, semanticModel);
+			var declarations = parts.Select(p => p.Declaration).ToList();
+
 			// check class level diagnostics and stop processing if class is invalid
-			var classDiagnostics = Validation.ValidateClassDeclaration(classDeclaration);
+			var classDiagnostics = Validation.ValidateClassDeclaration(classDeclaration, parts: declarations);
 			if (classDiagnostics.Count > 0)
 			{
 				return Rejected(classDiagnostics);
@@ -118,21 +180,24 @@ namespace ArgumentParser.Internal
 			var config = new GeneratorConfiguration(classDeclaration, semanticModel);
 
 			// instantiate all attribute properties with their respective arguments
-			var properties = classDeclaration.Members.OfType<PropertyDeclarationSyntax>().ToList().AsReadOnly();
-			var attributeFactory = new AttributeFactory(semanticModel, properties);
-			var options = attributeFactory.GetOptionAttributes();
-			var flags = attributeFactory.GetFlagAttributes();
-			var positionals = attributeFactory.GetPositionalAttributes();
+			var factories = DeclarationParts.AttributeFactories(parts).ToList();
+			var options = factories.SelectMany(f => f.GetOptionAttributes()).ToList();
+			var flags = factories.SelectMany(f => f.GetFlagAttributes()).ToList();
+			var positionals = factories.SelectMany(f => f.GetPositionalAttributes()).ToList();
 			var argumentProvider = new ArgumentProvider(config, options, flags, positionals);
 
 			// check for errors
-			var attributeDiagnostics = Validation.ValidateAttributes(argumentProvider, classDeclaration);
+			var attributeDiagnostics = Validation.ValidateAttributes(
+				argumentProvider.GetOptionArguments(),
+				argumentProvider.GetFlagArguments(),
+				argumentProvider.GetPositionalArguments(),
+				declarations);
 			if (attributeDiagnostics.Count > 0)
 			{
 				return Rejected(attributeDiagnostics);
 			}
 			// not all helptext diags are errors, some are warnings
-			var helptextDiagnostics = Validation.ValidateGenerationOptions(config, argumentProvider, classDeclaration);
+			var helptextDiagnostics = Validation.ValidateGenerationOptions(config, argumentProvider, classDeclaration, declarations);
 
 			return new ClassModel(
 				className,
@@ -142,7 +207,8 @@ namespace ArgumentParser.Internal
 				new EquatableArray<PropertyAndAttributeInfo>(options),
 				new EquatableArray<PropertyAndAttributeInfo>(flags),
 				new EquatableArray<PropertyAndAttributeInfo>(positionals),
-				new EquatableArray<DiagnosticInfo>(helptextDiagnostics));
+				new EquatableArray<DiagnosticInfo>(helptextDiagnostics),
+				containingTypes);
 		}
 
 		private static void GenerateSource(SourceProductionContext context, ClassModel model)
@@ -165,10 +231,13 @@ namespace ArgumentParser.Internal
 				model.NamespaceName,
 				argumentProvider,
 				helptextProvider,
-				config
+				config,
+				model.ContainingTypes
 			);
 			var sourceText = textGenerator.GenerateSourceText();
-			context.AddSource($"{model.ClassName}_Parser.g.cs", sourceText);
+			// the namespace and the types the class is nested in are part of the name: command classes with the same name (an Add below each of two groups) are common
+			var typeName = ContainingType.QualifiedName(model.NamespaceName, model.ContainingTypes, model.ClassName);
+			context.AddSource($"{typeName}_Parser.g.cs", sourceText);
 		}
 	}
 }

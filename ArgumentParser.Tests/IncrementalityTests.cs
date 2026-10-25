@@ -60,6 +60,31 @@ public class IncrementalityTests
 		}
 		""";
 
+	private const string TreeSource = """
+		using ArgumentParser;
+
+		[CommandApp("app", "An app")]
+		public partial class App
+		{
+			public ItemGroup? Items { get; private set; }
+		}
+
+		[Command("items", "Manage items")]
+		public partial class ItemGroup
+		{
+			[Option("d", "db", "DESCRIPTION")]
+			public string Db { get; set; } = "a";
+
+			public ItemAdd? Add { get; private set; }
+		}
+
+		[ParameterCollection(HelpTextGeneration.GenerateTextOnly, "h", "Help", BehaviourOnError.ThrowNever)]
+		[Command("add", "Add an item")]
+		public partial class ItemAdd
+		{
+		}
+		""";
+
 	private const string InvalidNameSource = """
 		using ArgumentParser;
 
@@ -137,11 +162,38 @@ public class IncrementalityTests
 				compilation.SyntaxTrees.Single(t => t.ToString() == AnnotatedSource),
 				Parse(AnnotatedSource.Replace("DESCRIPTION", "A different description"))));
 
-		Assert.All(OutputReasons(driver), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+		// the steps of the command tree are idle for a source without commands, so only some of the outputs change
+		Assert.Contains(IncrementalStepRunReason.Modified, OutputReasons(driver));
 
 		var generated = driver.GetRunResult().GeneratedTrees.Single().ToString();
 		Assert.Contains("A different description", generated);
 		Assert.DoesNotContain("DESCRIPTION", generated);
+	}
+
+	[Fact]
+	public void EditToAnotherPartOfTheAnnotatedClass_RegeneratesTheParser()
+	{
+		const string otherPart = """
+			using ArgumentParser;
+
+			public partial class Args
+			{
+				[Option("o", "Output", "OTHER PART")]
+				public string Output { get; set; } = "";
+			}
+			""";
+		var compilation = CreateCompilation().AddSyntaxTrees(Parse(otherPart));
+		var driver = CreateDriver().RunGenerators(compilation);
+		Assert.Contains("OTHER PART", driver.GetRunResult().GeneratedTrees.Single().ToString(), StringComparison.Ordinal);
+
+		driver = driver.RunGenerators(compilation.ReplaceSyntaxTree(
+			compilation.SyntaxTrees.Single(t => t.ToString() == otherPart),
+			Parse(otherPart.Replace("OTHER PART", "Edited elsewhere", StringComparison.Ordinal))));
+
+		Assert.Contains(IncrementalStepRunReason.Modified, OutputReasons(driver));
+		var generated = driver.GetRunResult().GeneratedTrees.Single().ToString();
+		Assert.Contains("Edited elsewhere", generated, StringComparison.Ordinal);
+		Assert.DoesNotContain("OTHER PART", generated, StringComparison.Ordinal);
 	}
 
 	[Fact]
@@ -157,16 +209,70 @@ public class IncrementalityTests
 	}
 
 	[Fact]
-	public void Group_EditToAnOptionThatMovesNothing_ReusesTheModel()
+	public void Group_EditToAnInitializerThatMovesNothing_ReusesTheModel()
 	{
-		// the text is as long as the old one: the node and the locations after it are exactly as they were
+		// the initializer is not part of the model and the new text is as long as the old one: nothing after it moves
 		var driver = RunTwice(
-			GroupSource,
+			TreeSource,
 			compilation => compilation.ReplaceSyntaxTree(
-				compilation.SyntaxTrees.Single(t => t.ToString() == GroupSource),
-				Parse(GroupSource.Replace("DESCRIPTION", "DESCRIPTIOM"))));
+				compilation.SyntaxTrees.Single(t => t.ToString() == TreeSource),
+				Parse(TreeSource.Replace("= \"a\";", "= \"b\";"))));
 
 		Assert.All(ModelReasons(driver, ParserGenerator.CommandModelsStepName), reason => Assert.True(IsReused(reason), reason.ToString()));
+		Assert.All(ModelReasons(driver, ParserGenerator.NodeSourcesStepName), reason => Assert.True(IsReused(reason), reason.ToString()));
+		Assert.All(ModelReasons(driver, ParserGenerator.LinkedTreesStepName), reason => Assert.True(IsReused(reason), reason.ToString()));
+	}
+
+	[Fact]
+	public void Group_MovingCode_ChangesTheModelButNotTheSourcesOrTheLinkedTrees()
+	{
+		var driver = RunTwice(
+			TreeSource,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == TreeSource),
+				Parse("// a comment that moves everything below it\n" + TreeSource)));
+
+		Assert.All(ModelReasons(driver, ParserGenerator.CommandModelsStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+		Assert.All(ModelReasons(driver, ParserGenerator.NodeSourcesStepName), reason => Assert.True(IsReused(reason), reason.ToString()));
+		Assert.All(ModelReasons(driver, ParserGenerator.LinkedTreesStepName), reason => Assert.True(IsReused(reason), reason.ToString()));
+	}
+
+	[Fact]
+	public void Group_EditingAnOption_LinksTheTreeAgain()
+	{
+		var driver = RunTwice(
+			TreeSource,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == TreeSource),
+				Parse(TreeSource.Replace("DESCRIPTION", "ANOTHER ONE"))));
+
+		Assert.All(ModelReasons(driver, ParserGenerator.NodeSourcesStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+		Assert.All(ModelReasons(driver, ParserGenerator.LinkedTreesStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+		var group = driver.GetRunResult().GeneratedTrees.Single(t => t.FilePath.EndsWith("ItemGroup_Command.g.cs", StringComparison.Ordinal)).ToString();
+		Assert.Contains("ANOTHER ONE", group, StringComparison.Ordinal);
+		Assert.DoesNotContain("DESCRIPTION", group, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void Leaf_RenamingAnOption_LinksTheTreeAgain()
+	{
+		// the names of the options of a leaf are compared with those of the commands above it (ARG027)
+		var withOption = TreeSource.Replace(
+			"public partial class ItemAdd\n{\n}",
+			"public partial class ItemAdd\n{\n\t[Option(\"x\", \"extra\", \"leaf\")]\n\tpublic string Extra { get; set; } = \"\";\n}",
+			StringComparison.Ordinal);
+		Assert.NotEqual(TreeSource, withOption);
+		var driver = RunTwice(
+			withOption,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == withOption),
+				Parse(withOption.Replace("\"extra\"", "\"db\"", StringComparison.Ordinal))));
+
+		Assert.All(ModelReasons(driver, ParserGenerator.NodeSourcesStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+		Assert.All(ModelReasons(driver, ParserGenerator.LinkedTreesStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+		var result = driver.GetRunResult();
+		Assert.Equal(["ARG027"], result.Diagnostics.Select(d => d.Id));
+		Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.EndsWith("_Command.g.cs", StringComparison.Ordinal));
 	}
 
 	[Fact]
@@ -182,15 +288,17 @@ public class IncrementalityTests
 	}
 
 	[Fact]
-	public void Root_RenamingTheApplication_ChangesTheModelAndNothingElse()
+	public void Root_RenamingTheApplication_LinksTheTreeAgain()
 	{
+		// the name of the application is part of the tree: the help text of every level will show it
 		var driver = RunTwice(
-			PositionalOnGroupSource,
+			TreeSource,
 			compilation => compilation.ReplaceSyntaxTree(
-				compilation.SyntaxTrees.Single(t => t.ToString() == PositionalOnGroupSource),
-				Parse(PositionalOnGroupSource.Replace("\"app\"", "\"apps\""))));
+				compilation.SyntaxTrees.Single(t => t.ToString() == TreeSource),
+				Parse(TreeSource.Replace("\"app\"", "\"apps\""))));
 
 		Assert.All(ModelReasons(driver, ParserGenerator.RootModelsStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+		Assert.All(ModelReasons(driver, ParserGenerator.LinkedTreesStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
 	}
 
 	[Fact]

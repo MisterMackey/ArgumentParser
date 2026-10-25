@@ -758,4 +758,39 @@ public class GeneratedParserBehaviourTests
 		Assert.DoesNotContain("<global namespace>", parser.GeneratedSource, StringComparison.Ordinal);
 		Assert.DoesNotContain("namespace ", parser.GeneratedSource, StringComparison.Ordinal);
 	}
+
+	[Fact]
+	public void ClassInSeveralFiles_ParsesTheArgumentsOfEveryPart()
+	{
+		var parser = GeneratedParser.Compile(
+			ParserSource.Build("""
+				[Option("o", "Output", "in the file with the attribute")]
+				public string Output { get; set; } = "";
+				[Positional(1, "second")]
+				public string Second { get; set; } = "";
+				"""),
+			"TestClass",
+			true,
+			"""
+			using ArgumentParser;
+
+			namespace ArgumentParser.Tests;
+
+			public partial class TestClass
+			{
+				[Flag("v", "Verbose", "in another file")]
+				public bool Verbose { get; set; }
+				[Positional(0, "first")]
+				public string First { get; set; } = "";
+			}
+			""");
+
+		var outcome = parser.Parse("one", "-v", "--Output", "out", "two");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal("out", outcome.Get<string>("Output"));
+		Assert.True(outcome.Get<bool>("Verbose"));
+		Assert.Equal("one", outcome.Get<string>("First"));
+		Assert.Equal("two", outcome.Get<string>("Second"));
+	}
 }

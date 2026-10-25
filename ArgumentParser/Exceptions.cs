@@ -153,4 +153,64 @@ namespace ArgumentParser
 		}
 	}
 
+	/// <summary>
+	/// Exception thrown when a command group or the application needs a command and none was given.
+	/// </summary>
+	public class MissingCommandException : ArgumentParserException
+	{
+		/// <summary>
+		/// Initializes a new instance of the <see cref="MissingCommandException"/> class.
+		/// </summary>
+		public MissingCommandException() : base()
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="MissingCommandException"/> class.
+		/// </summary>
+		/// <param name="message">The error message associated with the exception.</param>
+		public MissingCommandException(string message) : base(message)
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="MissingCommandException"/> class with a specified error message and a reference to the inner exception.
+		/// </summary>
+		/// <param name="message">The error message that explains the reason for the exception.</param>
+		/// <param name="innerException">The exception that is the cause of the current exception.</param>
+		public MissingCommandException(string message, Exception innerException) : base(message, innerException)
+		{
+		}
+	}
+
+	/// <summary>
+	/// Exception thrown when the name of a command is not one of the commands of a command group or the application.
+	/// </summary>
+	public class UnknownCommandException : ArgumentParserException
+	{
+		/// <summary>
+		/// Initializes a new instance of the <see cref="UnknownCommandException"/> class.
+		/// </summary>
+		public UnknownCommandException() : base()
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="UnknownCommandException"/> class.
+		/// </summary>
+		/// <param name="message">The error message associated with the exception.</param>
+		public UnknownCommandException(string message) : base(message)
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="UnknownCommandException"/> class with a specified error message and a reference to the inner exception.
+		/// </summary>
+		/// <param name="message">The error message that explains the reason for the exception.</param>
+		/// <param name="innerException">The exception that is the cause of the current exception.</param>
+		public UnknownCommandException(string message, Exception innerException) : base(message, innerException)
+		{
+		}
+	}
+
 }

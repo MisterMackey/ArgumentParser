@@ -23,7 +23,7 @@ namespace ArgumentParser.Tests
 			// Assert
 			Assert.Empty(diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
 			// Should generate handler for displaying help on error
-			Assert.Contains("ArgumentParser.ParseOutcomePolicy.Apply(ArgumentParser.BehaviourOnError.DisplayHelpAndExit, false, TestClass.HelpText, errors, missingRequired);", output);
+			Assert.Contains("global::ArgumentParser.ParseOutcomePolicy.Apply(global::ArgumentParser.BehaviourOnError.DisplayHelpAndExit, false, TestClass.HelpText, errors, missingRequired);", output);
 		}
 
 		[Fact]
@@ -42,7 +42,7 @@ namespace ArgumentParser.Tests
 			// Assert
 			Assert.Empty(diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
 			// Should generate throw exception for errors
-			Assert.Contains("ArgumentParser.ParseOutcomePolicy.Apply(ArgumentParser.BehaviourOnError.ThrowIfAnyError, false, null, errors, missingRequired);", output);
+			Assert.Contains("global::ArgumentParser.ParseOutcomePolicy.Apply(global::ArgumentParser.BehaviourOnError.ThrowIfAnyError, false, null, errors, missingRequired);", output);
 		}
 
 		[Fact]
@@ -86,7 +86,7 @@ namespace ArgumentParser.Tests
 			// Assert
 			Assert.Empty(diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
 			// Should generate throw exception for missing required parameters
-			Assert.Contains("ArgumentParser.ParseOutcomePolicy.Apply(ArgumentParser.BehaviourOnError.ThrowIfMissingRequired, false, null, errors, missingRequired);", output);
+			Assert.Contains("global::ArgumentParser.ParseOutcomePolicy.Apply(global::ArgumentParser.BehaviourOnError.ThrowIfMissingRequired, false, null, errors, missingRequired);", output);
 		}
 	}
 }
