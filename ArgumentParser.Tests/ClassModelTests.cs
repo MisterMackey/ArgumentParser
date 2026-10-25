@@ -230,7 +230,8 @@ public class ClassModelTests
 		string option = "Output",
 		string flag = "Verbose",
 		string positional = "File",
-		DiagnosticInfo[]? diagnostics = null)
+		DiagnosticInfo[]? diagnostics = null,
+		bool isCommand = false)
 	{
 		return new ClassModel(
 			className,
@@ -240,7 +241,9 @@ public class ClassModelTests
 			new EquatableArray<PropertyAndAttributeInfo>([Property(option)]),
 			new EquatableArray<PropertyAndAttributeInfo>([Property(flag)]),
 			new EquatableArray<PropertyAndAttributeInfo>([Property(positional)]),
-			new EquatableArray<DiagnosticInfo>(diagnostics ?? []));
+			new EquatableArray<DiagnosticInfo>(diagnostics ?? []),
+			default,
+			isCommand);
 	}
 
 	[Fact]
@@ -268,6 +271,7 @@ public class ClassModelTests
 		Assert.NotEqual(baseline, Model(flag: "Other"));
 		Assert.NotEqual(baseline, Model(positional: "Other"));
 		Assert.NotEqual(baseline, Model(diagnostics: [warning]));
+		Assert.NotEqual(baseline, Model(isCommand: true));
 		Assert.False(baseline.Equals(null));
 		Assert.False(baseline.Equals("Target"));
 	}
@@ -299,6 +303,57 @@ public class ClassModelTests
 		Assert.Throws<ArgumentNullException>(() => new ClassModel("c", null, null!, null, default, default, default, default));
 	}
 
+	#endregion
+
+	#region NodeSettings and NodeArguments
+
+	[Fact]
+	public void NodeSettings_ComparesEverySetting()
+	{
+		var baseline = new NodeSettings(0, "h", "Help", 0);
+
+		Assert.Equal(NodeSettings.Default, baseline);
+		Assert.Equal(NodeSettings.Default.GetHashCode(), baseline.GetHashCode());
+		Assert.NotEqual(baseline, new NodeSettings(2, "h", "Help", 0));
+		Assert.NotEqual(baseline, new NodeSettings(0, "?", "Help", 0));
+		Assert.NotEqual(baseline, new NodeSettings(0, "h", "help", 0));
+		Assert.NotEqual(baseline, new NodeSettings(0, "h", "Help", 2));
+		Assert.Equal(new NodeSettings(0, "", "", 0), new NodeSettings(0, null!, null!, 0));
+	}
+
+	[Theory]
+	[InlineData(0, "h", "Help", 0, true, true, null)]
+	[InlineData(0, "", "", 0, true, false, null)]
+	[InlineData(2, "h", "Help", 0, true, false, null)]
+	[InlineData(1, "h", "Help", 2, false, false, null)]
+	[InlineData(1, "h", "Help", 0, false, false, "HelpTextGeneration.None together with BehaviourOnError.DisplayHelpAndExit")]
+	[InlineData(3, "h", "Help", 2, false, false, "HelpTextGeneration.GenerateArgumentOnly")]
+	[InlineData(4, "h", "Help", 2, false, false, "HelpTextGeneration.GenerateArgumentAndHandler")]
+	[InlineData(9, "h", "Help", 2, false, false, "HelpTextGeneration.9")]
+	public void NodeSettings_TellWhatATreeGenerates(int mode, string shortName, string longName, int behaviour, bool texts, bool argument, string? unsupported)
+	{
+		var settings = new NodeSettings(mode, shortName, longName, behaviour);
+
+		Assert.Equal(texts, settings.GeneratesHelpText);
+		Assert.Equal(argument, settings.HasHelpArgument);
+		Assert.Equal(unsupported, settings.UnsupportedByATree);
+	}
+
+	[Fact]
+	public void NodeSettings_BehaviourExpression_NamesTheValueOrCastsIt()
+	{
+		Assert.Equal("global::ArgumentParser.BehaviourOnError.ThrowIfMissingRequired", new NodeSettings(0, "h", "Help", 3).BehaviourExpression);
+		Assert.Equal("(global::ArgumentParser.BehaviourOnError)(7)", new NodeSettings(0, "h", "Help", 7).BehaviourExpression);
+	}
+
+	[Fact]
+	public void NodeArguments_ComparePositionalsToo()
+	{
+		var positional = new EquatableArray<PropertyAndAttributeInfo>([Property("File")]);
+
+		Assert.NotEqual(NodeArguments.Empty, new NodeArguments(default, default, positional));
+		Assert.Equal(new NodeArguments(default, default, positional), new NodeArguments(default, default, positional));
+	}
 	#endregion
 
 	#region ArgumentProvider from extracted arguments

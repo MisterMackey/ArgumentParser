@@ -96,7 +96,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_LeafBelowAGroup_IsSelectedAndFilled()
 	{
-		var outcome = Calories().Parse("ingredient", "add", "--name", "rice", "--kcal", "130");
+		var outcome = Calories().ParseCommand("ingredient", "add", "--name", "rice", "--kcal", "130");
 
 		Assert.Empty(outcome.Errors);
 		Assert.Equal("rice", outcome.GetPath<string>("Ingredient.Add.Name"));
@@ -106,7 +106,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_OnlyTheTypedPathIsPopulated()
 	{
-		var outcome = Calories().Parse("ingredient", "add", "-n", "rice");
+		var outcome = Calories().ParseCommand("ingredient", "add", "-n", "rice");
 
 		Assert.NotNull(outcome.GetPath<object>("Ingredient"));
 		Assert.NotNull(outcome.GetPath<object>("Ingredient.Add"));
@@ -119,7 +119,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_LeafDirectlyBelowTheRoot_IsSelected()
 	{
-		var outcome = Calories().Parse("log", "lunch");
+		var outcome = Calories().ParseCommand("log", "lunch");
 
 		Assert.Empty(outcome.Errors);
 		Assert.Equal("lunch", outcome.GetPath<string>("Log.Meal"));
@@ -129,7 +129,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_PositionalOfALeafBelowAGroup()
 	{
-		var outcome = Calories().Parse("ingredient", "update", "12");
+		var outcome = Calories().ParseCommand("ingredient", "update", "12");
 
 		Assert.Empty(outcome.Errors);
 		Assert.Equal(12, outcome.GetPath<int>("Ingredient.Update.Id"));
@@ -138,7 +138,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_ReturnsTheRootEvenWhenSomethingIsWrong()
 	{
-		var outcome = Calories().Parse("nonsense");
+		var outcome = Calories().ParseCommand("nonsense");
 
 		Assert.NotNull(outcome.Instance);
 		Assert.Equal("default.db", outcome.Get<string>("Db"));
@@ -150,7 +150,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_OptionsOfTheRootComeBeforeTheCommandWord()
 	{
-		var outcome = Calories().Parse("--db", "food.db", "-v", "log", "lunch");
+		var outcome = Calories().ParseCommand("--db", "food.db", "-v", "log", "lunch");
 
 		Assert.Empty(outcome.Errors);
 		Assert.Equal("food.db", outcome.Get<string>("Db"));
@@ -161,7 +161,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_OptionsOfAGroupComeBetweenItsWordAndTheNext()
 	{
-		var outcome = Calories().Parse("--db", "food.db", "meal", "--day", "monday", "list", "--all");
+		var outcome = Calories().ParseCommand("--db", "food.db", "meal", "--day", "monday", "list", "--all");
 
 		Assert.Empty(outcome.Errors);
 		Assert.Equal("food.db", outcome.Get<string>("Db"));
@@ -172,7 +172,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_OptionValueThatLooksLikeACommand_IsTheValue()
 	{
-		var outcome = Calories().Parse("--db", "log", "log", "lunch");
+		var outcome = Calories().ParseCommand("--db", "log", "log", "lunch");
 
 		Assert.Empty(outcome.Errors);
 		Assert.Equal("log", outcome.Get<string>("Db"));
@@ -182,7 +182,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_OptionOfTheRootAfterTheCommandWord_BelongsToTheLeafAndIsUnknownThere()
 	{
-		var outcome = Calories().Parse("log", "lunch", "--db", "food.db");
+		var outcome = Calories().ParseCommand("log", "lunch", "--db", "food.db");
 
 		// the leaf does not know --db, and its value is one positional argument too many
 		Assert.Equal(2, outcome.Errors.Count);
@@ -195,7 +195,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_FlagOfALeafBeforeItsCommandWord_IsUnknownToTheLevel()
 	{
-		var outcome = Calories().Parse("--all", "meal", "list", "--all");
+		var outcome = Calories().ParseCommand("--all", "meal", "list", "--all");
 
 		var error = Assert.Single(outcome.Errors);
 		Assert.IsType<UnexpectedArgumentException>(error);
@@ -234,8 +234,8 @@ public class GeneratedCommandTreeTests
 			}
 			""", "App");
 
-		var run = parser.Parse("-q", "run", "-v");
-		var test = parser.Parse("test", "--verbose");
+		var run = parser.ParseCommand("-q", "run", "-v");
+		var test = parser.ParseCommand("test", "--verbose");
 
 		Assert.Empty(run.Errors);
 		Assert.True(run.Get<bool>("Quiet"));
@@ -251,7 +251,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_NoArguments_AsksForACommand()
 	{
-		var outcome = Calories().Parse();
+		var outcome = Calories().ParseCommand();
 
 		var error = Assert.Single(outcome.Errors);
 		Assert.IsType<MissingCommandException>(error);
@@ -261,7 +261,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_GroupWithoutACommand_AsksForOneOfItsOwn()
 	{
-		var outcome = Calories().Parse("ingredient");
+		var outcome = Calories().ParseCommand("ingredient");
 
 		var error = Assert.Single(outcome.Errors);
 		Assert.IsType<MissingCommandException>(error);
@@ -272,7 +272,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_OptionsOnlyAreStillMissingTheCommand()
 	{
-		var outcome = Calories().Parse("--db", "food.db", "-v");
+		var outcome = Calories().ParseCommand("--db", "food.db", "-v");
 
 		Assert.IsType<MissingCommandException>(Assert.Single(outcome.Errors));
 		Assert.Equal("food.db", outcome.Get<string>("Db"));
@@ -282,7 +282,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_UnknownCommand_NamesItAndTheAlternatives()
 	{
-		var outcome = Calories().Parse("ingredient", "remove");
+		var outcome = Calories().ParseCommand("ingredient", "remove");
 
 		var error = Assert.Single(outcome.Errors);
 		Assert.IsType<UnknownCommandException>(error);
@@ -294,7 +294,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_CommandNamesAreCaseSensitive()
 	{
-		var outcome = Calories().Parse("Log", "lunch");
+		var outcome = Calories().ParseCommand("Log", "lunch");
 
 		Assert.IsType<UnknownCommandException>(Assert.Single(outcome.Errors));
 	}
@@ -302,7 +302,7 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Parse_ErrorsOfEveryLevelAreCollected()
 	{
-		var outcome = Calories().Parse("--bogus", "meal", "--nonsense", "list", "--worse");
+		var outcome = Calories().ParseCommand("--bogus", "meal", "--nonsense", "list", "--worse");
 
 		Assert.Equal(3, outcome.Errors.Count);
 		Assert.All(outcome.Errors, error => Assert.IsType<UnexpectedArgumentException>(error));
@@ -310,9 +310,9 @@ public class GeneratedCommandTreeTests
 	}
 
 	[Fact]
-	public void ParseCore_MissingRequiredArgumentsOfALeaf_AreReportedBothWays()
+	public void ParseCommand_MissingRequiredArgumentsOfALeaf_AreReportedBothWays()
 	{
-		var outcome = Calories().ParseCore("ingredient", "add", "--kcal", "5");
+		var outcome = Calories().ParseCommand("ingredient", "add", "--kcal", "5");
 
 		var missing = Assert.Single(outcome.MissingRequired);
 		Assert.IsType<MissingRequiredArgumentException>(missing);
@@ -320,7 +320,7 @@ public class GeneratedCommandTreeTests
 	}
 
 	[Fact]
-	public void ParseCore_MissingRequiredArgumentsOfAGroupAndALeaf_AreAllReported()
+	public void ParseCommand_MissingRequiredArgumentsOfAGroupAndALeaf_AreAllReported()
 	{
 		var parser = GeneratedParser.Compile("""
 			using ArgumentParser;
@@ -341,16 +341,16 @@ public class GeneratedCommandTreeTests
 			}
 			""", "App");
 
-		var outcome = parser.ParseCore("run");
+		var outcome = parser.ParseCommand("run");
 
 		Assert.Equal(2, outcome.MissingRequired.Count);
 		Assert.Equal(2, outcome.Errors.Count);
 	}
 
 	[Fact]
-	public void ParseCore_OptionWithoutAValue_IsAnErrorButNotAMissingRequiredArgument()
+	public void ParseCommand_OptionWithoutAValue_IsAnErrorButNotAMissingRequiredArgument()
 	{
-		var outcome = Calories().ParseCore("--db");
+		var outcome = Calories().ParseCommand("--db");
 
 		Assert.Contains(outcome.Errors, error => error is MissingRequiredArgumentException);
 		Assert.Empty(outcome.MissingRequired);
@@ -361,7 +361,7 @@ public class GeneratedCommandTreeTests
 	{
 		var parser = Calories();
 
-		var outcome = parser.Parse("ingredient", "add");
+		var outcome = parser.ParseCommand("ingredient", "add");
 
 		Assert.NotEmpty(outcome.Errors);
 	}
@@ -436,6 +436,206 @@ public class GeneratedCommandTreeTests
 	}
 	#endregion
 
+	#region help of the levels and the settings of the tree
+
+	private static GeneratedParser SmallTree(string commandApp) => GeneratedParser.Compile($$"""
+		using ArgumentParser;
+		namespace ArgumentParser.Tests;
+
+		{{commandApp}}
+		public partial class App
+		{
+			[Flag("v", "verbose", "More output")] public bool Verbose { get; set; }
+			public Run? Run { get; private set; }
+		}
+
+		[ParameterCollection]
+		[Command("run", "Run it")]
+		public partial class Run
+		{
+			[Positional(0, "What to run", true)] public string Target { get; set; } = "";
+		}
+		""", "App");
+
+	[Fact]
+	public void Help_OnTheRoot_ShowsTheApplicationItsCommandsAndItsOptions()
+	{
+		var outcome = Calories().ParseCommand("-h");
+
+		Assert.True(outcome.HelpRequested);
+		Assert.StartsWith("calories - Track what you eat\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("\tcalories [options] <command> [command args]\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("Commands:\n\tingredient: Manage ingredients\n\tmeal: Manage meals\n\tlog: Log a meal\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("\tOption: --db : Path to the database\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("\tFlag: -h | --Help : Display help text\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.DoesNotContain("Options of", outcome.HelpText, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void Help_OnAGroup_ShowsItsCommandsItsOptionsAndThoseOfTheLevelsAbove()
+	{
+		var outcome = Calories().ParseCommand("meal", "--Help");
+
+		Assert.True(outcome.HelpRequested);
+		Assert.StartsWith("calories meal - Manage meals\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("\tcalories [calories options] meal [options] <command> [command args]\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("Commands:\n\tlist: List meals\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("Options:\n\tOption: -d | --day : Only consider this day\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("Options of calories, before 'meal':\n\tFlag: -v | --verbose : Print extra output\n\tOption: --db : Path to the database\n", outcome.HelpText, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void Help_OnALeaf_ShowsItsFullPathItsArgumentsAndTheOptionsOfEveryLevelAbove()
+	{
+		var outcome = Calories().ParseCommand("meal", "list", "-h");
+
+		Assert.True(outcome.HelpRequested);
+		Assert.Empty(outcome.Errors);
+		Assert.StartsWith("calories meal list - List meals\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("\tcalories [calories options] meal [meal options] list [optional args] (required args)\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("Optional arguments:\n\tFlag: -a | --all : Include everything\n\tFlag: -h | --Help : Display help text\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("Options of calories, before 'meal':", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Contains("Options of meal, before 'list':\n\tOption: -d | --day : Only consider this day\n", outcome.HelpText, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void Help_OnALeaf_ListsRequiredPositionalsAndOptions()
+	{
+		var update = Calories().ParseCommand("ingredient", "update", "-h");
+		var add = Calories().ParseCommand("ingredient", "add", "-h");
+
+		// a level without options is left out of the usage and of the sections of the levels above
+		Assert.Contains("\tcalories [calories options] ingredient update [optional args] (required args)\n", update.HelpText, StringComparison.Ordinal);
+		Assert.DoesNotContain("Options of ingredient", update.HelpText, StringComparison.Ordinal);
+		Assert.Contains("Required arguments:\n\tPosition: 0: Id of the ingredient\n", update.HelpText, StringComparison.Ordinal);
+		Assert.Contains("Required arguments:\n\tOption: -n | --name : Name of the ingredient\n", add.HelpText, StringComparison.Ordinal);
+		// help is requested even though the required name is missing
+		Assert.True(add.HelpRequested);
+	}
+
+	[Fact]
+	public void Help_GivenBeforeACommandWord_ShowsTheLevelItIsGivenOn()
+	{
+		var outcome = Calories().ParseCommand("-h", "meal", "list");
+
+		Assert.True(outcome.HelpRequested);
+		Assert.StartsWith("calories - ", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Null(outcome.GetPath<object>("Meal"));
+	}
+
+	[Fact]
+	public void Error_GoesWithTheHelpOfTheDeepestLevelThatWasReached()
+	{
+		var unknown = Calories().ParseCommand("meal", "nonsense");
+		var invalid = Calories().ParseCommand("ingredient", "update", "x");
+		var missing = Calories().ParseCommand();
+
+		Assert.False(unknown.HelpRequested);
+		Assert.StartsWith("calories meal - ", unknown.HelpText, StringComparison.Ordinal);
+		Assert.StartsWith("calories ingredient update - ", invalid.HelpText, StringComparison.Ordinal);
+		Assert.StartsWith("calories - ", missing.HelpText, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void Help_TextsArePublicConstantsOfEveryLevelAndPartOfTheCommands()
+	{
+		var parser = Calories();
+		var add = Commands().Single(c => c.ToString() == "ingredient add");
+
+		Assert.Equal(parser.ParseCommand("-h").HelpText, parser.GetStaticMember<string>("CommandHelpText"));
+		Assert.Equal(parser.ParseCommand("ingredient", "add", "-h").HelpText, add.HelpText);
+		Assert.StartsWith("calories ingredient add - Add an ingredient\n", add.HelpText, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void Help_OfALeafInATree_DoesNotSetItsOwnDisplayHelp()
+	{
+		var outcome = Calories().ParseCommand("ingredient", "add", "-n", "rice", "-h");
+
+		Assert.True(outcome.HelpRequested);
+		Assert.False(outcome.GetPath<bool>("Ingredient.Add.DisplayHelp"));
+		Assert.Equal("rice", outcome.GetPath<string>("Ingredient.Add.Name"));
+	}
+
+	[Fact]
+	public void OwnParseOfALeafInATree_StillSetsItsDisplayHelp()
+	{
+		var leaf = GeneratedParser.Compile(CaloriesTree, "IngredientAdd");
+
+		var outcome = leaf.ParseCore("-n", "rice", "-h");
+
+		Assert.True(outcome.Get<bool>("DisplayHelp"));
+		Assert.Equal("rice", outcome.Get<string>("Name"));
+	}
+
+	[Fact]
+	public void HelpNames_OfTheCommandApp_AreUsedOnEveryLevelInsteadOfThoseOfTheLeaf()
+	{
+		var parser = SmallTree("[CommandApp(\"app\", helpArgumentShortName: \"?\", helpArgumentLongName: \"info\", behaviourOnError: BehaviourOnError.ThrowNever)]");
+
+		Assert.True(parser.ParseCommand("-?").HelpRequested);
+		Assert.True(parser.ParseCommand("run", "--info").HelpRequested);
+		Assert.Contains("\tFlag: -? | --info : Display help text\n", parser.ParseCommand("run", "--info").HelpText, StringComparison.Ordinal);
+		// the help names of the leaf's own ParameterCollection attribute are not known in the tree
+		var leafOwn = parser.ParseCommand("run", "x", "-h");
+		Assert.False(leafOwn.HelpRequested);
+		Assert.IsType<UnexpectedArgumentException>(Assert.Single(leafOwn.Errors));
+	}
+
+	[Fact]
+	public void HelpTextOnly_GeneratesTheTextsButNoHelpArgument()
+	{
+		var parser = SmallTree("[CommandApp(\"app\", \"An app\", HelpTextGeneration.GenerateTextOnly)]");
+
+		var outcome = parser.ParseCommand("-h");
+
+		Assert.False(outcome.HelpRequested);
+		Assert.IsType<UnexpectedArgumentException>(outcome.Errors[0]);
+		Assert.StartsWith("app - An app\n", outcome.HelpText, StringComparison.Ordinal);
+		Assert.DoesNotContain("Display help text", outcome.HelpText, StringComparison.Ordinal);
+		Assert.Equal(outcome.HelpText, parser.GetStaticMember<string>("CommandHelpText"));
+	}
+
+	[Fact]
+	public void HelpNone_GeneratesNoTexts()
+	{
+		var parser = SmallTree("[CommandApp(\"app\", \"An app\", HelpTextGeneration.None, behaviourOnError: BehaviourOnError.ThrowNever)]");
+
+		var outcome = parser.ParseCommand("run");
+
+		Assert.Null(outcome.HelpText);
+		Assert.Null(parser.GetStaticMember<string>("CommandHelpText"));
+		Assert.Equal("", Assert.Single(parser.GetStaticProperty<IReadOnlyList<CommandInfo>>("Commands")!).HelpText);
+		Assert.Contains(parser.Parse("run").Errors, e => e is MissingRequiredArgumentException);
+	}
+
+	[Fact]
+	public void Parse_AppliesTheBehaviourOnErrorOfTheCommandApp()
+	{
+		var never = SmallTree("[CommandApp(\"app\", behaviourOnError: BehaviourOnError.ThrowNever)]");
+		var anyError = SmallTree("[CommandApp(\"app\", behaviourOnError: BehaviourOnError.ThrowIfAnyError)]");
+		var missingRequired = SmallTree("[CommandApp(\"app\", behaviourOnError: BehaviourOnError.ThrowIfMissingRequired)]");
+
+		Assert.NotEmpty(never.Parse("nonsense").Errors);
+		Assert.Empty(never.Parse("-v", "run", "x").Errors);
+		Assert.Throws<AggregateException>(() => anyError.Parse("nonsense"));
+		Assert.Empty(anyError.Parse("run", "x").Errors);
+		var thrown = Assert.Throws<AggregateException>(() => missingRequired.Parse("run"));
+		Assert.IsType<MissingRequiredArgumentException>(Assert.Single(thrown.InnerExceptions));
+		Assert.NotEmpty(missingRequired.Parse("nonsense").Errors);
+	}
+
+	[Fact]
+	public void Commands_ParseWithTheHelpArgumentOfTheTreeWithoutAnError()
+	{
+		var add = Commands().Single(c => c.ToString() == "ingredient add");
+
+		var (_, errors) = add.Parse(["--name", "rice", "-h"]);
+
+		Assert.Empty(errors);
+	}
+	#endregion
+
 	#region nested classes, partial classes in several files and other declaration shapes
 
 	[Fact]
@@ -480,8 +680,8 @@ public class GeneratedCommandTreeTests
 			}
 			""", "App");
 
-		var ingredient = parser.Parse("ingredient", "add", "--name", "rice");
-		var meal = parser.Parse("meal", "add", "--day", "monday");
+		var ingredient = parser.ParseCommand("ingredient", "add", "--name", "rice");
+		var meal = parser.ParseCommand("meal", "add", "--day", "monday");
 
 		Assert.Empty(ingredient.Errors);
 		Assert.Equal("rice", ingredient.GetPath<string>("Ingredient.AddCmd.Name"));
@@ -524,7 +724,7 @@ public class GeneratedCommandTreeTests
 			}
 			""", "App");
 
-		var outcome = parser.Parse("group", "leaf", "-f");
+		var outcome = parser.ParseCommand("group", "leaf", "-f");
 
 		Assert.Empty(outcome.Errors);
 		Assert.True(outcome.GetPath<bool>("Group.Leaf.Fast"));
@@ -552,7 +752,7 @@ public class GeneratedCommandTreeTests
 			}
 			""", "Outer+App");
 
-		var outcome = parser.Parse("-v", "run");
+		var outcome = parser.ParseCommand("-v", "run");
 
 		Assert.Empty(outcome.Errors);
 		Assert.True(outcome.Get<bool>("Verbose"));
@@ -602,7 +802,7 @@ public class GeneratedCommandTreeTests
 			}
 			""");
 
-		var outcome = parser.Parse("--first", "1", "--second", "2", "-v", "group", "--gopt", "3", "leaf");
+		var outcome = parser.ParseCommand("--first", "1", "--second", "2", "-v", "group", "--gopt", "3", "leaf");
 
 		Assert.Empty(outcome.Errors);
 		Assert.Equal("1", outcome.Get<string>("First"));
@@ -632,7 +832,7 @@ public class GeneratedCommandTreeTests
 			public partial class Run { }
 			""", "App");
 
-		var outcome = parser.Parse("run");
+		var outcome = parser.ParseCommand("run");
 
 		Assert.Empty(outcome.Errors);
 		Assert.NotNull(outcome.GetPath<object>("Real"));
@@ -680,7 +880,7 @@ public class GeneratedCommandTreeTests
 			}
 			""", "App");
 
-		var outcome = parser.Parse("group", "run", "-n", "x");
+		var outcome = parser.ParseCommand("group", "run", "-n", "x");
 
 		Assert.Empty(outcome.Errors);
 		Assert.Equal("x", outcome.GetPath<string>("Group.Run.Name"));
@@ -706,7 +906,7 @@ public class GeneratedCommandTreeTests
 			public partial class Run { [Positional(0, "What")] public string What { get; set; } = ""; }
 			""", "ArgumentParser.App");
 
-		var outcome = parser.Parse("-v", "run", "it");
+		var outcome = parser.ParseCommand("-v", "run", "it");
 
 		Assert.Empty(outcome.Errors);
 		Assert.True(outcome.Get<bool>("Verbose"));
@@ -734,7 +934,7 @@ public class GeneratedCommandTreeTests
 			public partial class @int { [Option("n", "name", "A name")] public string Name { get; set; } = ""; }
 			""", "class");
 
-		var outcome = parser.Parse("group", "leaf", "-n", "x");
+		var outcome = parser.ParseCommand("group", "leaf", "-n", "x");
 
 		Assert.Empty(outcome.Errors);
 		Assert.Equal("x", outcome.GetPath<string>("Group.Leaf.Name"));
@@ -751,16 +951,49 @@ public class GeneratedCommandTreeTests
 	}
 
 	[Fact]
-	public void Generator_AddsAFilePerRootAndGroupAndNothingForLeaves()
+	public void Generator_TreeCodeHasNoWarnings_WithNullableEnabledAndWithoutImplicitUsings()
+	{
+		// a user project that treats warnings as errors must accept the generated code, so not even a warning may come from it
+		Assert.Empty(GeneratedParser.GeneratedCodeDiagnostics(CaloriesTree).Select(d => d.ToString()));
+	}
+
+	[Theory]
+	[InlineData("public partial class Run { [Option(\"x\", \"one\", \"a\")] public string A { get; set; } = \"\"; [Option(\"x\", \"two\", \"b\")] public string B { get; set; } = \"\"; }", "ARG003")]
+	[InlineData("public class Run { }", "ARG001")]
+	public void Generator_LeafWithErrors_LeavesItsTreeUngeneratedInsteadOfAddingCompilerErrors(string leaf, string rule)
+	{
+		var source = $$"""
+			using ArgumentParser;
+			namespace ArgumentParser.Tests;
+
+			[CommandApp("app")]
+			public partial class App { public Run? Run { get; private set; } }
+
+			[ParameterCollection]
+			[Command("run")]
+			{{leaf}}
+			""";
+
+		Assert.DoesNotContain(Generate(source).Keys, name => name.EndsWith("_Command.g.cs", StringComparison.Ordinal));
+		Assert.Empty(GeneratedParser.GeneratedCodeDiagnostics(source));
+		var compilation = TestHelper.CreateCompilation(source);
+		CSharpGeneratorDriver.Create(new ParserGenerator()).RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
+		Assert.Contains(diagnostics, d => d.Id == rule);
+	}
+
+	[Fact]
+	public void Generator_AddsAFilePerNodeAndLeavesKeepTheirOwnParser()
 	{
 		var files = Generate(CaloriesTree);
 
 		Assert.Contains("ArgumentParser.Tests.Calories_Command.g.cs", files.Keys);
 		Assert.Contains("ArgumentParser.Tests.IngredientGroup_Command.g.cs", files.Keys);
 		Assert.Contains("ArgumentParser.Tests.MealGroup_Command.g.cs", files.Keys);
-		Assert.DoesNotContain(files.Keys, name => name.Contains("IngredientAdd_Command"));
-		// the leaves keep the file of their own parser
+		Assert.Contains("ArgumentParser.Tests.IngredientAdd_Command.g.cs", files.Keys);
 		Assert.Contains("ArgumentParser.Tests.IngredientAdd_Parser.g.cs", files.Keys);
+		// the part of the tree calls the parser of the leaf, and only the parser's part carries the GeneratedCode attribute
+		Assert.Contains("ParseCore(args, commandFlags, CommandHelpArgument)", files["ArgumentParser.Tests.IngredientAdd_Command.g.cs"]);
+		Assert.DoesNotContain("GeneratedCodeAttribute", files["ArgumentParser.Tests.IngredientAdd_Command.g.cs"]);
 	}
 
 	[Fact]
@@ -771,8 +1004,8 @@ public class GeneratedCommandTreeTests
 		Assert.Contains("public static (Calories result, List<global::ArgumentParser.ArgumentParserException> errors) Parse(string[] args)", files["ArgumentParser.Tests.Calories_Command.g.cs"]);
 		Assert.Contains("Commands", files["ArgumentParser.Tests.Calories_Command.g.cs"]);
 		Assert.DoesNotContain("public static", files["ArgumentParser.Tests.IngredientGroup_Command.g.cs"]);
-		Assert.DoesNotContain("Commands", files["ArgumentParser.Tests.IngredientGroup_Command.g.cs"]);
-		Assert.Contains("ParseCore(string[] args)", files["ArgumentParser.Tests.IngredientGroup_Command.g.cs"]);
+		Assert.DoesNotContain("Commands {", files["ArgumentParser.Tests.IngredientGroup_Command.g.cs"]);
+		Assert.Contains("ParseCommand(string[] args)", files["ArgumentParser.Tests.IngredientGroup_Command.g.cs"]);
 	}
 
 	[Fact]
@@ -876,7 +1109,7 @@ public class GeneratedCommandTreeTests
 			}
 			""", "App");
 
-		var outcome = parser.Parse("two", "add", "--name", "x");
+		var outcome = parser.ParseCommand("two", "add", "--name", "x");
 
 		Assert.Empty(outcome.Errors);
 		Assert.Equal("x", outcome.GetPath<string>("Two.Add.Name"));
@@ -907,7 +1140,7 @@ public class GeneratedCommandTreeTests
 			""", "App");
 
 		var command = Assert.Single(parser.GetStaticProperty<IReadOnlyList<CommandInfo>>("Commands")!);
-		var outcome = parser.Parse("-d", "x", "g\"r\\p", "r\\un\"");
+		var outcome = parser.ParseCommand("-d", "x", "g\"r\\p", "r\\un\"");
 
 		Assert.Equal("Runs \"it\" \\ now", command.Description);
 		Assert.Equal(["g\"r\\p", "r\\un\""], command.Path);

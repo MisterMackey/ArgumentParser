@@ -558,13 +558,20 @@ public class DiagnosticRuleTests
 	}
 
 	[Fact]
-	public void CommandNodes_ValidLeaf_GeneratesItsParserAsBefore()
+	public void CommandNodes_ValidLeaf_GeneratesItsParserAsBeforeWithAParseCoreForTheTree()
 	{
 		var leaf = Diagnose(Option("o", "Output", "Output"), attribute: LeafAttributes);
 		var plain = Diagnose(Option("o", "Output", "Output"));
 
 		Assert.Empty(leaf.Ids);
-		Assert.Equal(plain.Output, leaf.Output);
+		// the tables, the help text and Parse are the same; ParseCore hands its work to the overload the tree uses too
+		var startOfParseCore = plain.Output.IndexOf("internal static", StringComparison.Ordinal);
+		var parse = plain.Output[plain.Output.IndexOf("public static (TestClass result", StringComparison.Ordinal)..plain.Output.LastIndexOf("    }\n}", StringComparison.Ordinal)];
+		Assert.StartsWith(plain.Output[..startOfParseCore], leaf.Output, StringComparison.Ordinal);
+		Assert.Contains(parse, leaf.Output, StringComparison.Ordinal);
+		Assert.Contains("var (instance, errors, missingRequired, _) = ParseCore(args, flags, null);", leaf.Output, StringComparison.Ordinal);
+		Assert.Contains("ParseCore(string[] args, global::ArgumentParser.FlagAttribute[] flagsTable, global::ArgumentParser.FlagAttribute help)", leaf.Output, StringComparison.Ordinal);
+		Assert.DoesNotContain("FlagAttribute help)", plain.Output, StringComparison.Ordinal);
 	}
 
 	[Fact]
@@ -647,6 +654,30 @@ public class DiagnosticRuleTests
 
 		Assert.Equal(["ARG001", "ARG002", "ARG006", "ARG016"], notPartial.Ids);
 		Assert.Equal(["ARG003", "ARG003", "ARG016"], partial.Ids);
+	}
+
+	[Theory]
+	[InlineData("HelpTextGeneration.GenerateAll", "DisplayHelpAndExit", false)]
+	[InlineData("HelpTextGeneration.GenerateTextOnly", "DisplayHelpAndExit", false)]
+	[InlineData("HelpTextGeneration.None", "ThrowNever", false)]
+	[InlineData("HelpTextGeneration.None", "ThrowIfAnyError", false)]
+	[InlineData("HelpTextGeneration.None", "DisplayHelpAndExit", true)]
+	[InlineData("HelpTextGeneration.GenerateArgumentOnly", "ThrowNever", true)]
+	[InlineData("HelpTextGeneration.GenerateArgumentAndHandler", "ThrowNever", true)]
+	public void ARG028_HelpSettingsOfTheCommandApp_MustLetTheTreeGenerateItsHelp(string mode, string behaviour, bool reported)
+	{
+		var attribute = $"[CommandApp(\"app\", \"\", {mode}, behaviourOnError: BehaviourOnError.{behaviour})]";
+
+		var result = Diagnose("", attribute: attribute);
+
+		Assert.Equal(reported ? ["ARG028"] : Array.Empty<string>(), result.Ids);
+		if (reported)
+		{
+			var diagnostic = result.Diagnostics[0];
+			Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+			Assert.Equal(attribute[1..^1], result.TextAt(diagnostic));
+			Assert.Contains(mode, diagnostic.GetMessage(), StringComparison.Ordinal);
+		}
 	}
 
 	[Theory]
@@ -1124,11 +1155,11 @@ public class DiagnosticRuleTests
 	}
 
 	[Fact]
-	public void Descriptors_OnlyArg008IsAWarning()
+	public void Descriptors_OnlySettingsWithoutEffectAndUnreachableCommandsAreWarnings()
 	{
 		var warnings = Descriptors.Where(d => d.DefaultSeverity == DiagnosticSeverity.Warning).Select(d => d.Id);
 
-		Assert.Equal(["ARG008", "ARG019"], warnings);
+		Assert.Equal(["ARG008", "ARG019", "ARG029"], warnings);
 	}
 	#endregion
 }

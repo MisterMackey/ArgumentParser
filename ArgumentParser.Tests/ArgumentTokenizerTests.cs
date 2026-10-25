@@ -530,5 +530,48 @@ namespace ArgumentParser.Tests
 		}
 
 		#endregion
+
+		#region ContainsFlag
+
+		[Theory]
+		[InlineData("-h", true)]
+		[InlineData("--help", true)]
+		[InlineData("-vh", true)]
+		[InlineData("-v", false)]
+		[InlineData("--h", false)]
+		public void ContainsFlag_FindsTheFlagByEitherName(string arg, bool expected)
+		{
+			var (tokens, _) = _tokenizer.TokenizeArguments([arg], _options, _positionals, _flags);
+
+			Assert.Equal(expected, ArgumentTokenizer.ContainsFlag(tokens, _flags[0]));
+		}
+
+		[Theory]
+		[InlineData("--info", true)]
+		[InlineData("-i", false)]
+		public void ContainsFlag_FlagWithOnlyALongName_IsFoundByIt(string arg, bool expected)
+		{
+			var info = new FlagAttribute("", "info", "Long name only");
+			var (tokens, _) = _tokenizer.TokenizeArguments([arg], [], [], [info]);
+
+			Assert.Equal(expected, ArgumentTokenizer.ContainsFlag(tokens, info));
+		}
+
+		[Fact]
+		public void ContainsFlag_AnOptionValueThatLooksLikeTheFlag_IsNotTheFlag()
+		{
+			var (tokens, _) = _tokenizer.TokenizeArguments(["--output", "-h"], _options, _positionals, _flags);
+
+			Assert.False(ArgumentTokenizer.ContainsFlag(tokens, _flags[0]));
+		}
+
+		[Fact]
+		public void ContainsFlag_NullArguments_Throw()
+		{
+			Assert.Throws<ArgumentNullException>(() => ArgumentTokenizer.ContainsFlag(null!, _flags[0]));
+			Assert.Throws<ArgumentNullException>(() => ArgumentTokenizer.ContainsFlag([], null!));
+		}
+
+		#endregion
 	}
 }

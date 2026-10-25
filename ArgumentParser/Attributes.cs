@@ -65,6 +65,11 @@ namespace ArgumentParser
 	/// It cannot be generic, abstract or have required members. A child command must be declared by the class itself:
 	/// properties inherited from a base class are not child commands. Classes nested in other types are supported
 	/// as long as the types around them are partial too.
+	/// The help and error settings apply to the whole tree, like those of <see cref="ParameterCollectionAttribute"/> do to one class:
+	/// the help argument can be given on every level and shows the help of that level, and an error shows the help of the deepest
+	/// level that was reached. The settings of the ParameterCollection attribute of a leaf only apply to its own <c>Parse</c>.
+	/// The help text of every level is generated, so only <see cref="HelpTextGeneration.GenerateAll"/>,
+	/// <see cref="HelpTextGeneration.GenerateTextOnly"/> and <see cref="HelpTextGeneration.None"/> can be used.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class, Inherited = false)]
 	public sealed class CommandAppAttribute : Attribute
@@ -74,11 +79,45 @@ namespace ArgumentParser
 		/// </summary>
 		/// <param name="name">The name of the application, as users type it.</param>
 		/// <param name="description">The description of the application, used in help text.</param>
-		public CommandAppAttribute(string name, string description = "")
+		/// <param name="helpTextGeneration">Specifies how help text is generated and displayed for the whole tree.</param>
+		/// <param name="helpArgumentShortName">The short name for the help argument (e.g., 'h' for '-h').</param>
+		/// <param name="helpArgumentLongName">The long name for the help argument (e.g., 'Help' for '--Help').</param>
+		/// <param name="behaviourOnError">Specifies the behavior of the parser when errors are encountered anywhere in the tree.</param>
+		public CommandAppAttribute(
+			string name,
+			string description = "",
+			HelpTextGeneration helpTextGeneration = HelpTextGeneration.GenerateAll,
+			string helpArgumentShortName = "h",
+			string helpArgumentLongName = "Help",
+			BehaviourOnError behaviourOnError = BehaviourOnError.DisplayHelpAndExit)
 		{
 			Name = name ?? throw new ArgumentNullException(nameof(name));
 			Description = description ?? "";
+			HelpTextGeneration = helpTextGeneration;
+			HelpArgumentShortName = helpArgumentShortName ?? "";
+			HelpArgumentLongName = helpArgumentLongName ?? "";
+			BehaviourOnError = behaviourOnError;
 		}
+
+		/// <summary>
+		/// Gets how help text is generated and displayed for the whole tree.
+		/// </summary>
+		public HelpTextGeneration HelpTextGeneration { get; }
+
+		/// <summary>
+		/// Gets the short name for the help argument (e.g., 'h' for '-h').
+		/// </summary>
+		public string HelpArgumentShortName { get; }
+
+		/// <summary>
+		/// Gets the long name for the help argument (e.g., 'Help' for '--Help').
+		/// </summary>
+		public string HelpArgumentLongName { get; }
+
+		/// <summary>
+		/// Gets the behavior of the parser when errors are encountered anywhere in the tree.
+		/// </summary>
+		public BehaviourOnError BehaviourOnError { get; }
 
 		/// <summary>
 		/// Gets the name of the application.

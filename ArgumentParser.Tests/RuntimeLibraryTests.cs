@@ -227,6 +227,30 @@ public class RuntimeLibraryTests
 	}
 
 	[Fact]
+	public void CommandApp_HelpAndErrorSettingsDefaultToThoseOfAParameterCollection()
+	{
+		var app = new CommandAppAttribute("calories");
+		var collection = new ParameterCollectionAttribute();
+
+		Assert.Equal(collection.HelpTextGeneration, app.HelpTextGeneration);
+		Assert.Equal(collection.HelpArgumentShortName, app.HelpArgumentShortName);
+		Assert.Equal(collection.HelpArgumentLongName, app.HelpArgumentLongName);
+		Assert.Equal(collection.BehaviourOnError, app.BehaviourOnError);
+	}
+
+	[Fact]
+	public void CommandApp_StoresTheHelpAndErrorSettings()
+	{
+		var app = new CommandAppAttribute("calories", "d", HelpTextGeneration.GenerateTextOnly, "?", "info", BehaviourOnError.ThrowNever);
+
+		Assert.Equal(HelpTextGeneration.GenerateTextOnly, app.HelpTextGeneration);
+		Assert.Equal("?", app.HelpArgumentShortName);
+		Assert.Equal("info", app.HelpArgumentLongName);
+		Assert.Equal(BehaviourOnError.ThrowNever, app.BehaviourOnError);
+		Assert.Equal("", new CommandAppAttribute("calories", helpArgumentShortName: null!).HelpArgumentShortName);
+	}
+
+	[Fact]
 	public void CommandApp_NullName_Throws()
 	{
 		var exception = Assert.Throws<ArgumentNullException>(() => new CommandAppAttribute(null!));
@@ -290,7 +314,7 @@ public class RuntimeLibraryTests
 	#region CommandInfo
 
 	private static CommandInfo Info(Func<string[], (object, IReadOnlyList<ArgumentParserException>)>? parse = null, IReadOnlyList<string>? path = null)
-		=> new(path ?? ["ingredient", "add"], "Add an ingredient", CommandAnnotations.Idempotent, parse ?? (_ => ("result", [])));
+		=> new(path ?? ["ingredient", "add"], "Add an ingredient", CommandAnnotations.Idempotent, "help of add", parse ?? (_ => ("result", [])));
 
 	[Fact]
 	public void CommandInfo_KeepsWhatItWasGiven()
@@ -300,6 +324,7 @@ public class RuntimeLibraryTests
 		Assert.Equal(["ingredient", "add"], info.Path);
 		Assert.Equal("Add an ingredient", info.Description);
 		Assert.Equal(CommandAnnotations.Idempotent, info.Annotations);
+		Assert.Equal("help of add", info.HelpText);
 		Assert.Equal("ingredient add", info.ToString());
 	}
 
@@ -317,16 +342,17 @@ public class RuntimeLibraryTests
 	[Fact]
 	public void CommandInfo_NullDescription_BecomesEmpty()
 	{
-		var info = new CommandInfo(["x"], null!, CommandAnnotations.None, _ => ("r", []));
+		var info = new CommandInfo(["x"], null!, CommandAnnotations.None, null!, _ => ("r", []));
 
 		Assert.Equal("", info.Description);
+		Assert.Equal("", info.HelpText);
 	}
 
 	[Fact]
 	public void CommandInfo_NullArguments_Throw()
 	{
-		Assert.Throws<ArgumentNullException>(() => new CommandInfo(null!, "d", CommandAnnotations.None, _ => ("r", [])));
-		Assert.Throws<ArgumentNullException>(() => new CommandInfo(["x"], "d", CommandAnnotations.None, null!));
+		Assert.Throws<ArgumentNullException>(() => new CommandInfo(null!, "d", CommandAnnotations.None, "", _ => ("r", [])));
+		Assert.Throws<ArgumentNullException>(() => new CommandInfo(["x"], "d", CommandAnnotations.None, "", null!));
 		Assert.Throws<ArgumentNullException>(() => Info().Parse(null!));
 	}
 

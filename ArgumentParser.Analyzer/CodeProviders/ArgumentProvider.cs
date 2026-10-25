@@ -10,6 +10,16 @@ namespace ArgumentParser.Internal
 	/// </summary>
 	public class ArgumentProvider
 	{
+		/// <summary>
+		/// The description of a generated help argument, in the argument tables and the help text.
+		/// </summary>
+		internal const string HelpDescription = "Display help text";
+
+		/// <summary>
+		/// The name of the property a generated help argument sets.
+		/// </summary>
+		internal const string HelpPropertyName = "DisplayHelp";
+
 		private readonly GeneratorConfiguration _config;
 		private List<PropertyAndAttributeInfo> _optionArguments = [];
 		private List<PropertyAndAttributeInfo> _flagArguments = [];
@@ -66,11 +76,11 @@ namespace ArgumentParser.Internal
 					Attribute = new AttributeInfo(
 						_config.HelpArgumentShortName ?? "",
 						_config.HelpArgumentLongName ?? "",
-						"Display help text",
+						HelpDescription,
 						false,
 						-1
 					),
-					PropertyName = "DisplayHelp",
+					PropertyName = HelpPropertyName,
 					PropertyType = "bool"
 				});
 			}

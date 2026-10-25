@@ -145,9 +145,15 @@ public static class CommandTreeLinker
 				}
 				reached.Add(node.Node.TypeName);
 				// a node in two trees (ARG018) would be checked twice
-				foreach (var problem in NamesUsedAbove(node, ancestors).Where(p => !problems.Contains(p)))
+				foreach (var problem in NamesUsedAbove(node, ancestors, root.Node).Where(p => !problems.Contains(p)))
 				{
 					Error(problem);
+				}
+				// the settings of a leaf only apply to its own Parse, parsing through the tree uses those of the root
+				var unusedSettings = new LinkProblem(GeneratorDiagnostics.ARG029, node.Node.TypeName, null, Args(node.Node.ClassName, root.Node.ClassName));
+				if (node.Node.Kind == CommandNodeKind.Leaf && !node.Node.Settings.Equals(NodeSettings.Default) && !problems.Contains(unusedSettings))
+				{
+					problems.Add(unusedSettings);
 				}
 				var edges = edgesByParent[node.Node.TypeName];
 				treeNodes.Add(new TreeNode(
@@ -221,15 +227,26 @@ public static class CommandTreeLinker
 	}
 
 	// A short or long name of an option or flag must not be used by any command above: siblings may share names, ancestors may not.
-	// The nearest command above that uses the name is the one reported.
-	private static IEnumerable<LinkProblem> NamesUsedAbove(CommandNodeSource node, IReadOnlyList<CommandNodeSource> ancestors)
+	// The nearest command above that uses the name is the one reported. The help argument of the tree is accepted on every level,
+	// so no option or flag in the tree can have its names.
+	private static IEnumerable<LinkProblem> NamesUsedAbove(CommandNodeSource node, IReadOnlyList<CommandNodeSource> ancestors, CommandNodeInfo root)
 	{
+		var settings = root.Settings;
 		foreach (var argument in ArgumentsOf(node))
 		{
 			foreach (var (kind, name) in new[] { ("short", argument.Attribute.ShortName), ("long", argument.Attribute.LongName) })
 			{
 				if (string.IsNullOrEmpty(name))
 				{
+					continue;
+				}
+				if (settings.HasHelpArgument && name == (kind == "short" ? settings.HelpShortName : settings.HelpLongName))
+				{
+					yield return new LinkProblem(
+						GeneratorDiagnostics.ARG027,
+						node.Node.TypeName,
+						argument.PropertyName,
+						Args(node.Node.ClassName, argument.PropertyName, kind, name, $"the help argument of the command tree (set by '{root.ClassName}')"));
 					continue;
 				}
 				var owner = ancestors.LastOrDefault(a => ArgumentsOf(a).Any(other => (kind == "short" ? other.Attribute.ShortName : other.Attribute.LongName) == name));
@@ -239,7 +256,7 @@ public static class CommandTreeLinker
 						GeneratorDiagnostics.ARG027,
 						node.Node.TypeName,
 						argument.PropertyName,
-						Args(node.Node.ClassName, argument.PropertyName, kind, name, owner.Node.ClassName));
+						Args(node.Node.ClassName, argument.PropertyName, kind, name, $"'{owner.Node.ClassName}' above it in the command tree"));
 				}
 			}
 		}

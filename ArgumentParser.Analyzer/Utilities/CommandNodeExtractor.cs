@@ -51,7 +51,8 @@ public static class CommandNodeExtractor
 		var attributes = symbol.GetAttributes();
 		var commandApp = AttributeReader.Find(attributes, AttributeReader.CommandApp);
 		var command = AttributeReader.Find(attributes, AttributeReader.Command);
-		var hasParameterCollection = AttributeReader.Find(attributes, AttributeReader.ParameterCollection) is not null;
+		var parameterCollection = AttributeReader.Find(attributes, AttributeReader.ParameterCollection);
+		var hasParameterCollection = parameterCollection is not null;
 
 		// the root wins when attributes are combined, the conflict is reported on it
 		var kind = commandApp is not null ? CommandNodeKind.Root
@@ -70,7 +71,14 @@ public static class CommandNodeExtractor
 			AttributeReader.StringArgument(nodeAttribute, 0),
 			AttributeReader.StringArgument(nodeAttribute, 1),
 			AnnotationsArgument(nodeAttribute),
-			new EquatableArray<ChildCandidate>(children.Select(c => c.Candidate)));
+			new EquatableArray<ChildCandidate>(children.Select(c => c.Candidate)),
+			kind switch
+			{
+				// the arguments that follow the name and the description of the application
+				CommandNodeKind.Root => SettingsArguments(commandApp, 2),
+				CommandNodeKind.Leaf => SettingsArguments(parameterCollection, 0),
+				_ => NodeSettings.Default,
+			});
 
 		var diagnostics = new List<DiagnosticInfo>();
 		// the class may be declared in several parts, in several files: the arguments of every part count
@@ -94,7 +102,12 @@ public static class CommandNodeExtractor
 				positionals,
 				declarations));
 		}
-		var arguments = new NodeArguments(new EquatableArray<PropertyAndAttributeInfo>(options), new EquatableArray<PropertyAndAttributeInfo>(flags));
+		// a leaf keeps its positionals for its help text in the tree; on a group or the root they cannot be used
+		var leafPositionals = kind == CommandNodeKind.Leaf ? factories.SelectMany(f => f.GetPositionalAttributes()) : [];
+		var arguments = new NodeArguments(
+			new EquatableArray<PropertyAndAttributeInfo>(options),
+			new EquatableArray<PropertyAndAttributeInfo>(flags),
+			new EquatableArray<PropertyAndAttributeInfo>(leafPositionals));
 		var argumentLocations = options.Concat(flags)
 			.Select(a => new PropertyLocation(a.PropertyName, LocationInfo.From(ArgumentLocation(declarations, a.PropertyName))));
 		diagnostics.AddRange(Validation.ValidateNodeDeclaration(
@@ -127,6 +140,22 @@ public static class CommandNodeExtractor
 			.OfType<PropertyDeclarationSyntax>()
 			.FirstOrDefault(p => p.Identifier.Text == propertyName)
 			?.GetLocation();
+	}
+
+	// HelpTextGeneration, the short and long help names and BehaviourOnError, in this order from the given index;
+	// Roslyn fills in the defaults of the arguments the user left out
+	private static NodeSettings SettingsArguments(AttributeData? data, int first)
+	{
+		var defaults = NodeSettings.Default;
+		if (data is null || data.ConstructorArguments.Length < first + 4)
+		{
+			return defaults;
+		}
+		return new NodeSettings(
+			AttributeReader.IntArgument(data, first, defaults.HelpTextGeneration),
+			AttributeReader.StringArgument(data, first + 1),
+			AttributeReader.StringArgument(data, first + 2),
+			AttributeReader.IntArgument(data, first + 3, defaults.BehaviourOnError));
 	}
 
 	// Annotations is a named argument, so it is only there when the user wrote it. An enum value arrives as its underlying int.

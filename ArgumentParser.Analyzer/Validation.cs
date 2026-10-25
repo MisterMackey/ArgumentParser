@@ -112,6 +112,10 @@ public static class Validation
 			{
 				diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG016, attributeLocation, node.ClassName, "ParameterCollection"));
 			}
+			if (node.Settings.UnsupportedByATree is { } unsupported)
+			{
+				diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG028, attributeLocation, node.ClassName, unsupported));
+			}
 		}
 		else if (node.Name.Length == 0 || node.Name.Any(char.IsWhiteSpace) || node.Name[0] == '-')
 		{

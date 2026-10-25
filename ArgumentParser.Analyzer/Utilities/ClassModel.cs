@@ -56,6 +56,16 @@ public sealed class ClassModel : IEquatable<ClassModel>
 	public EquatableArray<DiagnosticInfo> Diagnostics { get; }
 
 	/// <summary>
+	/// Gets a value indicating whether the class also has the Command attribute, so a tree of commands can parse it with its own help argument.
+	/// </summary>
+	public bool IsCommand { get; }
+
+	/// <summary>
+	/// Gets the type of the class as it is displayed, the way a tree of commands names its nodes.
+	/// </summary>
+	public string TypeName { get; }
+
+	/// <summary>
 	/// Gets a value indicating whether any of the diagnostics is an error.
 	/// </summary>
 	public bool HasErrors => Diagnostics.AsReadOnly().Any(item => item.Severity == DiagnosticSeverity.Error);
@@ -77,6 +87,8 @@ public sealed class ClassModel : IEquatable<ClassModel>
 	/// <param name="positionals">The properties with a Positional attribute.</param>
 	/// <param name="diagnostics">The diagnostics found while reading the class.</param>
 	/// <param name="containingTypes">The types the class is nested in, the outermost first.</param>
+	/// <param name="isCommand">Whether the class also has the Command attribute.</param>
+	/// <param name="typeName">The type of the class as it is displayed, or null for the name of the class.</param>
 	public ClassModel(
 		string className,
 		string? namespaceName,
@@ -86,7 +98,9 @@ public sealed class ClassModel : IEquatable<ClassModel>
 		EquatableArray<PropertyAndAttributeInfo> flags,
 		EquatableArray<PropertyAndAttributeInfo> positionals,
 		EquatableArray<DiagnosticInfo> diagnostics,
-		EquatableArray<ContainingType> containingTypes = default)
+		EquatableArray<ContainingType> containingTypes = default,
+		bool isCommand = false,
+		string? typeName = null)
 	{
 		ClassName = className ?? throw new ArgumentNullException(nameof(className));
 		NamespaceName = namespaceName;
@@ -97,6 +111,8 @@ public sealed class ClassModel : IEquatable<ClassModel>
 		Positionals = positionals;
 		Diagnostics = diagnostics;
 		ContainingTypes = containingTypes;
+		IsCommand = isCommand;
+		TypeName = typeName ?? className;
 	}
 
 	/// <inheritdoc/>
@@ -111,7 +127,9 @@ public sealed class ClassModel : IEquatable<ClassModel>
 			&& Options.Equals(other.Options)
 			&& Flags.Equals(other.Flags)
 			&& Positionals.Equals(other.Positionals)
-			&& Diagnostics.Equals(other.Diagnostics);
+			&& Diagnostics.Equals(other.Diagnostics)
+			&& IsCommand == other.IsCommand
+			&& TypeName == other.TypeName;
 	}
 
 	/// <inheritdoc/>
@@ -133,6 +151,8 @@ public sealed class ClassModel : IEquatable<ClassModel>
 		hash = hash * 23 + Flags.GetHashCode();
 		hash = hash * 23 + Positionals.GetHashCode();
 		hash = hash * 23 + Diagnostics.GetHashCode();
+		hash = hash * 23 + IsCommand.GetHashCode();
+		hash = hash * 23 + TypeName.GetHashCode();
 		return hash;
 	}
 }

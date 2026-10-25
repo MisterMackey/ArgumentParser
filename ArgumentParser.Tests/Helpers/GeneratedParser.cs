@@ -39,17 +39,7 @@ public sealed class GeneratedParser
 	/// </summary>
 	public static GeneratedParser Compile(string source, string className = "TestClass", bool implicitUsings = true, params string[] otherFiles)
 	{
-		var syntaxTrees = new List<SyntaxTree> { CSharpSyntaxTree.ParseText(source, path: "File0.cs") };
-		syntaxTrees.AddRange(otherFiles.Select((text, index) => CSharpSyntaxTree.ParseText(text, path: $"File{index + 1}.cs")));
-		if (implicitUsings)
-		{
-			syntaxTrees.Add(CSharpSyntaxTree.ParseText(ImplicitUsingsSource));
-		}
-		var compilation = CSharpCompilation.Create(
-			"GeneratedParserTestAssembly_" + Guid.NewGuid().ToString("N"),
-			syntaxTrees,
-			GetReferences(),
-			new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+		var compilation = CreateCompilation(source, implicitUsings, otherFiles);
 
 		var driver = CSharpGeneratorDriver
 			.Create(new ParserGenerator())
@@ -78,6 +68,35 @@ public sealed class GeneratedParser
 		var context = new AssemblyLoadContext(null, isCollectible: true);
 		var assembly = context.LoadFromStream(stream);
 		return new GeneratedParser(assembly, className, generatedSource);
+	}
+
+	/// <summary>
+	/// Compiles the source with the generated code, like <see cref="Compile"/>, and returns the warnings and errors
+	/// the compiler reports in the generated files. A user project that treats warnings as errors must accept them all.
+	/// </summary>
+	public static IReadOnlyList<Diagnostic> GeneratedCodeDiagnostics(string source)
+	{
+		CSharpGeneratorDriver
+			.Create(new ParserGenerator())
+			.RunGeneratorsAndUpdateCompilation(CreateCompilation(source, implicitUsings: false, []), out var outputCompilation, out _);
+		return outputCompilation.GetDiagnostics()
+			.Where(d => d.Severity >= DiagnosticSeverity.Warning && d.Location.SourceTree?.FilePath.EndsWith(".g.cs", StringComparison.Ordinal) == true)
+			.ToList();
+	}
+
+	private static CSharpCompilation CreateCompilation(string source, bool implicitUsings, string[] otherFiles)
+	{
+		var syntaxTrees = new List<SyntaxTree> { CSharpSyntaxTree.ParseText(source, path: "File0.cs") };
+		syntaxTrees.AddRange(otherFiles.Select((text, index) => CSharpSyntaxTree.ParseText(text, path: $"File{index + 1}.cs")));
+		if (implicitUsings)
+		{
+			syntaxTrees.Add(CSharpSyntaxTree.ParseText(ImplicitUsingsSource));
+		}
+		return CSharpCompilation.Create(
+			"GeneratedParserTestAssembly_" + Guid.NewGuid().ToString("N"),
+			syntaxTrees,
+			GetReferences(),
+			new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 	}
 
 	/// <summary>
@@ -116,6 +135,21 @@ public sealed class GeneratedParser
 		var errors = ((IEnumerable<ArgumentParserException>)items[1]!).ToList();
 		var missingRequired = ((IEnumerable<ArgumentParserException>)items[2]!).ToList();
 		return new ParseOutcome(items[0]!, errors, missingRequired);
+	}
+
+	/// <summary>
+	/// Calls the internal ParseCommand that a tree of commands generates for its classes. Like ParseCore it never prints, exits or throws,
+	/// and it also tells whether the help argument of the tree was given and which help text goes with the outcome.
+	/// </summary>
+	public ParseOutcome ParseCommand(params string[] args)
+	{
+		var type = GetParameterCollectionType();
+		var method = type.GetMethod("ParseCommand", BindingFlags.NonPublic | BindingFlags.Static, [typeof(string[])])
+			?? throw new InvalidOperationException($"{type.FullName} has no internal static ParseCommand(string[]) method.");
+		var items = (ITuple)method.Invoke(null, [args])!;
+		var errors = ((IEnumerable<ArgumentParserException>)items[1]!).ToList();
+		var missingRequired = ((IEnumerable<ArgumentParserException>)items[2]!).ToList();
+		return new ParseOutcome(items[0]!, errors, missingRequired, (bool)items[3]!, (string?)items[4]);
 	}
 
 	/// <summary>
@@ -167,8 +201,23 @@ public sealed class GeneratedParser
 /// <summary>
 /// The tuple returned by a generated Parse method, with helpers to read properties of the parsed instance.
 /// </summary>
-public sealed class ParseOutcome(object instance, IReadOnlyList<ArgumentParserException> errors, IReadOnlyList<ArgumentParserException>? missingRequired = null)
+public sealed class ParseOutcome(
+	object instance,
+	IReadOnlyList<ArgumentParserException> errors,
+	IReadOnlyList<ArgumentParserException>? missingRequired = null,
+	bool helpRequested = false,
+	string? helpText = null)
 {
+	/// <summary>
+	/// Whether the help argument of a tree of commands was given. Only filled in by ParseCommand.
+	/// </summary>
+	public bool HelpRequested { get; } = helpRequested;
+
+	/// <summary>
+	/// The help text of the level of a tree of commands that goes with the outcome. Only filled in by ParseCommand.
+	/// </summary>
+	public string? HelpText { get; } = helpText;
+
 	/// <summary>
 	/// The instance of the parameter collection class.
 	/// </summary>
@@ -181,7 +230,7 @@ public sealed class ParseOutcome(object instance, IReadOnlyList<ArgumentParserEx
 
 	/// <summary>
 	/// The errors for required arguments that were not given, which are also part of <see cref="Errors"/>.
-	/// Only filled in by ParseCore.
+	/// Only filled in by ParseCore and ParseCommand.
 	/// </summary>
 	public IReadOnlyList<ArgumentParserException> MissingRequired { get; } = missingRequired ?? [];
 

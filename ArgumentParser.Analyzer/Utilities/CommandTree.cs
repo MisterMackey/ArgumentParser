@@ -13,7 +13,7 @@ public sealed class NodeArguments : IEquatable<NodeArguments>
 	/// <summary>
 	/// Gets the arguments of a node that has none.
 	/// </summary>
-	public static NodeArguments Empty { get; } = new NodeArguments(default, default);
+	public static NodeArguments Empty { get; } = new NodeArguments(default, default, default);
 
 	/// <summary>
 	/// Gets the properties with the Option attribute.
@@ -26,20 +26,27 @@ public sealed class NodeArguments : IEquatable<NodeArguments>
 	public EquatableArray<PropertyAndAttributeInfo> Flags { get; }
 
 	/// <summary>
+	/// Gets the properties with the Positional attribute of a leaf, for its help text. A group or the root has none (ARG015).
+	/// </summary>
+	public EquatableArray<PropertyAndAttributeInfo> Positionals { get; }
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="NodeArguments"/> class.
 	/// </summary>
 	/// <param name="options">The properties with the Option attribute.</param>
 	/// <param name="flags">The properties with the Flag attribute.</param>
-	public NodeArguments(EquatableArray<PropertyAndAttributeInfo> options, EquatableArray<PropertyAndAttributeInfo> flags)
+	/// <param name="positionals">The properties with the Positional attribute of a leaf.</param>
+	public NodeArguments(EquatableArray<PropertyAndAttributeInfo> options, EquatableArray<PropertyAndAttributeInfo> flags, EquatableArray<PropertyAndAttributeInfo> positionals)
 	{
 		Options = options;
 		Flags = flags;
+		Positionals = positionals;
 	}
 
 	/// <inheritdoc/>
 	public bool Equals(NodeArguments? other)
 	{
-		return other is not null && Options.Equals(other.Options) && Flags.Equals(other.Flags);
+		return other is not null && Options.Equals(other.Options) && Flags.Equals(other.Flags) && Positionals.Equals(other.Positionals);
 	}
 
 	/// <inheritdoc/>
@@ -51,7 +58,7 @@ public sealed class NodeArguments : IEquatable<NodeArguments>
 	/// <inheritdoc/>
 	public override int GetHashCode()
 	{
-		return (Options.GetHashCode() * 23) + Flags.GetHashCode();
+		return (((Options.GetHashCode() * 23) + Flags.GetHashCode()) * 23) + Positionals.GetHashCode();
 	}
 }
 

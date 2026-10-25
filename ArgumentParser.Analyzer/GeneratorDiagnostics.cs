@@ -129,8 +129,18 @@ public static class GeneratorDiagnostics
 
 	private const string ARG027_Id = "ARG027";
 	private const string ARG027_Title = "Argument name used by a parent command";
-	private const string ARG027_Message = "Property '{1}' of '{0}' has the {2} name '{3}', which '{4}' above it in the command tree already uses. " +
-					     "A command cannot reuse the option and flag names of the commands it is part of. Rename one of the two.";
+	private const string ARG027_Message = "Property '{1}' of '{0}' has the {2} name '{3}', which {4} already uses. " +
+					     "A command cannot reuse the option and flag names of the commands it is part of, or the names of the help argument of the tree. Rename one of the two.";
+
+	private const string ARG028_Id = "ARG028";
+	private const string ARG028_Title = "Help setting not supported by a command tree";
+	private const string ARG028_Message = "The CommandApp attribute of '{0}' uses {1}, which a command tree does not support. The tree generates the help text of every level, " +
+					     "so HelpTextGeneration must be GenerateAll, GenerateTextOnly or None, and None cannot be combined with BehaviourOnError.DisplayHelpAndExit, which displays the help text on an error.";
+
+	private const string ARG029_Id = "ARG029";
+	private const string ARG029_Title = "Help and error settings of a leaf are not used by its command tree";
+	private const string ARG029_Message = "The ParameterCollection attribute of leaf command '{0}' sets help or error settings, but parsing through the command tree uses those of the CommandApp attribute of '{1}'. " +
+					     "They only apply to the Parse method of '{0}' itself. Set them on the CommandApp attribute instead, or leave them out.";
 
 	/// <summary>
 	/// Diagnostic descriptor for ARG001: Classes with ParameterCollection attribute must be partial.
@@ -471,7 +481,7 @@ public static class GeneratorDiagnostics
 	);
 
 	/// <summary>
-	/// Diagnostic descriptor for ARG027: A command cannot reuse an option or flag name of a command above it.
+	/// Diagnostic descriptor for ARG027: A command cannot reuse an option or flag name of a command above it, or of the help argument of the tree.
 	/// </summary>
 	public static readonly DiagnosticDescriptor ARG027 = new DiagnosticDescriptor(
 	    ARG027_Id,
@@ -481,5 +491,31 @@ public static class GeneratorDiagnostics
 	    DiagnosticSeverity.Error,
 	    true,
 	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG027.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG028: The CommandApp attribute uses a help setting a tree cannot use.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG028 = new DiagnosticDescriptor(
+	    ARG028_Id,
+	    ARG028_Title,
+	    ARG028_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG028.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG029: The help and error settings of a leaf in a tree are not used by the tree.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG029 = new DiagnosticDescriptor(
+	    ARG029_Id,
+	    ARG029_Title,
+	    ARG029_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Warning,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG029.md"
 	);
 }

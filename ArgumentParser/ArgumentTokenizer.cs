@@ -113,6 +113,25 @@ namespace ArgumentParser
 		}
 
 		/// <summary>
+		/// Determines whether the tokens hold the given flag, written with its short or its long name.
+		/// A tree of commands uses it to see whether its help argument was given on a level.
+		/// </summary>
+		/// <param name="tokens">The tokens of one call to the tokenizer.</param>
+		/// <param name="flag">The flag to look for.</param>
+		/// <returns>True if the flag was given at least once; otherwise, false.</returns>
+		public static bool ContainsFlag(IEnumerable<Token> tokens, FlagAttribute flag)
+		{
+			if (tokens is null)
+				throw new System.ArgumentNullException(nameof(tokens));
+			if (flag is null)
+				throw new System.ArgumentNullException(nameof(flag));
+			// a flag that has a short name is always reported with it, whichever name was written
+			return tokens.OfType<FlagToken>().Any(t => t.IsShort
+				? !string.IsNullOrEmpty(flag.ShortName) && t.Name == flag.ShortName
+				: string.IsNullOrEmpty(flag.ShortName) && !string.IsNullOrEmpty(flag.LongName) && t.Name == flag.LongName);
+		}
+
+		/// <summary>
 		/// Tokenizes the provided arguments into a list of tokens and errors.
 		/// </summary>
 		/// <param name="args">The array of arguments to tokenize.</param>

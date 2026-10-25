@@ -78,7 +78,7 @@ public class IncrementalityTests
 			public ItemAdd? Add { get; private set; }
 		}
 
-		[ParameterCollection(HelpTextGeneration.GenerateTextOnly, "h", "Help", BehaviourOnError.ThrowNever)]
+		[ParameterCollection]
 		[Command("add", "Add an item")]
 		public partial class ItemAdd
 		{
@@ -299,6 +299,20 @@ public class IncrementalityTests
 
 		Assert.All(ModelReasons(driver, ParserGenerator.RootModelsStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
 		Assert.All(ModelReasons(driver, ParserGenerator.LinkedTreesStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+	}
+
+	[Fact]
+	public void Root_ChangingTheHelpSettings_LinksAndGeneratesTheTreeAgain()
+	{
+		var driver = RunTwice(
+			TreeSource,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == TreeSource),
+				Parse(TreeSource.Replace("[CommandApp(\"app\", \"An app\")]", "[CommandApp(\"app\", \"An app\", helpArgumentLongName: \"info\")]", StringComparison.Ordinal))));
+
+		Assert.All(ModelReasons(driver, ParserGenerator.LinkedTreesStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+		var leaf = driver.GetRunResult().GeneratedTrees.Single(t => t.FilePath.EndsWith("ItemAdd_Command.g.cs", StringComparison.Ordinal)).ToString();
+		Assert.Contains("\"info\"", leaf, StringComparison.Ordinal);
 	}
 
 	[Fact]

@@ -686,7 +686,11 @@ public class CommandTreeLinkerTests
 
 		var problems = linked.Problems.Select(p => (p.TypeName, p.PropertyName, Owner: p.Arguments[4])).ToList();
 		Assert.Equal(
-			[("Tree.Group", "Database", "App"), ("Tree.Leaf", "Db", "Group"), ("Tree.Leaf", "Clean", "App")],
+			[
+				("Tree.Group", "Database", "'App' above it in the command tree"),
+				("Tree.Leaf", "Db", "'Group' above it in the command tree"),
+				("Tree.Leaf", "Clean", "'App' above it in the command tree"),
+			],
 			problems);
 	}
 
@@ -751,6 +755,94 @@ public class CommandTreeLinkerTests
 			""");
 
 		Assert.Equal(reported ? new[] { "ARG027" } : Array.Empty<string>(), linked.RuleIds);
+	}
+
+	[Theory]
+	[InlineData("[CommandApp(\"app\")]", "[Flag(\"h\", \"hidden\", \"leaf\")]", true)]
+	[InlineData("[CommandApp(\"app\")]", "[Flag(\"x\", \"Help\", \"leaf\")]", true)]
+	[InlineData("[CommandApp(\"app\")]", "[Flag(\"x\", \"help\", \"leaf\")]", false)]
+	[InlineData("[CommandApp(\"app\", helpArgumentShortName: \"?\")]", "[Flag(\"h\", \"hidden\", \"leaf\")]", false)]
+	[InlineData("[CommandApp(\"app\", helpArgumentShortName: \"?\")]", "[Flag(\"?\", \"hidden\", \"leaf\")]", true)]
+	[InlineData("[CommandApp(\"app\", \"\", HelpTextGeneration.GenerateTextOnly)]", "[Flag(\"h\", \"Help\", \"leaf\")]", false)]
+	public void ARG027_TheNamesOfTheHelpArgumentOfTheTree_CannotBeUsedAnywhereInIt(string commandApp, string leafFlag, bool reported)
+	{
+		var linked = Link($$"""
+			{{commandApp}}
+			public partial class App { public Leaf? Leaf { get; private set; } }
+
+			[ParameterCollection]
+			[Command("leaf")]
+			public partial class Leaf
+			{
+				{{leafFlag}} public bool Value { get; set; }
+			}
+			""");
+
+		Assert.Equal(reported ? new[] { "ARG027" } : Array.Empty<string>(), linked.RuleIds);
+		if (reported)
+		{
+			var message = Assert.Single(linked.Diagnostics()).ToDiagnostic().GetMessage(CultureInfo.InvariantCulture);
+			Assert.Contains("which the help argument of the command tree (set by 'App') already uses", message, StringComparison.Ordinal);
+		}
+	}
+
+	[Fact]
+	public void ARG027_TheHelpNamesOnTheRootItself_AreReported()
+	{
+		var linked = Link("""
+			[CommandApp("app")]
+			public partial class App
+			{
+				[Option("h", "host", "root")] public string Host { get; set; } = "";
+				public Leaf? Leaf { get; private set; }
+			}
+
+			[ParameterCollection] [Command("leaf")] public partial class Leaf { }
+			""");
+
+		var problem = Assert.Single(linked.Problems);
+		Assert.Equal(("ARG027", "Tree.App", "Host"), (problem.RuleId, problem.TypeName, problem.PropertyName));
+	}
+	#endregion
+
+	#region ARG029 settings of a leaf in a tree
+
+	[Theory]
+	[InlineData("[ParameterCollection]", false)]
+	[InlineData("[ParameterCollection(HelpTextGeneration.GenerateAll, \"h\", \"Help\", BehaviourOnError.DisplayHelpAndExit)]", false)]
+	[InlineData("[ParameterCollection(HelpTextGeneration.GenerateTextOnly)]", true)]
+	[InlineData("[ParameterCollection(helpArgumentShortName: \"?\")]", true)]
+	[InlineData("[ParameterCollection(helpArgumentLongName: \"help\")]", true)]
+	[InlineData("[ParameterCollection(behaviourOnError: BehaviourOnError.ThrowNever)]", true)]
+	public void ARG029_LeafInATreeWithSettingsOfItsOwn_IsAWarningOnTheLeaf(string parameterCollection, bool reported)
+	{
+		var linked = Link($$"""
+			[CommandApp("app")]
+			public partial class App { public Leaf? Leaf { get; private set; } }
+
+			{{parameterCollection}}
+			[Command("leaf")]
+			public partial class Leaf { }
+			""");
+
+		Assert.Equal(reported ? new[] { "ARG029" } : Array.Empty<string>(), linked.RuleIds);
+		// a warning does not stop the tree from being generated
+		Assert.False(Assert.Single(linked.Trees).HasErrors);
+		if (reported)
+		{
+			var diagnostic = Assert.Single(linked.Diagnostics());
+			Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+			Assert.Equal("Leaf", linked.TextAt(diagnostic));
+			Assert.Contains("CommandApp attribute of 'App'", diagnostic.ToDiagnostic().GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+		}
+	}
+
+	[Fact]
+	public void ARG029_LeafThatNoTreeReaches_IsOnlyUnreachable()
+	{
+		var linked = Link("[ParameterCollection(behaviourOnError: BehaviourOnError.ThrowNever)] [Command(\"lonely\")] public partial class Lonely { }");
+
+		Assert.Equal(["ARG019"], linked.RuleIds);
 	}
 	#endregion
 

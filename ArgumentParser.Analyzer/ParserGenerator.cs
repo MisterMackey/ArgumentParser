@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using ArgumentParser.Internal.Utilities;
@@ -93,9 +94,17 @@ namespace ArgumentParser.Internal
 			.Select(static (sources, _) => CommandTreeLinker.Link(sources.AsReadOnly()))
 			.WithTrackingName(LinkedTreesStepName);
 
+			// The parser of a leaf comes from the ParameterCollection pipeline. A leaf whose class or arguments have errors has none,
+			// and the code of its tree, which calls it, would only add compiler errors to the ones already reported.
+			var leavesWithErrors = classModels
+			.Where(static model => model.IsCommand && model.HasErrors)
+			.Select(static (model, _) => model.TypeName)
+			.Collect()
+			.Select(static (names, _) => new EquatableArray<string>(names.OrderBy(name => name, StringComparer.Ordinal)));
+
 			// the rules the trees break are reported, and the trees without errors are generated
 			context.RegisterSourceOutput(linked.Combine(nodeModels), ReportLinkDiagnostics);
-			context.RegisterSourceOutput(linked, GenerateTrees);
+			context.RegisterSourceOutput(linked.Combine(leavesWithErrors), GenerateTrees);
 		}
 
 		private static CommandNodeModel ExtractNodeModel(GeneratorAttributeSyntaxContext generatorContext, CancellationToken cancellationToken)
@@ -121,22 +130,21 @@ namespace ArgumentParser.Internal
 			Validation.ReportDiagnostics(context, CommandTreeLinker.ToDiagnostics(input.Result, input.Models.AsReadOnly()).AsReadOnly());
 		}
 
-		private static void GenerateTrees(SourceProductionContext context, LinkResult result)
+		private static void GenerateTrees(SourceProductionContext context, (LinkResult Result, EquatableArray<string> LeavesWithErrors) input)
 		{
+			var result = input.Result;
+			var leavesWithErrors = input.LeavesWithErrors.AsReadOnly();
 			for (int i = 0; i < result.Trees.Count; i++)
 			{
 				var tree = result.Trees[i];
-				if (tree.HasErrors)
+				if (tree.HasErrors || tree.Nodes.AsReadOnly().Any(n => leavesWithErrors.Contains(n.Source.Node.TypeName)))
 				{
 					continue;
 				}
 				for (int j = 0; j < tree.Nodes.Count; j++)
 				{
 					var node = tree.Nodes[j];
-					if (node.Source.Node.Kind != CommandNodeKind.Leaf)
-					{
-						context.AddSource(CommandTreeSourceGenerator.HintName(node), CommandTreeSourceGenerator.Generate(tree, node));
-					}
+					context.AddSource(CommandTreeSourceGenerator.HintName(node), CommandTreeSourceGenerator.Generate(tree, node));
 				}
 			}
 		}
@@ -151,6 +159,8 @@ namespace ArgumentParser.Internal
 			var symbol = (INamedTypeSymbol)generatorContext.TargetSymbol;
 			var containingTypes = ContainingType.ReadAll(symbol);
 			var programName = semanticModel.Compilation.Assembly.Name ?? "";
+			var isCommand = AttributeReader.Has(symbol, AttributeReader.Command);
+			var typeName = symbol.ToDisplayString();
 
 			ClassModel Rejected(IEnumerable<DiagnosticInfo> diagnostics)
 			{
@@ -163,7 +173,9 @@ namespace ArgumentParser.Internal
 					default,
 					default,
 					new EquatableArray<DiagnosticInfo>(diagnostics),
-					containingTypes);
+					containingTypes,
+					isCommand,
+					typeName);
 			}
 
 			// the class may be declared in several parts, in several files: the members of every part count
@@ -208,7 +220,9 @@ namespace ArgumentParser.Internal
 				new EquatableArray<PropertyAndAttributeInfo>(flags),
 				new EquatableArray<PropertyAndAttributeInfo>(positionals),
 				new EquatableArray<DiagnosticInfo>(helptextDiagnostics),
-				containingTypes);
+				containingTypes,
+				isCommand,
+				typeName);
 		}
 
 		private static void GenerateSource(SourceProductionContext context, ClassModel model)
@@ -232,7 +246,8 @@ namespace ArgumentParser.Internal
 				argumentProvider,
 				helptextProvider,
 				config,
-				model.ContainingTypes
+				model.ContainingTypes,
+				model.IsCommand
 			);
 			var sourceText = textGenerator.GenerateSourceText();
 			// the namespace and the types the class is nested in are part of the name: command classes with the same name (an Add below each of two groups) are common

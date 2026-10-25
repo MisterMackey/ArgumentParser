@@ -49,6 +49,16 @@ internal static class AttributeReader
 		return data.ConstructorArguments[index].Value?.ToString() ?? string.Empty;
 	}
 
+	// an enum value arrives as its underlying int
+	internal static int IntArgument(AttributeData? data, int index, int fallback)
+	{
+		if (data is null || data.ConstructorArguments.Length <= index)
+		{
+			return fallback;
+		}
+		return data.ConstructorArguments[index].Value is int value ? value : fallback;
+	}
+
 	internal static bool BoolArgument(AttributeData? data, int index)
 	{
 		if (data is null || data.ConstructorArguments.Length <= index)

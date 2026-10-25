@@ -18,3 +18,5 @@ ARG024 | CommandDeclaration | Error | Abstract command class
 ARG025 | CommandDeclaration | Error | Required member on a command group
 ARG026 | CommandDeclaration | Error | Argument of a command class type
 ARG027 | CommandDeclaration | Error | Argument name used by a parent command
+ARG028 | CommandDeclaration | Error | Help setting not supported by a command tree
+ARG029 | CommandDeclaration | Warning | Help and error settings of a leaf are not used by its command tree

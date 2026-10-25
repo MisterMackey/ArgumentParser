@@ -148,6 +148,18 @@ public class HelptextProvider
 
 	private static string WrapInRawStringLiteral(string content)
 	{
+		return ConstDeclaration("HelpText", content);
+	}
+
+	/// <summary>
+	/// Declares a public string constant whose value is the content, as a raw string literal.
+	/// The content must end with a line break; the closing delimiter goes on a line of its own.
+	/// </summary>
+	/// <param name="name">The name of the constant.</param>
+	/// <param name="content">The text of the constant.</param>
+	/// <returns>The declaration, ending with a line break.</returns>
+	internal static string ConstDeclaration(string name, string content)
+	{
 		// a raw string literal needs more quote characters in its delimiter than the longest run inside the content
 		int longestRun = 0;
 		int currentRun = 0;
@@ -158,7 +170,7 @@ public class HelptextProvider
 		}
 		var delimiter = new string('"', Math.Max(3, longestRun + 1));
 		var literal = new StringBuilder();
-		literal.AppendLine($"public const string HelpText = {delimiter}");
+		literal.AppendLine($"public const string {name} = {delimiter}");
 		literal.Append(content);
 		literal.AppendLine($"{delimiter};");
 		return literal.ToString();

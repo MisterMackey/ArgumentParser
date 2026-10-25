@@ -105,6 +105,48 @@ public class CommandNodeExtractionTests
 	}
 
 	[Fact]
+	public void Settings_AreThoseOfTheCommandAppForTheRootAndOfTheParameterCollectionForALeaf()
+	{
+		const string types = """
+			[CommandApp("app", "An app", HelpTextGeneration.GenerateTextOnly, "?", "info", BehaviourOnError.ThrowNever)]
+			public partial class App { public Group? Group { get; private set; } }
+
+			[Command("group")]
+			public partial class Group { public Leaf? Leaf { get; private set; } }
+
+			[ParameterCollection(HelpTextGeneration.None, "x", "", BehaviourOnError.ThrowIfAnyError)]
+			[Command("leaf")]
+			public partial class Leaf { }
+
+			[ParameterCollection]
+			[Command("plain")]
+			public partial class Plain2 { }
+			""";
+
+		Assert.Equal(new NodeSettings(2, "?", "info", 2), Extract(types, "App").Node.Settings);
+		Assert.Equal(NodeSettings.Default, Extract(types, "Group").Node.Settings);
+		Assert.Equal(new NodeSettings(1, "x", "", 1), Extract(types, "Leaf").Node.Settings);
+		Assert.Equal(NodeSettings.Default, Extract(types, "Plain2").Node.Settings);
+		Assert.Equal(NodeSettings.Default, Extract("[CommandApp(\"app\")] public partial class App { }", "App").Node.Settings);
+	}
+
+	[Fact]
+	public void Leaf_KeepsItsPositionalsForItsHelpText()
+	{
+		var model = Extract("""
+			[ParameterCollection]
+			[Command("leaf")]
+			public partial class Leaf
+			{
+				[Positional(1, "second")] public string Second { get; set; } = "";
+				[Positional(0, "first")] public string First { get; set; } = "";
+			}
+			""", "Leaf");
+
+		Assert.Equal(["Second", "First"], model.Arguments.Positionals.AsReadOnly().Select(p => p.PropertyName));
+	}
+
+	[Fact]
 	public void Group_PositionalsAreNotReadAsArguments()
 	{
 		var model = Extract("""

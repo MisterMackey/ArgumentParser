@@ -146,6 +146,11 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 	public EquatableArray<ChildCandidate> Children { get; }
 
 	/// <summary>
+	/// Gets the help and error settings: those of the whole tree for the root, those of its own Parse for a leaf, the defaults for a group.
+	/// </summary>
+	public NodeSettings Settings { get; }
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="CommandNodeInfo"/> class.
 	/// </summary>
 	/// <param name="className">The name of the class.</param>
@@ -157,6 +162,7 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 	/// <param name="description">The description used in help text.</param>
 	/// <param name="annotations">The numeric value of the CommandAnnotations of the command.</param>
 	/// <param name="children">The properties that may be child commands.</param>
+	/// <param name="settings">The help and error settings, or null for the defaults.</param>
 	public CommandNodeInfo(
 		string className,
 		string? namespaceName,
@@ -166,7 +172,8 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 		string name,
 		string description,
 		int annotations,
-		EquatableArray<ChildCandidate> children)
+		EquatableArray<ChildCandidate> children,
+		NodeSettings? settings = null)
 	{
 		ClassName = className ?? throw new ArgumentNullException(nameof(className));
 		NamespaceName = namespaceName;
@@ -177,6 +184,7 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 		Description = description ?? throw new ArgumentNullException(nameof(description));
 		Annotations = annotations;
 		Children = children;
+		Settings = settings ?? NodeSettings.Default;
 	}
 
 	/// <inheritdoc/>
@@ -191,7 +199,8 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 			&& Name == other.Name
 			&& Description == other.Description
 			&& Annotations == other.Annotations
-			&& Children.Equals(other.Children);
+			&& Children.Equals(other.Children)
+			&& Settings.Equals(other.Settings);
 	}
 
 	/// <inheritdoc/>
@@ -213,6 +222,7 @@ public sealed class CommandNodeInfo : IEquatable<CommandNodeInfo>
 		hash = hash * 23 + Description.GetHashCode();
 		hash = hash * 23 + Annotations;
 		hash = hash * 23 + Children.GetHashCode();
+		hash = hash * 23 + Settings.GetHashCode();
 		return hash;
 	}
 }
