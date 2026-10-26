@@ -166,6 +166,15 @@ $'Copies=0\nError: InvalidArgumentValueException: Invalid value for Copies: 1x' 
 check "invalid bool, enum, guid and timestamp are all reported" 1 \
 $'Error: InvalidArgumentValueException: Invalid value for Enabled: maybe\nError: InvalidArgumentValueException: Invalid value for Mode: Level9\nError: InvalidArgumentValueException: Invalid value for Id: nope\nError: InvalidArgumentValueException: Invalid value for When: yesterday' \
 	lenient -n bob src --enabled maybe --mode Level9 --id nope --when yesterday
+check "a comma in a number is rejected, not read as a thousands separator" 1 \
+$'Ratio=0\nError: InvalidArgumentValueException: Invalid value for Ratio: 1,5\nError: InvalidArgumentValueException: Invalid value for Price: 1,000' \
+	lenient -n bob src -r 1,5 --price 1,000
+check "a date that is not ISO 8601 is rejected" 1 \
+$'Error: InvalidArgumentValueException: Invalid value for When: 01/02/2026' \
+	lenient -n bob src --when 01/02/2026
+check "an ISO 8601 date without a time" 0 \
+$'When=2026-01-02T00:00:00.0000000Z\n!Error:' \
+	lenient -n bob src --when 2026-01-02
 check "invalid char" 1 \
 $'Error: InvalidArgumentValueException: Invalid value for Letter: xy' \
 	lenient -n bob src --letter xy

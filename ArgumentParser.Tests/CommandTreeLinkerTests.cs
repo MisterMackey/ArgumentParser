@@ -814,6 +814,8 @@ public class CommandTreeLinkerTests
 	[InlineData("[ParameterCollection(helpArgumentShortName: \"?\")]", true)]
 	[InlineData("[ParameterCollection(helpArgumentLongName: \"help\")]", true)]
 	[InlineData("[ParameterCollection(behaviourOnError: BehaviourOnError.ThrowNever)]", true)]
+	[InlineData("[ParameterCollection(UseCurrentCulture = false)]", false)]
+	[InlineData("[ParameterCollection(UseCurrentCulture = true)]", true)]
 	public void ARG029_LeafInATreeWithSettingsOfItsOwn_IsAWarningOnTheLeaf(string parameterCollection, bool reported)
 	{
 		var linked = Link($$"""

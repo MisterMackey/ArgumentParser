@@ -138,8 +138,8 @@ public static class GeneratorDiagnostics
 					     "so HelpTextGeneration must be GenerateAll, GenerateTextOnly or None, and None cannot be combined with BehaviourOnError.DisplayHelpAndExit, which displays the help text on an error.";
 
 	private const string ARG029_Id = "ARG029";
-	private const string ARG029_Title = "Help and error settings of a leaf are not used by its command tree";
-	private const string ARG029_Message = "The ParameterCollection attribute of leaf command '{0}' sets help or error settings, but parsing through the command tree uses those of the CommandApp attribute of '{1}'. " +
+	private const string ARG029_Title = "Help, error and culture settings of a leaf are not used by its command tree";
+	private const string ARG029_Message = "The ParameterCollection attribute of leaf command '{0}' sets help, error or culture settings, but parsing through the command tree uses those of the CommandApp attribute of '{1}'. " +
 					     "They only apply to the Parse method of '{0}' itself. Set them on the CommandApp attribute instead, or leave them out.";
 
 	/// <summary>

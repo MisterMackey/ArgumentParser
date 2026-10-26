@@ -13,7 +13,7 @@ public class GeneratedCommandTreeTests
 {
 	public GeneratedCommandTreeTests()
 	{
-		// the generated code parses with the current culture
+		// the assertions format the parsed values with the current culture; tests about cultures set their own
 		CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 	}
 
@@ -712,6 +712,81 @@ public class GeneratedCommandTreeTests
 	}
 	#endregion
 
+	#region cultures
+
+	private const string CultureTree = """
+		using ArgumentParser;
+
+		namespace ArgumentParser.Tests;
+
+		[CommandApp("tool", "A tool", UseCurrentCulture = true)]
+		public partial class Tool
+		{
+			[Option("s", "scale", "Scale")]
+			public double Scale { get; set; }
+
+			public Group? Group { get; private set; }
+		}
+
+		[Command("group", "A group")]
+		public partial class Group
+		{
+			[Option("o", "offset", "Offset")]
+			public decimal Offset { get; set; }
+
+			public Run? Run { get; private set; }
+		}
+
+		[ParameterCollection]
+		[Command("run", "Run it")]
+		public partial class Run
+		{
+			[Option("a", "amount", "Amount")]
+			public double Amount { get; set; }
+		}
+		""";
+
+	[Fact]
+	public void Parse_ByDefault_EveryLevelRejectsCultureDependentText()
+	{
+		CultureInfo.CurrentCulture = new CultureInfo("nl-NL");
+
+		var rejected = Calories().ParseCommand("ingredient", "add", "-n", "rice", "--kcal", "1,5");
+		var accepted = Calories().ParseCommand("ingredient", "add", "-n", "rice", "--kcal", "1.5");
+
+		Assert.IsType<InvalidArgumentValueException>(Assert.Single(rejected.Errors));
+		Assert.Empty(accepted.Errors);
+		Assert.Equal(1.5, accepted.GetPath<double>("Ingredient.Add.Kcal"));
+	}
+
+	[Fact]
+	public void Parse_UseCurrentCultureOfTheCommandApp_AppliesToEveryLevelAndTheLeaf()
+	{
+		CultureInfo.CurrentCulture = new CultureInfo("nl-NL");
+		var parser = GeneratedParser.Compile(CultureTree, "Tool");
+
+		var outcome = parser.ParseCommand("--scale", "1,5", "group", "--offset", "2,25", "run", "--amount", "3,5");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(1.5, outcome.GetPath<double>("Scale"));
+		Assert.Equal(2.25m, outcome.GetPath<decimal>("Group.Offset"));
+		Assert.Equal(3.5, outcome.GetPath<double>("Group.Run.Amount"));
+	}
+
+	[Fact]
+	public void ParseCore_OfALeafInATreeWithUseCurrentCulture_KeepsTheSettingOfTheLeaf()
+	{
+		CultureInfo.CurrentCulture = new CultureInfo("nl-NL");
+		var leaf = GeneratedParser.Compile(CultureTree, "Run");
+
+		var rejected = leaf.ParseCore("--amount", "3,5");
+		var accepted = leaf.ParseCore("--amount", "3.5");
+
+		Assert.IsType<InvalidArgumentValueException>(Assert.Single(rejected.Errors));
+		Assert.Equal(3.5, accepted.Get<double>("Amount"));
+	}
+	#endregion
+
 	#region nested classes, partial classes in several files and other declaration shapes
 
 	[Fact]
@@ -1068,7 +1143,7 @@ public class GeneratedCommandTreeTests
 		Assert.Contains("ArgumentParser.Tests.IngredientAdd_Command.g.cs", files.Keys);
 		Assert.Contains("ArgumentParser.Tests.IngredientAdd_Parser.g.cs", files.Keys);
 		// the part of the tree calls the parser of the leaf, and only the parser's part carries the GeneratedCode attribute
-		Assert.Contains("ParseCore(args, commandFlags, CommandHelpArgument)", files["ArgumentParser.Tests.IngredientAdd_Command.g.cs"]);
+		Assert.Contains("ParseCore(args, commandFlags, CommandHelpArgument, false)", files["ArgumentParser.Tests.IngredientAdd_Command.g.cs"]);
 		Assert.DoesNotContain("GeneratedCodeAttribute", files["ArgumentParser.Tests.IngredientAdd_Command.g.cs"]);
 	}
 

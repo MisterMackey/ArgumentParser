@@ -131,6 +131,26 @@ public class CommandNodeExtractionTests
 	}
 
 	[Fact]
+	public void Settings_UseCurrentCulture_IsReadForTheRootAndALeaf()
+	{
+		const string types = """
+			[CommandApp("app", UseCurrentCulture = true)]
+			public partial class App { public Group? Group { get; private set; } }
+
+			[Command("group")]
+			public partial class Group { public Leaf? Leaf { get; private set; } }
+
+			[ParameterCollection(UseCurrentCulture = true)]
+			[Command("leaf")]
+			public partial class Leaf { }
+			""";
+
+		Assert.Equal(new NodeSettings(0, "h", "Help", 0, useCurrentCulture: true), Extract(types, "App").Node.Settings);
+		Assert.Equal(NodeSettings.Default, Extract(types, "Group").Node.Settings);
+		Assert.Equal(new NodeSettings(0, "h", "Help", 0, useCurrentCulture: true), Extract(types, "Leaf").Node.Settings);
+	}
+
+	[Fact]
 	public void Leaf_KeepsItsPositionalsForItsHelpText()
 	{
 		var model = Extract("""

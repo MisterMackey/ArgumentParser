@@ -316,6 +316,44 @@ public class IncrementalityTests
 	}
 
 	[Fact]
+	public void Root_ChangingUseCurrentCulture_GeneratesTheTreeAgain()
+	{
+		var driver = RunTwice(
+			TreeSource,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == TreeSource),
+				Parse(TreeSource.Replace("[CommandApp(\"app\", \"An app\")]", "[CommandApp(\"app\", \"An app\", UseCurrentCulture = true)]", StringComparison.Ordinal))));
+
+		Assert.All(ModelReasons(driver, ParserGenerator.LinkedTreesStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+		var leaf = driver.GetRunResult().GeneratedTrees.Single(t => t.FilePath.EndsWith("ItemAdd_Command.g.cs", StringComparison.Ordinal)).ToString();
+		Assert.Contains("CommandHelpArgument, true);", leaf, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void ChangingUseCurrentCulture_RegeneratesTheParser()
+	{
+		const string source = """
+			using ArgumentParser;
+
+			[ParameterCollection]
+			public partial class Args
+			{
+				[Option("a", "amount", "An amount")]
+				public double Amount { get; set; }
+			}
+			""";
+		var driver = RunTwice(
+			source,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == source),
+				Parse(source.Replace("[ParameterCollection]", "[ParameterCollection(UseCurrentCulture = true)]", StringComparison.Ordinal))));
+
+		Assert.Contains(IncrementalStepRunReason.Modified, OutputReasons(driver));
+		var generated = driver.GetRunResult().GeneratedTrees.Single().ToString();
+		Assert.Contains("ValueParser.TryParse(optionToken.Value, true, out double parsedValue)", generated, StringComparison.Ordinal);
+	}
+
+	[Fact]
 	public void EditToTheParserClass_LeavesAGroupInTheSameFileCached()
 	{
 		// the group comes first in the file, so an edit to the parser class after it moves nothing in the group

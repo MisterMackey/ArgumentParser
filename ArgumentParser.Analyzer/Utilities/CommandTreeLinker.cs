@@ -149,7 +149,7 @@ public static class CommandTreeLinker
 				{
 					Error(problem);
 				}
-				// the settings of a leaf only apply to its own Parse, parsing through the tree uses those of the root
+				// the settings of a leaf (help, error and culture) only apply to its own Parse, parsing through the tree uses those of the root
 				var unusedSettings = new LinkProblem(GeneratorDiagnostics.ARG029, node.Node.TypeName, null, Args(node.Node.ClassName, root.Node.ClassName));
 				if (node.Node.Kind == CommandNodeKind.Leaf && !node.Node.Settings.Equals(NodeSettings.Default) && !problems.Contains(unusedSettings))
 				{

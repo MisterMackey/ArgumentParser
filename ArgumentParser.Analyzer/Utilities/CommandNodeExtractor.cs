@@ -143,7 +143,7 @@ public static class CommandNodeExtractor
 	}
 
 	// HelpTextGeneration, the short and long help names and BehaviourOnError, in this order from the given index;
-	// Roslyn fills in the defaults of the arguments the user left out
+	// Roslyn fills in the defaults of the arguments the user left out. UseCurrentCulture is a named argument of both attributes.
 	private static NodeSettings SettingsArguments(AttributeData? data, int first)
 	{
 		var defaults = NodeSettings.Default;
@@ -155,7 +155,8 @@ public static class CommandNodeExtractor
 			AttributeReader.IntArgument(data, first, defaults.HelpTextGeneration),
 			AttributeReader.StringArgument(data, first + 1),
 			AttributeReader.StringArgument(data, first + 2),
-			AttributeReader.IntArgument(data, first + 3, defaults.BehaviourOnError));
+			AttributeReader.IntArgument(data, first + 3, defaults.BehaviourOnError),
+			data.NamedArguments.Any(a => a.Key == "UseCurrentCulture" && a.Value.Value is true));
 	}
 
 	// Annotations is a named argument of ParameterCollection, so it is only there when the user wrote it; otherwise it has the default

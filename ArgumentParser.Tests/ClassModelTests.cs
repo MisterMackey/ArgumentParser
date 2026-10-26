@@ -206,6 +206,9 @@ public class ClassModelTests
 		Assert.NotEqual(baseline, Configuration("[ParameterCollection(helpArgumentShortName: \"?\")]"));
 		Assert.NotEqual(baseline, Configuration("[ParameterCollection(helpArgumentLongName: \"Assist\")]"));
 		Assert.NotEqual(baseline, Configuration("[ParameterCollection(behaviourOnError: BehaviourOnError.ThrowNever)]"));
+		Assert.NotEqual(baseline, Configuration("[ParameterCollection(UseCurrentCulture = true)]"));
+		Assert.NotEqual(baseline.GetHashCode(), Configuration("[ParameterCollection(UseCurrentCulture = true)]").GetHashCode());
+		Assert.Equal(baseline, Configuration("[ParameterCollection(UseCurrentCulture = false)]"));
 		Assert.False(baseline.Equals(null));
 		Assert.False(baseline.Equals("[ParameterCollection]"));
 	}
@@ -318,6 +321,8 @@ public class ClassModelTests
 		Assert.NotEqual(baseline, new NodeSettings(0, "?", "Help", 0));
 		Assert.NotEqual(baseline, new NodeSettings(0, "h", "help", 0));
 		Assert.NotEqual(baseline, new NodeSettings(0, "h", "Help", 2));
+		Assert.NotEqual(baseline, new NodeSettings(0, "h", "Help", 0, useCurrentCulture: true));
+		Assert.NotEqual(baseline.GetHashCode(), new NodeSettings(0, "h", "Help", 0, useCurrentCulture: true).GetHashCode());
 		Assert.Equal(new NodeSettings(0, "", "", 0), new NodeSettings(0, null!, null!, 0));
 	}
 

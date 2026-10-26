@@ -9,13 +9,16 @@ public static class ParserSource
 	/// Wraps the members in a ParameterCollection class named TestClass.
 	/// Defaults are chosen so that Parse never exits the test process:
 	/// no help argument handler and no throwing on errors.
+	/// With useCurrentCulture the attribute sets UseCurrentCulture = true.
 	/// </summary>
 	public static string Build(
 		string members,
 		string behaviourOnError = "ThrowNever",
 		string helpTextGeneration = "GenerateTextOnly",
-		string extraTypes = "")
+		string extraTypes = "",
+		bool useCurrentCulture = false)
 	{
+		var culture = useCurrentCulture ? ", UseCurrentCulture = true" : "";
 		return $$"""
 			using System;
 			using ArgumentParser;
@@ -24,7 +27,7 @@ public static class ParserSource
 
 			{{extraTypes}}
 
-			[ParameterCollection(HelpTextGeneration.{{helpTextGeneration}}, "h", "Help", BehaviourOnError.{{behaviourOnError}})]
+			[ParameterCollection(HelpTextGeneration.{{helpTextGeneration}}, "h", "Help", BehaviourOnError.{{behaviourOnError}}{{culture}})]
 			public partial class TestClass
 			{
 			{{members}}

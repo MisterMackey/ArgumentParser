@@ -8,6 +8,7 @@ Licensed under the Apache License, Version 2.0
 	- [Quickstart](#quickstart)
 		- [Overriding the default behaviour](#overriding-the-default-behaviour)
 		- [Supported types for argument properties](#supported-types-for-argument-properties)
+		- [Numbers, dates and times](#numbers-dates-and-times)
 	- [Command trees](#command-trees)
 		- [Declaring a tree](#declaring-a-tree)
 		- [Parsing](#parsing)
@@ -128,7 +129,6 @@ The behaviour when a parsing error is encountered can also be configured.
 *Some combinations may not be valid, an error diagnostic is displayed with more info in that case. Example: preventing helptext from generating but still asking for generated code to display the helptext. In this case the helptext must be supplied by the user*
 
 ### Supported types for argument properties
-All types are parsed with their respective .Parse method from the BCL.
 ```C#
 int
 double
@@ -152,6 +152,25 @@ DateTime
 
 Custom enum types are also supported. When used in combination with a Flag, the amount of times the flag is repeated (int) will be casted as the enum type.
 For Positionals and Options, the supplied string value will be used in a TryParse construction.
+
+### Numbers, dates and times
+Numbers, dates and times are read the same way on every machine, whatever its culture, and only in forms that cannot be misread (the runtime class `ArgumentParser.ValueParser` does the conversion):
+
+| Type | Accepted | Rejected |
+|---|---|---|
+| `int`, `long`, `short`, `byte`, `sbyte`, `uint`, `ulong`, `ushort` | `42`, `-42`, `+42` | `1,000`, `1.000`, `1e3`, `0x10` |
+| `double`, `float` | `1.5`, `-2.5e3`, `.5`, `NaN`, `Infinity`, `-Infinity` | `1,5`, `1,000.5` |
+| `decimal` | `1.5`, `-2.5e3` | `1,5`, `1,000.5` |
+| `DateTime` | ISO 8601: `2026-10-26`, `2026-10-26T14:30`, `2026-10-26T14:30:15.250`, each optionally followed by `Z` or an offset such as `+02:00` | `01/02/2026`, `26-10-2026`, `2026-10-26 14:30` |
+| `TimeSpan` | `[-][d.]hh:mm[:ss[.fffffff]]`, or a number of days | `1:30:15,5` |
+
+A thousands separator is never accepted, and the decimal point is always `.`, so `1,5` is an error instead of 15 (or 1.5 on a machine with a Dutch or German culture). A `DateTime` with `Z` has `DateTimeKind.Utc`, one with an offset is converted to local time (`DateTimeKind.Local`), and one without either is `DateTimeKind.Unspecified`.
+
+When this is wrong for an application, for example because its users type numbers the way their own culture writes them, `UseCurrentCulture` reads them with the culture of the machine instead, the way the `TryParse(string, out T)` method of each type does:
+```C#
+[ParameterCollection(UseCurrentCulture = true)]
+```
+For a single argument, `[ParsedWithMethod]` can read the text in any other way. In a tree of commands the setting goes on `[CommandApp]`, and applies to every level (see [Help and errors](#help-and-errors)).
 
 ## Command trees
 Instead of one flat set of arguments, an application can have commands, in the form `appname subcommand action`:
@@ -312,6 +331,8 @@ When parsing fails, `behaviourOnError` decides what happens, as described in [Be
 
 The help text of every level is also a public constant, `CommandHelpText`, on its class. The `HelpText` of a leaf stays the help text of its own `Parse`. The settings of a leaf's `[ParameterCollection]` also only apply to that `Parse`. The tree ignores them, and the generator warns when a leaf in a tree sets them (ARG029).
 
+`UseCurrentCulture` (see [Numbers, dates and times](#numbers-dates-and-times)) is a setting of the whole tree as well: set on `[CommandApp]`, it applies to the options of the root and the groups and to the arguments of every leaf. Set on the `[ParameterCollection]` of a leaf, it only applies to the leaf's own `Parse` (and ARG029 warns about it).
+
 ### The list of commands
 The root also gets a static `Commands` list, with a `CommandInfo` for every leaf:
 
@@ -374,7 +395,7 @@ A tree is only generated when it has no errors, including the errors of its leav
 | [ARG026](ArgumentParser.Analyzer/docs/rules/ARG026.md) | An `Option`, `Flag` or `Positional` property has a command class as its type. |
 | [ARG027](ArgumentParser.Analyzer/docs/rules/ARG027.md) | An option or flag uses a name of a command above it, or of the help argument. |
 | [ARG028](ArgumentParser.Analyzer/docs/rules/ARG028.md) | `CommandApp` uses a help mode a tree cannot use, or `None` with `DisplayHelpAndExit`. |
-| [ARG029](ArgumentParser.Analyzer/docs/rules/ARG029.md) (warning) | A leaf in a tree sets help or error settings that the tree does not use. |
+| [ARG029](ArgumentParser.Analyzer/docs/rules/ARG029.md) (warning) | A leaf in a tree sets help, error or culture settings that the tree does not use. |
 
 ## Inspecting the generated code
 
@@ -455,7 +476,7 @@ Optional arguments:
                         }
                         if (optionToken.Name == "t" || optionToken.Name == "TimeStamp")
                         {
-                            if (!DateTime.TryParse(optionToken.Value, out var parsedValue))
+                            if (!global::ArgumentParser.ValueParser.TryParse(optionToken.Value, false, out global::System.DateTime parsedValue))
                             {
                                 errors.Add(new ArgumentParser.InvalidArgumentValueException($"Invalid value for TimeStamp: { optionToken.Value }"));
                             }

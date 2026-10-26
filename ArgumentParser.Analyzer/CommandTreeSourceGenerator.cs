@@ -76,11 +76,11 @@ public static class CommandTreeSourceGenerator
 		var signature = $"internal static ({className} result, List<global::ArgumentParser.ArgumentParserException> errors, List<global::ArgumentParser.MissingRequiredArgumentException> missingRequired, bool helpRequested, string helpText) ParseCommand(string[] args)";
 		if (info.Kind == CommandNodeKind.Leaf)
 		{
-			// the parser of the ParameterCollection attribute, with the help argument of the tree instead of its own
+			// the parser of the ParameterCollection attribute, with the help argument and culture setting of the tree instead of its own
 			writer.WriteLine(signature);
 			writer.WriteLine("{");
 			writer.Indent++;
-			writer.WriteLine($"var (instance, errors, missingRequired, helpRequested) = ParseCore(args, {SourceTextGenerator.CommandFlagsName}, {(settings.HasHelpArgument ? HelpArgumentName : "null")});");
+			writer.WriteLine($"var (instance, errors, missingRequired, helpRequested) = ParseCore(args, {SourceTextGenerator.CommandFlagsName}, {(settings.HasHelpArgument ? HelpArgumentName : "null")}, {settings.UseCurrentCultureLiteral});");
 			writer.WriteLine($"return (instance, errors, missingRequired, helpRequested, {helpText});");
 			writer.Indent--;
 			writer.WriteLine("}");
@@ -124,7 +124,7 @@ public static class CommandTreeSourceGenerator
 		writer.WriteLine("var (tokens, errors, commandIndex) = tokenizer.TokenizeLeadingArguments(args, options, flags);");
 		writer.WriteLine($"var instance = new {node.Source.Node.ClassName}();");
 		SourceTextGenerator.WriteRequiredProperties(writer, options, noPositionals);
-		SourceTextGenerator.WriteTokenLoop(writer, options, noPositionals, flags);
+		SourceTextGenerator.WriteTokenLoop(writer, options, noPositionals, flags, settings.UseCurrentCultureLiteral);
 		SourceTextGenerator.WriteMissingRequired(writer);
 		if (settings.HasHelpArgument)
 		{

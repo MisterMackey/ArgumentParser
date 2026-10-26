@@ -66,6 +66,18 @@ namespace ArgumentParser
 		/// The annotations do not change how arguments are parsed or how help text looks.
 		/// </summary>
 		public CommandAnnotations Annotations { get; set; } = CommandAnnotations.Destructive | CommandAnnotations.OpenWorld;
+
+		/// <summary>
+		/// Gets or sets a value indicating whether numbers, dates and times are read with the culture of the current thread.
+		/// By default (false) they are read with the invariant culture and only in forms that mean the same everywhere:
+		/// numbers without thousands separators and with <c>.</c> as the decimal point (<c>1,5</c> is rejected), and dates and times
+		/// as ISO 8601 (<c>2026-10-26</c>, <c>2026-10-26T14:30:00Z</c>); see <see cref="ValueParser"/>.
+		/// Set it to true to read them the way the <c>TryParse(string, out T)</c> method of the type does, with the culture of the
+		/// machine the program runs on: <c>1,5</c> is then 1.5 with a Dutch culture and 15 with an English one.
+		/// For a single argument, a method given with <see cref="ParsedWithMethodAttribute"/> can read the text in any other way.
+		/// When the class is a leaf of a tree of commands, the setting of the <see cref="CommandAppAttribute"/> of the tree is used instead.
+		/// </summary>
+		public bool UseCurrentCulture { get; set; }
 	}
 
 	/// <summary>
@@ -79,7 +91,8 @@ namespace ArgumentParser
 	/// as long as the types around them are partial too.
 	/// The help and error settings apply to the whole tree, like those of <see cref="ParameterCollectionAttribute"/> do to one class:
 	/// the help argument can be given on every level and shows the help of that level, and an error shows the help of the deepest
-	/// level that was reached. The settings of the ParameterCollection attribute of a leaf only apply to its own <c>Parse</c>.
+	/// level that was reached. So does <see cref="UseCurrentCulture"/>, for the arguments of every level.
+	/// The settings of the ParameterCollection attribute of a leaf only apply to its own <c>Parse</c>.
 	/// The help text of every level is generated, so only <see cref="HelpTextGeneration.GenerateAll"/>,
 	/// <see cref="HelpTextGeneration.GenerateTextOnly"/> and <see cref="HelpTextGeneration.None"/> can be used.
 	/// </summary>
@@ -140,6 +153,12 @@ namespace ArgumentParser
 		/// Gets the description of the application to be used in help text.
 		/// </summary>
 		public string Description { get; }
+		/// <summary>
+		/// Gets or sets a value indicating whether numbers, dates and times are read with the culture of the current thread,
+		/// for the arguments of every level of the tree, the leaves included. By default (false) they are read with the invariant culture
+		/// and only in forms that mean the same everywhere; see <see cref="ParameterCollectionAttribute.UseCurrentCulture"/>.
+		/// </summary>
+		public bool UseCurrentCulture { get; set; }
 	}
 
 	/// <summary>

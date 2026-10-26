@@ -569,8 +569,8 @@ public class DiagnosticRuleTests
 		var parse = plain.Output[plain.Output.IndexOf("public static (TestClass result", StringComparison.Ordinal)..plain.Output.LastIndexOf("    }\n}", StringComparison.Ordinal)];
 		Assert.StartsWith(plain.Output[..startOfParseCore], leaf.Output, StringComparison.Ordinal);
 		Assert.Contains(parse, leaf.Output, StringComparison.Ordinal);
-		Assert.Contains("var (instance, errors, missingRequired, _) = ParseCore(args, flags, null);", leaf.Output, StringComparison.Ordinal);
-		Assert.Contains("ParseCore(string[] args, global::ArgumentParser.FlagAttribute[] flagsTable, global::ArgumentParser.FlagAttribute help)", leaf.Output, StringComparison.Ordinal);
+		Assert.Contains("var (instance, errors, missingRequired, _) = ParseCore(args, flags, null, false);", leaf.Output, StringComparison.Ordinal);
+		Assert.Contains("ParseCore(string[] args, global::ArgumentParser.FlagAttribute[] flagsTable, global::ArgumentParser.FlagAttribute help, bool useCurrentCulture)", leaf.Output, StringComparison.Ordinal);
 		Assert.DoesNotContain("FlagAttribute help)", plain.Output, StringComparison.Ordinal);
 	}
 

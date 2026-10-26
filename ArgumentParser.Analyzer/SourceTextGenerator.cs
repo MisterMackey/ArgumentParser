@@ -106,11 +106,11 @@ public class SourceTextGenerator : ISourceTextGenerator
 		if (IsCommand)
 		{
 			// the body is shared with the tree, which parses the leaf with other flags
-			writer.WriteLine("var (instance, errors, missingRequired, _) = ParseCore(args, flags, null);");
+			writer.WriteLine($"var (instance, errors, missingRequired, _) = ParseCore(args, flags, null, {UseCurrentCultureLiteral});");
 		}
 		else
 		{
-			WriteParseCoreBody(writer, className, "flags");
+			WriteParseCoreBody(writer, className, "flags", UseCurrentCultureLiteral);
 		}
 		writer.WriteLine("return (instance, errors, missingRequired);");
 		writer.Indent--;
@@ -202,19 +202,19 @@ public class SourceTextGenerator : ISourceTextGenerator
 	}
 
 	// Tokenizes args against the flags table of the given expression and binds the tokens to a new instance.
-	private void WriteParseCoreBody(IndentedTextWriter writer, string className, string flagsTable, string? ownHelpCondition = null)
+	private void WriteParseCoreBody(IndentedTextWriter writer, string className, string flagsTable, string useCurrentCulture, string? ownHelpCondition = null)
 	{
 		writer.WriteLine("var tokenizer = new global::ArgumentParser.ArgumentTokenizer();");
 		writer.WriteLine($"var (tokens, errors) = tokenizer.TokenizeArguments(args, options, positionals, {flagsTable});");
 		writer.WriteLine($"var instance = new {className}();");
 		// required arguments are tracked per call, never in static state
 		WriteRequiredProperties(writer, Options, Positionals);
-		WriteTokenLoop(writer, Options, Positionals, Flags, ownHelpCondition);
+		WriteTokenLoop(writer, Options, Positionals, Flags, useCurrentCulture, ownHelpCondition);
 		WriteMissingRequired(writer);
 	}
 
-	// A tree of commands parses a leaf with the help argument of the tree instead of the one of the leaf's own settings
-	// (commandFlags leaves that one out, so DisplayHelp is never set), and needs to know whether it was given.
+	// A tree of commands parses a leaf with the help argument and culture setting of the tree instead of the leaf's own settings
+	// (commandFlags leaves its help argument out, so DisplayHelp is never set), and needs to know whether the help argument was given.
 	private void WriteCommandParseCore(IndentedTextWriter writer, string className)
 	{
 		if (Config.HelpArgumentShouldBeGenerated())
@@ -226,11 +226,11 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine($"private static readonly global::ArgumentParser.FlagAttribute[] {CommandFlagsName} = flags;");
 		}
 		writer.WriteLine();
-		writer.WriteLine($"internal static ({className} result, List<global::ArgumentParser.ArgumentParserException> errors, List<global::ArgumentParser.MissingRequiredArgumentException> missingRequired, bool helpRequested) ParseCore(string[] args, global::ArgumentParser.FlagAttribute[] flagsTable, global::ArgumentParser.FlagAttribute help)");
+		writer.WriteLine($"internal static ({className} result, List<global::ArgumentParser.ArgumentParserException> errors, List<global::ArgumentParser.MissingRequiredArgumentException> missingRequired, bool helpRequested) ParseCore(string[] args, global::ArgumentParser.FlagAttribute[] flagsTable, global::ArgumentParser.FlagAttribute help, bool useCurrentCulture)");
 		writer.WriteLine("{");
 		writer.Indent++;
 		// the help argument of the tree may have the names of the leaf's own, which must then not set DisplayHelp
-		WriteParseCoreBody(writer, className, "help is null ? flagsTable : flagsTable.Append(help).ToArray()", "help is null");
+		WriteParseCoreBody(writer, className, "help is null ? flagsTable : flagsTable.Append(help).ToArray()", "useCurrentCulture", "help is null");
 		writer.WriteLine("return (instance, errors, missingRequired, help is not null && global::ArgumentParser.ArgumentTokenizer.ContainsFlag(tokens, help));");
 		writer.Indent--;
 		writer.WriteLine("}");
@@ -319,12 +319,14 @@ public class SourceTextGenerator : ISourceTextGenerator
 	/// <summary>
 	/// Writes the loop that binds the tokens to the properties of <c>instance</c> and adds the errors it finds to <c>errors</c>.
 	/// A condition for the generated help argument, when given, has to hold as well before it sets DisplayHelp.
+	/// The culture setting is an expression of the generated code, a literal or a parameter.
 	/// </summary>
 	internal static void WriteTokenLoop(
 		IndentedTextWriter writer,
 		IEnumerable<PropertyAndAttributeInfo> options,
 		IEnumerable<PropertyAndAttributeInfo> positionals,
 		IEnumerable<PropertyAndAttributeInfo> flags,
+		string useCurrentCulture,
 		string? ownHelpCondition = null)
 	{
 		writer.WriteLine("foreach (var token in tokens)");
@@ -341,7 +343,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine($"if ({NameCondition("optionToken", option.Attribute.ShortName, option.Attribute.LongName)})");
 			writer.WriteLine("{");
 			writer.Indent++;
-			WriteValueParseCode(option, "optionToken", option.PropertyName, writer);
+			WriteValueParseCode(option, "optionToken", option.PropertyName, writer, useCurrentCulture);
 			if (option.Attribute.Required)
 			{
 				writer.WriteLine($"requiredProperties[{Literal(RequiredKey(option))}] = true;");
@@ -359,7 +361,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 			writer.WriteLine($"if (positionalToken.Position == {positional.Attribute.Position})");
 			writer.WriteLine("{");
 			writer.Indent++;
-			WriteValueParseCode(positional, "positionalToken", positional.PropertyName, writer);
+			WriteValueParseCode(positional, "positionalToken", positional.PropertyName, writer, useCurrentCulture);
 			if (positional.Attribute.Required)
 			{
 				writer.WriteLine($"requiredProperties[{Literal(positional.PropertyName)}] = true;");
@@ -415,6 +417,9 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.WriteLine("errors.AddRange(missingRequired);");
 	}
 
+	// the culture setting of the class as a literal of the generated code
+	private string UseCurrentCultureLiteral => Config.UseCurrentCulture ? "true" : "false";
+
 	/// <summary>
 	/// Gets the name of the BehaviourOnError member the generated Parse hands to the runtime policy.
 	/// The order matches how the settings were applied before the policy moved to the runtime library:
@@ -437,303 +442,75 @@ public class SourceTextGenerator : ISourceTextGenerator
 		return "ThrowNever";
 	}
 
+	// the types whose text depends on a culture, read by the runtime ValueParser
+	private static readonly HashSet<string> CultureSensitiveTypes =
+	[
+		"int", "long", "short", "byte", "sbyte", "uint", "ulong", "ushort",
+		"double", "float", "decimal", "System.DateTime", "System.TimeSpan",
+	];
+
 	/// <summary>
-	/// Gets the appropriate code to parse a string value into the specified property type.
+	/// Writes the code that converts the value of a token to the type of the property and sets it, or adds an error when it cannot be converted.
 	/// </summary>
 	/// <param name="propertyInfo">The info of the property to parse to.</param>
-	/// <param name="localVariableName">The name of the token property to read the value from.</param>
+	/// <param name="localVariableName">The name of the token to read the value from.</param>
 	/// <param name="propertyName">The name of the property in the partial class to set.</param>
 	/// <param name="writer">The writer to write the code to.</param>
-	/// <returns>A string containing the code needed to parse the value.</returns>
-	internal static void WriteValueParseCode(PropertyAndAttributeInfo propertyInfo, string localVariableName, string propertyName, IndentedTextWriter writer)
+	/// <param name="useCurrentCulture">The expression the generated code passes to ValueParser: true to read numbers, dates and times with the current culture.</param>
+	internal static void WriteValueParseCode(PropertyAndAttributeInfo propertyInfo, string localVariableName, string propertyName, IndentedTextWriter writer, string useCurrentCulture)
 	{
-		// check if its an enum and construct enum with string value in that case
+		var value = $"{localVariableName}.Value";
+		var propertyType = propertyInfo.PropertyType;
+		string tryParse;
 		if (propertyInfo.IsEnum)
 		{
-			writer.WriteLine($"if (!Enum.TryParse<{propertyInfo.PropertyType}>({localVariableName}.Value, out var parsedValue))");
-			writer.WriteLine("{");
-			writer.Indent++;
-			writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-			writer.Indent--;
-			writer.WriteLine("}");
-			writer.WriteLine("else");
-			writer.WriteLine("{");
-			writer.Indent++;
-			writer.WriteLine($"instance.{propertyName} = parsedValue;");
-			writer.Indent--;
-			writer.WriteLine("}");
-			return;
+			tryParse = $"Enum.TryParse<{propertyType}>({value}, out var parsedValue)";
 		}
-		// check if custom parse logic is specified
-		if (propertyInfo.HasParseMethod)
+		else if (propertyInfo.HasParseMethod)
 		{
-			var typeWithoutNullableIndicator = propertyInfo.PropertyType.Replace("?", "");
-			writer.WriteLine($"if (!{typeWithoutNullableIndicator}.{propertyInfo.ParseMethodName}({localVariableName}.Value, out var parsedValue))");
-			writer.WriteLine("{");
-			writer.Indent++;
-			writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-			writer.Indent--;
-			writer.WriteLine("}");
-			writer.WriteLine("else");
-			writer.WriteLine("{");
-			writer.Indent++;
-			writer.WriteLine($"instance.{propertyName} = parsedValue;");
-			writer.Indent--;
-			writer.WriteLine("}");
-			return;
+			tryParse = $"{propertyType.Replace("?", "")}.{propertyInfo.ParseMethodName}({value}, out var parsedValue)";
 		}
-		// otherwise just parse the value based on the (simple) type
-		var propertyType = propertyInfo.PropertyType;
-		switch (propertyType)
+		else if (CultureSensitiveTypes.Contains(propertyType))
 		{
-			case "int":
-				writer.WriteLine($"if (!int.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "double":
-				writer.WriteLine($"if (!double.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "float":
-				writer.WriteLine($"if (!float.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "long":
-				writer.WriteLine($"if (!long.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "short":
-				writer.WriteLine($"if (!short.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "decimal":
-				writer.WriteLine($"if (!decimal.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "byte":
-				writer.WriteLine($"if (!byte.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "sbyte":
-				writer.WriteLine($"if (!sbyte.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "char":
-				writer.WriteLine($"if (!char.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "uint":
-				writer.WriteLine($"if (!uint.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "ulong":
-				writer.WriteLine($"if (!ulong.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "ushort":
-				writer.WriteLine($"if (!ushort.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "System.Guid":
-				writer.WriteLine($"if (!Guid.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "System.Uri":
-				writer.WriteLine($"if (!Uri.TryCreate({localVariableName}.Value, UriKind.RelativeOrAbsolute, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "System.TimeSpan":
-				writer.WriteLine($"if (!TimeSpan.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "bool":
-				writer.WriteLine($"if (!bool.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "System.DateTime":
-				writer.WriteLine($"if (!DateTime.TryParse({localVariableName}.Value, out var parsedValue))");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {localVariableName}.Value }}\"));");
-				writer.Indent--;
-				writer.WriteLine("}");
-				writer.WriteLine("else");
-				writer.WriteLine("{");
-				writer.Indent++;
-				writer.WriteLine($"instance.{propertyName} = parsedValue;");
-				writer.Indent--;
-				writer.WriteLine("}");
-				break;
-			case "string":
-				writer.WriteLine($"instance.{propertyName} = {localVariableName}.Value;");
-				break;
-			case "string?":
-				writer.WriteLine($"instance.{propertyName} = {localVariableName}.Value;");
-				break;
-			default:
-				writer.WriteLine($"// Unsupported property type: {propertyType}");
-				break;
+			// the out type picks the overload; a System type is named from the global namespace, a user namespace could hide it
+			var outType = propertyType.StartsWith("System.", StringComparison.Ordinal) ? "global::" + propertyType : propertyType;
+			tryParse = $"global::ArgumentParser.ValueParser.TryParse({value}, {useCurrentCulture}, out {outType} parsedValue)";
 		}
+		else
+		{
+			switch (propertyType)
+			{
+				case "char":
+				case "bool":
+					tryParse = $"{propertyType}.TryParse({value}, out var parsedValue)";
+					break;
+				case "System.Guid":
+					tryParse = $"Guid.TryParse({value}, out var parsedValue)";
+					break;
+				case "System.Uri":
+					tryParse = $"Uri.TryCreate({value}, UriKind.RelativeOrAbsolute, out var parsedValue)";
+					break;
+				case "string":
+				case "string?":
+					writer.WriteLine($"instance.{propertyName} = {value};");
+					return;
+				default:
+					writer.WriteLine($"// Unsupported property type: {propertyType}");
+					return;
+			}
+		}
+		writer.WriteLine($"if (!{tryParse})");
+		writer.WriteLine("{");
+		writer.Indent++;
+		writer.WriteLine($"errors.Add(new global::ArgumentParser.InvalidArgumentValueException($\"Invalid value for {propertyName}: {{ {value} }}\"));");
+		writer.Indent--;
+		writer.WriteLine("}");
+		writer.WriteLine("else");
+		writer.WriteLine("{");
+		writer.Indent++;
+		writer.WriteLine($"instance.{propertyName} = parsedValue;");
+		writer.Indent--;
+		writer.WriteLine("}");
 	}
 
 	internal static string NameCondition(string token, string shortName, string longName)

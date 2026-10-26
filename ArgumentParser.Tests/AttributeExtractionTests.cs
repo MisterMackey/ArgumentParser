@@ -626,6 +626,21 @@ public class AttributeExtractionTests
 	}
 
 	[Fact]
+	public void Configuration_UseCurrentCulture_IsReadFromTheNamedPropertyByValue()
+	{
+		Assert.False(Configuration("[ParameterCollection]").UseCurrentCulture);
+		Assert.False(Configuration("[ParameterCollection(UseCurrentCulture = false)]").UseCurrentCulture);
+		Assert.True(Configuration("[ParameterCollection(UseCurrentCulture = true)]").UseCurrentCulture);
+		Assert.True(Configuration("[ParameterCollection(HelpTextGeneration.None, behaviourOnError: BehaviourOnError.ThrowNever, UseCurrentCulture = true)]").UseCurrentCulture);
+
+		var (model, declaration) = Compile(
+			"[ParameterCollection(UseCurrentCulture = Settings.Lenient)]",
+			"",
+			"public static class Settings { public const bool Lenient = true; }");
+		Assert.True(new GeneratorConfiguration(declaration, model).UseCurrentCulture);
+	}
+
+	[Fact]
 	public void Configuration_FullyQualifiedEnumValues_UseTheMemberName()
 	{
 		var config = Configuration("""[global::ArgumentParser.ParameterCollection(global::ArgumentParser.HelpTextGeneration.GenerateTextOnly, behaviourOnError: global::ArgumentParser.BehaviourOnError.ThrowNever)]""");

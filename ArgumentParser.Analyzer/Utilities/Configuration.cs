@@ -26,6 +26,10 @@ public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 	/// Gets or sets the behavior of the parser when errors are encountered during argument parsing.
 	/// </summary>
 	public string? BehaviourOnError { get; set; }
+	/// <summary>
+	/// Gets or sets a value indicating whether numbers, dates and times are read with the current culture instead of the invariant culture.
+	/// </summary>
+	public bool UseCurrentCulture { get; set; }
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="GeneratorConfiguration"/> class by extracting configuration values from the <see cref="ClassDeclarationSyntax"/>.
@@ -42,6 +46,10 @@ public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 		if (classDeclaration == null)
 		{
 			throw new ArgumentNullException(nameof(classDeclaration));
+		}
+		if (semanticModel == null)
+		{
+			throw new ArgumentNullException(nameof(semanticModel));
 		}
 
 		// get the ParameterCollection attribute from the class
@@ -102,6 +110,11 @@ public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 				BehaviourOnError = errBehaviour;
 			}
 		}
+		// a property of the attribute, set with Name = value
+		var useCurrentCulture = attribute.ArgumentList?.Arguments
+			.FirstOrDefault(arg => arg.NameEquals?.Name.Identifier.ValueText == "UseCurrentCulture");
+		UseCurrentCulture = useCurrentCulture is not null
+			&& semanticModel.GetConstantValue(useCurrentCulture.Expression).Value is true;
 	}
 
 	// Strings are taken from their constant value, so literals and constants both work.
@@ -127,7 +140,8 @@ public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 			&& string.Equals(HelpTextGenerationMode, other.HelpTextGenerationMode, StringComparison.Ordinal)
 			&& string.Equals(HelpArgumentShortName, other.HelpArgumentShortName, StringComparison.Ordinal)
 			&& string.Equals(HelpArgumentLongName, other.HelpArgumentLongName, StringComparison.Ordinal)
-			&& string.Equals(BehaviourOnError, other.BehaviourOnError, StringComparison.Ordinal);
+			&& string.Equals(BehaviourOnError, other.BehaviourOnError, StringComparison.Ordinal)
+			&& UseCurrentCulture == other.UseCurrentCulture;
 	}
 
 	/// <inheritdoc/>
@@ -144,6 +158,7 @@ public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 		hash = hash * 23 + (HelpArgumentShortName?.GetHashCode() ?? 0);
 		hash = hash * 23 + (HelpArgumentLongName?.GetHashCode() ?? 0);
 		hash = hash * 23 + (BehaviourOnError?.GetHashCode() ?? 0);
+		hash = hash * 23 + (UseCurrentCulture ? 1 : 0);
 		return hash;
 	}
 

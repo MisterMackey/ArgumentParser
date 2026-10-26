@@ -10,7 +10,7 @@ public class GeneratedParserBehaviourTests
 {
 	public GeneratedParserBehaviourTests()
 	{
-		// the generated code parses with the current culture
+		// the assertions format the parsed values with the current culture; tests about cultures set their own
 		CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 	}
 
@@ -82,7 +82,74 @@ public class GeneratedParserBehaviourTests
 		var result = parser.Parse("--Time", "2025-05-05T12:00:00Z");
 
 		Assert.Empty(result.Errors);
-		Assert.Equal(DateTime.Parse("2025-05-05T12:00:00Z"), result.Get<DateTime>("Time"));
+		var time = result.Get<DateTime>("Time");
+		Assert.Equal(new DateTime(2025, 5, 5, 12, 0, 0, DateTimeKind.Utc), time);
+		Assert.Equal(DateTimeKind.Utc, time.Kind);
+	}
+
+	[Theory]
+	[InlineData("double", "1,5")]
+	[InlineData("float", "1,5")]
+	[InlineData("decimal", "1,5")]
+	[InlineData("double", "1,000")]
+	[InlineData("int", "1,000")]
+	[InlineData("long", "1.000")]
+	[InlineData("DateTime", "01/02/2026")]
+	[InlineData("DateTime", "26-10-2026")]
+	[InlineData("TimeSpan", "1:30:15,5")]
+	public void Option_CultureDependentText_IsRejectedWhateverTheCurrentCulture(string type, string input)
+	{
+		CultureInfo.CurrentCulture = new CultureInfo("nl-NL");
+		var parser = GeneratedParser.Compile(ParserSource.Build($$"""
+			[Option("v", "Value", "a value")]
+			public {{type}} Value { get; set; }
+			"""));
+
+		var result = parser.Parse("--Value", input);
+
+		Assert.IsType<InvalidArgumentValueException>(Assert.Single(result.Errors));
+	}
+
+	[Fact]
+	public void Arguments_InvariantText_IsReadTheSameWhateverTheCurrentCulture()
+	{
+		CultureInfo.CurrentCulture = new CultureInfo("nl-NL");
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("a", "Amount", "an amount")]
+			public double Amount { get; set; }
+			[Option("d", "Day", "a day")]
+			public DateTime Day { get; set; }
+			[Positional(0, "a price")]
+			public decimal Price { get; set; }
+			"""));
+
+		var result = parser.Parse("--Amount", "1.5", "--Day", "2026-01-02", "1.25");
+
+		Assert.Empty(result.Errors);
+		Assert.Equal(1.5, result.Get<double>("Amount"));
+		Assert.Equal(new DateTime(2026, 1, 2), result.Get<DateTime>("Day"));
+		Assert.Equal(1.25m, result.Get<decimal>("Price"));
+	}
+
+	[Fact]
+	public void Arguments_UseCurrentCulture_ReadsTheTextWithTheCurrentCulture()
+	{
+		CultureInfo.CurrentCulture = new CultureInfo("nl-NL");
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("a", "Amount", "an amount")]
+			public double Amount { get; set; }
+			[Option("d", "Day", "a day")]
+			public DateTime Day { get; set; }
+			[Positional(0, "a price")]
+			public decimal Price { get; set; }
+			""", useCurrentCulture: true));
+
+		var result = parser.Parse("--Amount", "1,5", "--Day", "02-01-2026", "1.000,25");
+
+		Assert.Empty(result.Errors);
+		Assert.Equal(1.5, result.Get<double>("Amount"));
+		Assert.Equal(new DateTime(2026, 1, 2), result.Get<DateTime>("Day"));
+		Assert.Equal(1000.25m, result.Get<decimal>("Price"));
 	}
 
 	[Theory]
