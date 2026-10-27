@@ -109,6 +109,18 @@ $'Name=bob\nCount=5\nBig=9999999999\nRatio=0.25\nPrice=12.50\nId=3f2504e0-4f89-1
 check "only the required arguments given leaves the rest at their defaults" 0 \
 $'Name=bob\nSource=src\nCount=0\nSite=about:blank\nEnabled=False\nPoint=\nCopies=0\n!Error:' \
 	lenient -n bob src
+check "nullable options are null when not given, or keep their default" 0 \
+$'Retries=null\nRedirect=1\n!Error:' \
+	lenient -n bob src
+check "nullable option given" 0 \
+$'Retries=3\nRedirect=2\n!Error:' \
+	lenient -n bob src --retries 3 --redirect 2
+check "a custom parse method on the class can turn the text NULL into null" 0 \
+$'Retries=null\nRedirect=null\n!Error:' \
+	lenient -n bob src --redirect NULL
+check "invalid value for a nullable option" 1 \
+$'Retries=null\nError: InvalidArgumentValueException: Invalid value for Retries: 1,5' \
+	lenient -n bob src --retries 1,5
 check "short names" 0 \
 $'Name=bob\nCount=2\nRatio=1.5\nWait=00:00:05\nMode=Level1' \
 	lenient -n bob -c 2 -r 1.5 -w 00:00:05 -m Level1 src

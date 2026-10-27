@@ -324,6 +324,61 @@ public class AttributeExtractionTests
 		Assert.Equal(expected, option.PropertyType);
 	}
 
+	[Theory]
+	[InlineData("int?", true, "int", false)]
+	[InlineData("DateTime?", true, "System.DateTime", false)]
+	[InlineData("Colour?", true, "Extraction.Colour", true)]
+	[InlineData("Colour", false, "Extraction.Colour", true)]
+	[InlineData("string?", true, "string", false)]
+	[InlineData("int", false, "int", false)]
+	public void NullableTypes_KeepTheirSpellingAndReportTheTypeTheyAreNullableOf(string declared, bool nullable, string underlying, bool isEnum)
+	{
+		var option = Assert.Single(Factory($"[Option(\"o\")] public {declared} Value {{ get; set; }}").GetOptionAttributes());
+
+		Assert.Equal(nullable, option.IsNullable);
+		Assert.Equal(underlying, option.UnderlyingType);
+		Assert.Equal(isEnum, option.IsEnum);
+	}
+
+	[Fact]
+	public void NullableGenericArgument_IsNotANullableProperty()
+	{
+		var option = Assert.Single(Factory("""[Option("o"), ParsedWithMethod("Read")] public System.Collections.Generic.List<int?> Value { get; set; } = new();""").GetOptionAttributes());
+
+		Assert.False(option.IsNullable);
+		Assert.Equal(option.PropertyType, option.UnderlyingType);
+	}
+
+	private const string ParseMethodTypes = """
+		public class OnType { public static bool TryParse(string input, out OnType result) { result = new(); return true; } }
+		public class OnBoth { public static bool TryParse(string input, out OnBoth result) { result = new(); return true; } }
+		""";
+
+	[Theory]
+	[InlineData("OnType", "", "global::Extraction.OnType")]
+	[InlineData("OnType?", "", "global::Extraction.OnType")]
+	[InlineData("OnBoth", "private static bool TryParse(string input, out OnBoth result) { result = new(); return true; }", "global::Extraction.Target")]
+	[InlineData("int?", "private static bool TryParse(string input, out int? result) { result = null; return true; }", "global::Extraction.Target")]
+	[InlineData("int?", "", "int")]
+	[InlineData("OnType", "private bool TryParse(string input, out OnType result) { result = new(); return true; }", "global::Extraction.OnType")]
+	[InlineData("OnType", "private static void TryParse(string input, out OnType result) { result = new(); }", "global::Extraction.OnType")]
+	[InlineData("OnType", "private static bool TryParse(string input) { return true; }", "global::Extraction.OnType")]
+	public void ParsedWithMethod_IsLookedForOnTheDeclaringClassFirstAndThenOnThePropertyType(string declared, string declaringMethod, string expectedOwner)
+	{
+		var option = Assert.Single(Factory($"[Option(\"o\"), ParsedWithMethod(\"TryParse\")] public {declared} Value {{ get; set; }} {declaringMethod}", ParseMethodTypes).GetOptionAttributes());
+
+		Assert.Equal(expectedOwner, option.ParseMethodOwner);
+	}
+
+	[Fact]
+	public void ParsedWithMethod_MethodThatDoesNotExist_HasNoOwner()
+	{
+		var option = Assert.Single(Factory("""[Option("o"), ParsedWithMethod("Read")] public int? Value { get; set; }""", ParseMethodTypes).GetOptionAttributes());
+
+		Assert.True(option.HasParseMethod);
+		Assert.Equal("", option.ParseMethodOwner);
+	}
+
 	[Fact]
 	public void ParsedWithMethod_PositionalArgument_IsExtracted_ForOptions()
 	{

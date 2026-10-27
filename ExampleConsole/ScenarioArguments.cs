@@ -1,3 +1,4 @@
+using System.Globalization;
 using ArgumentParser;
 
 namespace ExampleConsole;
@@ -59,11 +60,30 @@ public partial class LenientArguments
 	[Option(longName: "point", description: "A custom type, given as x,y")]
 	public Point? Point { get; set; }
 
+	[Option(longName: "retries", description: "A number, null when it is not given")]
+	public int? Retries { get; set; }
+
+	[ParsedWithMethod(nameof(ParseDescriptor))]
+	[Option(longName: "redirect", description: "A file descriptor to send the output to, NULL for none")]
+	public int? Redirect { get; set; } = 1;
+
 	[Positional(0, "The source", required: true)]
 	public string Source { get; set; } = string.Empty;
 
 	[Positional(1, "How many copies")]
 	public int Copies { get; set; }
+
+	private static bool ParseDescriptor(string input, out int? value)
+	{
+		if (input == "NULL")
+		{
+			value = null;
+			return true;
+		}
+		var parsed = int.TryParse(input, NumberStyles.None, CultureInfo.InvariantCulture, out var descriptor);
+		value = parsed ? descriptor : null;
+		return parsed;
+	}
 }
 
 /// <summary>

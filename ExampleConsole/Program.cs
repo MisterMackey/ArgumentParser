@@ -50,6 +50,8 @@ static int RunLenient(string[] args)
 	Console.WriteLine($"Enabled={parsed.Enabled}");
 	Console.WriteLine($"Mode={parsed.Mode}");
 	Console.WriteLine($"Point={(parsed.Point is null ? "" : $"{parsed.Point.X},{parsed.Point.Y}")}");
+	Console.WriteLine($"Retries={parsed.Retries?.ToString(CultureInfo.InvariantCulture) ?? "null"}");
+	Console.WriteLine($"Redirect={parsed.Redirect?.ToString(CultureInfo.InvariantCulture) ?? "null"}");
 	Console.WriteLine($"Source={parsed.Source}");
 	Console.WriteLine($"Copies={parsed.Copies.ToString(CultureInfo.InvariantCulture)}");
 	foreach (var error in errors)

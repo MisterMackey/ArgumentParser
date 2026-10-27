@@ -38,6 +38,14 @@ internal static class AttributeReader
 		return type is { TypeKind: TypeKind.Class } && (Has(type, Command) || Has(type, CommandApp));
 	}
 
+	// int? is Nullable<int>: the type that is read and parsed is int
+	internal static ITypeSymbol UnwrapNullable(ITypeSymbol type)
+	{
+		return type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable
+			? nullable.TypeArguments[0]
+			: type;
+	}
+
 	// The attribute properties are get-only, so every value reaches the generator as a constructor argument,
 	// whether the user wrote it positionally or by name. Omitted optional arguments are filled with their defaults by Roslyn.
 	internal static string StringArgument(AttributeData? data, int index)

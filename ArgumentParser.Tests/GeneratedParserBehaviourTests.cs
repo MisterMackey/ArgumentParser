@@ -515,6 +515,235 @@ public class GeneratedParserBehaviourTests
 		Assert.IsType<InvalidArgumentValueException>(Assert.Single(bad.Errors));
 	}
 
+	#region nullable properties
+
+	private const string NullableMembers = """
+		[Option("n", "Number", "a number")]
+		public int? Number { get; set; }
+		[Option("d", "Date", "a date")]
+		public DateTime? Date { get; set; }
+		[Option("g", "Id", "an id")]
+		public Guid? Id { get; set; }
+		[Option("c", "Colour", "a colour")]
+		public Colour? Colour { get; set; }
+		[Option("b", "Switch", "a boolean")]
+		public bool? Switch { get; set; }
+		[Option("u", "Link", "a link")]
+		public Uri? Link { get; set; }
+		[Option("s", "Text", "a text")]
+		public string? Text { get; set; }
+		[Option("k", "Kept", "has a default")]
+		public int? Kept { get; set; } = 5;
+		[Positional(0, "a positional number")]
+		public double? Ratio { get; set; }
+		[Flag("v", "Verbose", "a flag")]
+		public bool? Verbose { get; set; }
+		[Flag("l", "Level", "a level")]
+		public Colour? Level { get; set; }
+		""";
+
+	private const string ColourType = "public enum Colour { Red, Green, Blue }";
+
+	[Fact]
+	public void Nullable_ArgumentsThatAreNotGiven_AreNullOrKeepTheirDefault()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(NullableMembers, extraTypes: ColourType));
+
+		var result = parser.Parse();
+
+		Assert.Empty(result.Errors);
+		foreach (var name in new[] { "Number", "Date", "Id", "Colour", "Switch", "Link", "Text", "Ratio", "Verbose", "Level" })
+		{
+			Assert.Null(result.Get<object>(name));
+		}
+		Assert.Equal(5, result.Get<int?>("Kept"));
+	}
+
+	[Fact]
+	public void Nullable_ArgumentsThatAreGiven_HaveTheirValue()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(NullableMembers, extraTypes: ColourType));
+		var id = Guid.NewGuid();
+
+		var result = parser.Parse("-n", "-7", "-d", "2026-10-26", "-g", id.ToString(), "-c", "Green", "-b", "false", "-u", "http://x.test/", "-s", "text", "-k", "0", "2.5", "-vl");
+
+		Assert.Empty(result.Errors);
+		Assert.Equal(-7, result.Get<int?>("Number"));
+		Assert.Equal(new DateTime(2026, 10, 26), result.Get<DateTime?>("Date"));
+		Assert.Equal(id, result.Get<Guid?>("Id"));
+		Assert.Equal("Green", result.Get<object>("Colour")!.ToString());
+		Assert.Equal(false, result.Get<bool?>("Switch"));
+		Assert.Equal(new Uri("http://x.test/"), result.Get<Uri>("Link"));
+		Assert.Equal("text", result.Get<string>("Text"));
+		Assert.Equal(0, result.Get<int?>("Kept"));
+		Assert.Equal(2.5, result.Get<double?>("Ratio"));
+		Assert.Equal(true, result.Get<bool?>("Verbose"));
+		Assert.Equal("Green", result.Get<object>("Level")!.ToString());
+	}
+
+	[Fact]
+	public void Nullable_GeneratedCode_HasNoWarnings()
+	{
+		var diagnostics = GeneratedParser.GeneratedCodeDiagnostics(ParserSource.Build(NullableMembers, extraTypes: ColourType));
+
+		Assert.Empty(diagnostics);
+	}
+
+	[Fact]
+	public void Nullable_FlagLevel_IsTheNumberOfTimesTheFlagIsGiven()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(NullableMembers, extraTypes: ColourType));
+
+		var result = parser.Parse("-ll");
+
+		Assert.Equal("Blue", result.Get<object>("Level")!.ToString());
+	}
+
+	[Fact]
+	public void Nullable_InvalidValue_IsAnErrorAndLeavesTheDefault()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(NullableMembers, extraTypes: ColourType));
+
+		var result = parser.Parse("-n", "1,5", "-k", "many", "-d", "26/10/2026");
+
+		Assert.Equal(3, result.Errors.Count);
+		Assert.All(result.Errors, e => Assert.IsType<InvalidArgumentValueException>(e));
+		Assert.Null(result.Get<int?>("Number"));
+		Assert.Equal(5, result.Get<int?>("Kept"));
+		Assert.Null(result.Get<DateTime?>("Date"));
+	}
+
+	[Fact]
+	public void Nullable_RequiredOption_IsStillRequired()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("n", "Number", "a number", required: true)]
+			public int? Number { get; set; }
+			"""));
+
+		var missing = parser.Parse();
+		var given = parser.Parse("-n", "3");
+
+		Assert.IsType<MissingRequiredArgumentException>(Assert.Single(missing.Errors));
+		Assert.Empty(given.Errors);
+		Assert.Equal(3, given.Get<int?>("Number"));
+	}
+
+	private const string DescriptorMembers = """
+		[Option("r", "redirectOutputStream", "File descriptor to send output to, NULL for none", required: true)]
+		[ParsedWithMethod("ParseDescriptor")]
+		public int? RedirectOutputStream { get; set; } = 1;
+
+		private static bool ParseDescriptor(string input, out int? value)
+		{
+			if (input == "NULL")
+			{
+				value = null;
+				return true;
+			}
+			var parsed = int.TryParse(input, out var descriptor);
+			value = parsed ? descriptor : null;
+			return parsed;
+		}
+		""";
+
+	[Theory]
+	[InlineData("NULL", null)]
+	[InlineData("2", 2)]
+	public void ParsedWithMethod_OnTheDeclaringClass_CanAnswerNullForANullableProperty(string argument, int? expected)
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(DescriptorMembers));
+
+		var result = parser.Parse("--redirectOutputStream", argument);
+
+		Assert.Empty(result.Errors);
+		Assert.Equal(expected, result.Get<int?>("RedirectOutputStream"));
+	}
+
+	[Fact]
+	public void ParsedWithMethod_OnTheDeclaringClass_KeepsTheDefaultWhenTheOptionIsMissingAndReportsBadInput()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(DescriptorMembers.Replace(", required: true", "")));
+
+		var missing = parser.Parse();
+		var bad = parser.Parse("--redirectOutputStream", "stdout");
+
+		Assert.Empty(missing.Errors);
+		Assert.Equal(1, missing.Get<int?>("RedirectOutputStream"));
+		Assert.IsType<InvalidArgumentValueException>(Assert.Single(bad.Errors));
+		Assert.Equal(1, bad.Get<int?>("RedirectOutputStream"));
+	}
+
+	[Fact]
+	public void ParsedWithMethod_OnBothTheDeclaringClassAndThePropertyType_UsesTheDeclaringClass()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("p", "Point", "a point")]
+			[ParsedWithMethod("TryParse")]
+			public Point? Point { get; set; }
+
+			private static bool TryParse(string input, out Point? result)
+			{
+				result = new Point { Name = "declaring class: " + input };
+				return true;
+			}
+			""", extraTypes: """
+			public class Point
+			{
+				public string Name { get; set; } = "";
+				public static bool TryParse(string input, out Point? result)
+				{
+					result = new Point { Name = "property type: " + input };
+					return true;
+				}
+			}
+			"""));
+
+		var result = parser.Parse("--Point", "1");
+
+		var point = result.Get<object>("Point")!;
+		Assert.Equal("declaring class: 1", (string)point.GetType().GetProperty("Name")!.GetValue(point)!);
+	}
+
+	[Fact]
+	public void Nullable_OptionsOfAGroupAndALeafInATree_AreParsedLikeThoseOfAClassOnItsOwn()
+	{
+		var parser = GeneratedParser.Compile("""
+			using ArgumentParser;
+
+			namespace ArgumentParser.Tests;
+
+			[CommandApp("app", "An app", HelpTextGeneration.GenerateTextOnly, behaviourOnError: BehaviourOnError.ThrowNever)]
+			public partial class TestClass
+			{
+				[Option("r", "retries", "how often")]
+				public int? Retries { get; set; }
+
+				public Run? Run { get; private set; }
+			}
+
+			[ParameterCollection]
+			[Command("run", "Runs")]
+			public partial class Run
+			{
+				[Option("t", "timeout", "seconds")]
+				public double? Timeout { get; set; }
+			}
+			""");
+
+		var set = parser.ParseCommand("-r", "3", "run", "-t", "1.5");
+		var unset = parser.ParseCommand("run");
+
+		Assert.Empty(set.Errors);
+		Assert.Equal(3, set.GetPath<int?>("Retries"));
+		Assert.Equal(1.5, set.GetPath<double?>("Run.Timeout"));
+		Assert.Empty(unset.Errors);
+		Assert.Null(unset.GetPath<int?>("Retries"));
+		Assert.Null(unset.GetPath<double?>("Run.Timeout"));
+	}
+
+	#endregion
+
 	[Fact]
 	public void MultipleParameterCollections_InOneCompilation_AreParsedIndependently()
 	{

@@ -481,6 +481,32 @@ public class DiagnosticRuleTests
 		Assert.Empty(result.Rule("ARG013"));
 	}
 
+	[Theory]
+	[InlineData("int?")]
+	[InlineData("double?")]
+	[InlineData("DateTime?")]
+	[InlineData("TimeSpan?")]
+	[InlineData("Guid?")]
+	[InlineData("char?")]
+	[InlineData("bool?")]
+	[InlineData("Colour?")]
+	[InlineData("Uri?")]
+	public void ARG007_NullableSupportedTypeOnEveryAttributeKind_IsNotReported(string type)
+	{
+		var result = Diagnose(Join(Option("o", "Output", "A", type), Positional(0, "B", type)));
+
+		Assert.Empty(result.Ids);
+	}
+
+	[Fact]
+	public void ARG007_NullableUnsupportedType_IsReportedWithTheTypeAsWritten()
+	{
+		var result = Diagnose(Join(Option("o", "Output", "A", "Custom?"), Option("p", "Point", "B", "CustomStruct?")));
+
+		Assert.Equal(2, result.Rule("ARG007").Count);
+		Assert.Contains("'Diagnostics.CustomStruct?'", result.Rule("ARG007")[1].GetMessage());
+	}
+
 	[Fact]
 	public void ARG007_NullableStringIsSupportedWhateverTheNullableContext()
 	{
@@ -536,6 +562,24 @@ public class DiagnosticRuleTests
 
 		Assert.Empty(result.Rule("ARG013"));
 		Assert.NotEmpty(result.Output);
+	}
+
+	[Theory]
+	[InlineData("bool?")]
+	[InlineData("Colour?")]
+	public void ARG013_NullableBooleanAndEnumFlags_AreNotReported(string type)
+	{
+		var result = Diagnose(Flag("f", "Flag", "Value", type));
+
+		Assert.Empty(result.Ids);
+	}
+
+	[Fact]
+	public void ARG013_NullableNumberFlag_IsReported()
+	{
+		var result = Diagnose(Flag("f", "Flag", "Value", "int?"));
+
+		Assert.Equal(new[] { "ARG013" }, result.Ids);
 	}
 	#endregion
 
@@ -777,6 +821,75 @@ public class DiagnosticRuleTests
 		var result = Diagnose("[Option(\"c\", \"Cmd\", \"desc\")] [ParsedWithMethod(\"Read\")] public Custom? Command { get; set; }");
 
 		Assert.Empty(result.Rule("ARG026"));
+	}
+	#endregion
+
+	#region ARG030
+	[Fact]
+	public void ARG030_MethodThatDoesNotExist_IsReportedOnTheProperty()
+	{
+		var result = Diagnose("[ParsedWithMethod(\"Read\")] " + Option("o", "Output", "Output", "Custom"));
+
+		var diagnostic = Assert.Single(result.Rule("ARG030"));
+		Assert.Contains("'Read'", diagnostic.GetMessage());
+		Assert.Contains("'Output'", diagnostic.GetMessage());
+		Assert.Equal(new[] { "ARG030" }, result.Ids);
+		Assert.Empty(result.Output);
+	}
+
+	[Fact]
+	public void ARG030_MethodOnThePropertyType_IsNotReported()
+	{
+		var result = Diagnose(Join(
+			"public class Parsable { public static bool Read(string input, out Parsable? value) { value = null; return true; } }",
+			"[ParsedWithMethod(\"Read\")] " + Option("o", "Output", "Output", "Parsable"),
+			"[ParsedWithMethod(\"Read\")] " + Positional(0, "Input", "Parsable?"),
+			"[ParsedWithMethod(\"Read\")] " + Positional(1, "Other", "Custom")));
+
+		Assert.Equal(new[] { "ARG030" }, result.Ids);
+		Assert.Contains("'Other'", result.Rule("ARG030").Single().GetMessage());
+	}
+
+	[Theory]
+	[InlineData("public static bool Read(string input, out int? value) { value = null; return true; }")]
+	[InlineData("private static bool Read(string input, out int? value) { value = null; return true; }")]
+	[InlineData("public static bool Read(string input, out int value) { value = 0; return true; }")]
+	public void ARG030_MethodOnTheDeclaringClassOfANullableProperty_IsNotReported(string method)
+	{
+		var result = Diagnose(Join("[ParsedWithMethod(\"Read\")] " + Option("o", "Output", "Output", "int?"), method));
+
+		Assert.Empty(result.Ids);
+	}
+
+	[Theory]
+	[InlineData("public bool Read(string input, out int? value) { value = null; return true; }")]
+	[InlineData("public static void Read(string input, out int? value) { value = null; }")]
+	[InlineData("public static bool Read(string input, int? value) { return true; }")]
+	[InlineData("public static bool Read(string input) { return true; }")]
+	[InlineData("public static bool Read<T>(string input, out T value) { value = default!; return true; }")]
+	public void ARG030_MethodThatIsNotOfTheFormOfTryParse_IsReported(string method)
+	{
+		var result = Diagnose(Join("[ParsedWithMethod(\"Read\")] " + Option("o", "Output", "Output", "int?"), method));
+
+		Assert.Equal(new[] { "ARG030" }, result.Ids);
+	}
+
+	[Fact]
+	public void ARG030_MethodInAnotherPartOfTheClass_IsFound()
+	{
+		var result = Diagnose(
+			"[ParsedWithMethod(\"Read\")] " + Option("o", "Output", "Output", "int?"),
+			otherPart: "private static bool Read(string input, out int? value) { value = null; return true; }");
+
+		Assert.Empty(result.Ids);
+	}
+
+	[Fact]
+	public void ARG030_FlagWithAMissingMethod_IsNotReported()
+	{
+		var result = Diagnose("[ParsedWithMethod(\"Read\")] " + Flag("f", "Flag", "Value"));
+
+		Assert.Empty(result.Rule("ARG030"));
 	}
 	#endregion
 

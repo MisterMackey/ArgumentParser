@@ -330,6 +330,34 @@ public class IncrementalityTests
 	}
 
 	[Fact]
+	public void AddingAParseMethodToTheDeclaringClass_RegeneratesTheParserWithThatMethod()
+	{
+		const string source = """
+			using ArgumentParser;
+
+			public class Point { public static bool Read(string input, out Point value) { value = new Point(); return true; } }
+
+			[ParameterCollection]
+			public partial class Args
+			{
+				[Option("p", "point", "A point")]
+				[ParsedWithMethod("Read")]
+				public Point Point { get; set; } = new Point();
+			}
+			""";
+		var driver = RunTwice(
+			source,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == source),
+				Parse(source.Replace("public Point Point { get; set; } = new Point();", "public Point Point { get; set; } = new Point(); private static bool Read(string input, out Point value) { value = new Point(); return true; }", StringComparison.Ordinal))));
+
+		Assert.Contains(IncrementalStepRunReason.Modified, OutputReasons(driver));
+		var generated = driver.GetRunResult().GeneratedTrees.Single().ToString();
+		Assert.Contains("global::Args.Read(optionToken.Value", generated, StringComparison.Ordinal);
+		Assert.DoesNotContain("global::Point.Read", generated, StringComparison.Ordinal);
+	}
+
+	[Fact]
 	public void ChangingUseCurrentCulture_RegeneratesTheParser()
 	{
 		const string source = """

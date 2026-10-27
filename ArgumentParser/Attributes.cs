@@ -326,7 +326,11 @@ namespace ArgumentParser
 	/// <summary>
 	/// This attribute indicates that the property type is parsed using a method with the specified name.
 	/// The method signature should be bool methodName(string input, out T value), i.e. TryParse style.
-	/// this method is expected to be a static method on the property's declaring type
+	/// The method is a static method, of the class that declares the property or, when that class has no such method,
+	/// of the type of the property. The class that declares the property is the only place for a type that cannot be extended, such as <c>int?</c>.
+	/// When the property is nullable, T can be nullable as well, so the method can turn some text (such as <c>NULL</c>) into <c>null</c>.
+	/// A required argument is given as soon as it is on the command line, whatever value the method returns for it.
+	/// The generator reports ARG030 when it finds no such method. The attribute applies to options and positional arguments; a flag has no text to parse.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Property, Inherited = false)]
 	public sealed class ParsedWithMethodAttribute : Attribute

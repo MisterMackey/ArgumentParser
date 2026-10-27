@@ -142,6 +142,11 @@ public static class GeneratorDiagnostics
 	private const string ARG029_Message = "The ParameterCollection attribute of leaf command '{0}' sets help, error or culture settings, but parsing through the command tree uses those of the CommandApp attribute of '{1}'. " +
 					     "They only apply to the Parse method of '{0}' itself. Set them on the CommandApp attribute instead, or leave them out.";
 
+	private const string ARG030_Id = "ARG030";
+	private const string ARG030_Title = "Parse method not found";
+	private const string ARG030_Message = "The ParsedWithMethod attribute names method '{0}' for property '{1}', but neither the class that declares the property nor type '{2}' has an accessible static method '{0}' " +
+					     "of the form bool {0}(string input, out {2} value). Add the method, or correct its name or signature.";
+
 	/// <summary>
 	/// Diagnostic descriptor for ARG001: Classes with ParameterCollection attribute must be partial.
 	/// </summary>
@@ -517,5 +522,18 @@ public static class GeneratorDiagnostics
 	    DiagnosticSeverity.Warning,
 	    true,
 	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG029.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG030: The method named by the ParsedWithMethod attribute does not exist.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG030 = new DiagnosticDescriptor(
+	    ARG030_Id,
+	    ARG030_Title,
+	    ARG030_Message,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG030.md"
 	);
 }

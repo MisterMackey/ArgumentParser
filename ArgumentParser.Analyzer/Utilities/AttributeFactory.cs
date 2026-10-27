@@ -79,7 +79,7 @@ public class AttributeFactory
 				&& symbol.ContainingType.ToDisplayString() == attributeName);
 	}
 
-	private static PropertyAndAttributeInfo CreateInfo(PropertyDeclarationSyntax property, IPropertySymbol? propertySymbol, AttributeInfo attribute)
+	private PropertyAndAttributeInfo CreateInfo(PropertyDeclarationSyntax property, IPropertySymbol? propertySymbol, AttributeInfo attribute)
 	{
 		var parsedWithMethod = AttributeReader.StringArgument(AttributeReader.Find(propertySymbol, AttributeReader.ParsedWithMethod), 0);
 		return new PropertyAndAttributeInfo
@@ -87,9 +87,10 @@ public class AttributeFactory
 			Attribute = attribute,
 			PropertyName = property.Identifier.Text,
 			PropertyType = propertySymbol?.Type.ToDisplayString() ?? "string", //default, no parsing
-			IsEnum = propertySymbol?.Type.TypeKind == TypeKind.Enum,
+			IsEnum = propertySymbol is not null && AttributeReader.UnwrapNullable(propertySymbol.Type).TypeKind == TypeKind.Enum,
 			IsCommandClass = AttributeReader.IsCommandClass(propertySymbol?.Type),
-			ParseMethodName = parsedWithMethod
+			ParseMethodName = parsedWithMethod,
+			ParseMethodOwner = ParseMethodResolver.Resolve(propertySymbol, parsedWithMethod, _semanticModel.Compilation)
 		};
 	}
 
@@ -150,12 +151,23 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	public string PropertyName { get; set; }
 
 	/// <summary>
-	/// The type of the property.
+	/// The type of the property as it is written, including the question mark of a nullable type.
 	/// </summary>
 	public string PropertyType { get; set; }
 
 	/// <summary>
-	/// Indicates whether the property type is an enum.
+	/// Indicates whether the property type is nullable (<c>int?</c>, <c>string?</c>). Such a property is <c>null</c> when the argument was not given,
+	/// unless the property has another default.
+	/// </summary>
+	public readonly bool IsNullable => !string.IsNullOrEmpty(PropertyType) && PropertyType[PropertyType.Length - 1] == '?';
+
+	/// <summary>
+	/// The type of the property without the question mark of a nullable type: the type that the text of the argument is converted to.
+	/// </summary>
+	public readonly string UnderlyingType => IsNullable ? PropertyType.Substring(0, PropertyType.Length - 1) : PropertyType;
+
+	/// <summary>
+	/// Indicates whether the property type, or the type it is nullable of, is an enum.
 	/// </summary>
 	public bool IsEnum { get; set; }
 
@@ -168,6 +180,12 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	/// The name of the method used for parsing the property value.
 	/// </summary>
 	public string ParseMethodName { get; set; }
+
+	/// <summary>
+	/// The type that holds the parse method, written to be used in generated code, or empty when the method was not found.
+	/// It is the class that declares the property if that has the method, otherwise the type of the property.
+	/// </summary>
+	public string ParseMethodOwner { get; set; }
 
 	/// <summary>
 	/// Indicates whether the property has a parse method defined.
@@ -195,7 +213,7 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	public override int GetHashCode()
 	{
 		return 17 * 23 + (PropertyName?.GetHashCode() ?? 0) * 31 + (PropertyType?.GetHashCode() ?? 0) * 37 + (IsEnum ? 1 : 0) * 43 +
-		       (IsCommandClass ? 1 : 0) * 47 + Attribute.GetHashCode() * 41;
+		       (IsCommandClass ? 1 : 0) * 47 + (ParseMethodOwner?.GetHashCode() ?? 0) * 53 + Attribute.GetHashCode() * 41;
 	}
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
@@ -217,6 +235,7 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 			IsEnum == other.IsEnum &&
 			IsCommandClass == other.IsCommandClass &&
 			ParseMethodName == other.ParseMethodName &&
+			ParseMethodOwner == other.ParseMethodOwner &&
 			Attribute.Equals(other.Attribute);
 	}
 }

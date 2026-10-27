@@ -460,7 +460,8 @@ public class SourceTextGenerator : ISourceTextGenerator
 	internal static void WriteValueParseCode(PropertyAndAttributeInfo propertyInfo, string localVariableName, string propertyName, IndentedTextWriter writer, string useCurrentCulture)
 	{
 		var value = $"{localVariableName}.Value";
-		var propertyType = propertyInfo.PropertyType;
+		// a nullable property is parsed as the type it is nullable of
+		var propertyType = propertyInfo.UnderlyingType;
 		string tryParse;
 		if (propertyInfo.IsEnum)
 		{
@@ -468,7 +469,8 @@ public class SourceTextGenerator : ISourceTextGenerator
 		}
 		else if (propertyInfo.HasParseMethod)
 		{
-			tryParse = $"{propertyType.Replace("?", "")}.{propertyInfo.ParseMethodName}({value}, out var parsedValue)";
+			// out var takes the type from the method: an out parameter that is nullable lets it answer null
+			tryParse = $"{propertyInfo.ParseMethodOwner}.{propertyInfo.ParseMethodName}({value}, out var parsedValue)";
 		}
 		else if (CultureSensitiveTypes.Contains(propertyType))
 		{
@@ -540,7 +542,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 	internal static void WriteFlagParseCode(PropertyAndAttributeInfo flagInfo, IndentedTextWriter writer)
 	{
 		var propertyName = flagInfo.PropertyName;
-		bool isBool = flagInfo.PropertyType == "bool";
+		bool isBool = flagInfo.UnderlyingType == "bool";
 		bool isEnum = flagInfo.IsEnum;
 		if (!isBool && !isEnum)
 		{
@@ -556,7 +558,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		if (isEnum)
 		{
 			// take the level of the token and cast to enum type
-			writer.WriteLine($"instance.{propertyName} = ({flagInfo.PropertyType})flagToken.Level;");
+			writer.WriteLine($"instance.{propertyName} = ({flagInfo.UnderlyingType})flagToken.Level;");
 		}
 	}
 }

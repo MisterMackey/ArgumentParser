@@ -346,7 +346,7 @@ public static class Validation
 		// Check that Flag attributes are only applied to boolean and enum properties
 		foreach (var flag in flags)
 		{
-			if (flag.PropertyType != "bool"
+			if (flag.UnderlyingType != "bool"
 				&& !flag.IsEnum
 				&& !flag.IsCommandClass
 			)
@@ -359,6 +359,17 @@ public static class Validation
 					flag.PropertyName,
 					flag.PropertyType));
 			}
+		}
+
+		// A flag does not read a value, so only options and positionals need the method that ParsedWithMethod names
+		foreach (var prop in options.Concat(positionals).Where(x => x.HasParseMethod && string.IsNullOrEmpty(x.ParseMethodOwner) && !x.IsCommandClass))
+		{
+			diagnostics.Add(DiagnosticInfo.Create(
+				GeneratorDiagnostics.ARG030,
+				GetLocation(prop, classDeclarations),
+				prop.ParseMethodName,
+				prop.PropertyName,
+				prop.UnderlyingType));
 		}
 
 		return diagnostics.AsReadOnly();
@@ -516,7 +527,7 @@ public static class Validation
 	private static bool IsSupportedPropertyType(PropertyAndAttributeInfo propInfo)
 	{
 		// check if its a 'simple' BCL type
-		var propertyType = propInfo.PropertyType;
+		var propertyType = propInfo.UnderlyingType;
 		var simpleSupportedType = propertyType switch
 		{
 			"int" => true,
@@ -537,7 +548,6 @@ public static class Validation
 			"bool" => true,
 			"System.DateTime" => true,
 			"string" => true,
-			"string?" => true,
 			_ => false
 		};
 		if (simpleSupportedType)

@@ -9,6 +9,8 @@ Licensed under the Apache License, Version 2.0
 		- [Overriding the default behaviour](#overriding-the-default-behaviour)
 		- [Supported types for argument properties](#supported-types-for-argument-properties)
 		- [Numbers, dates and times](#numbers-dates-and-times)
+		- [Nullable arguments](#nullable-arguments)
+		- [Custom parsing](#custom-parsing)
 	- [Command trees](#command-trees)
 		- [Declaring a tree](#declaring-a-tree)
 		- [Parsing](#parsing)
@@ -153,6 +155,8 @@ DateTime
 Custom enum types are also supported. When used in combination with a Flag, the amount of times the flag is repeated (int) will be casted as the enum type.
 For Positionals and Options, the supplied string value will be used in a TryParse construction.
 
+Every one of these types can be nullable as well (`int?`, `DateTime?`, `bool?`, a nullable enum, ...), see [Nullable arguments](#nullable-arguments). Other types can be read with [custom parsing](#custom-parsing).
+
 ### Numbers, dates and times
 Numbers, dates and times are read the same way on every machine, whatever its culture, and only in forms that cannot be misread (the runtime class `ArgumentParser.ValueParser` does the conversion):
 
@@ -171,6 +175,53 @@ When this is wrong for an application, for example because its users type number
 [ParameterCollection(UseCurrentCulture = true)]
 ```
 For a single argument, `[ParsedWithMethod]` can read the text in any other way. In a tree of commands the setting goes on `[CommandApp]`, and applies to every level (see [Help and errors](#help-and-errors)).
+
+### Nullable arguments
+A property that is nullable is `null` when the argument was not given on the command line, so a program can tell "not given" from "given as 0" (or `NaN`, or `0001-01-01`). This is what an `update` command needs, where only the arguments that are given are changed:
+```C#
+[Option("r", "retries", "How often to try again")]
+public int? Retries { get; set; }
+
+[Option("s", "since", "Only items changed since")]
+public DateTime? Since { get; set; }
+
+[Flag("v", "verbose", "Verbose output")]
+public bool? Verbose { get; set; }
+```
+- `myProgram` leaves all three `null`, `myProgram --retries 0 -v` gives `Retries == 0` and `Verbose == true`.
+- The text is converted like that of the type that the property is nullable of, with the same rules for numbers, dates and times (see [Numbers, dates and times](#numbers-dates-and-times)). A value that cannot be converted is an error, and the property keeps its default.
+- Nullable works for options, positionals and flags. A nullable `bool?` flag or nullable enum flag stays `null` until the flag is given, and then has the value that `bool` or the enum would have.
+- An initializer is the default, as it is for any other property: `public int? Retries { get; set; } = 3;` is 3 when `--retries` is not given. Nothing but custom parsing can set it back to `null`.
+- A `?` on a reference type (`string?`, `Uri?`) only describes the property to the compiler, nothing changes for the parser.
+- `required: true` is allowed on a nullable property. A required argument counts as given as soon as it is on the command line, even when custom parsing turns its text into `null`.
+- The help text does not show types or defaults, so it does not change.
+
+### Custom parsing
+`[ParsedWithMethod("MethodName")]` on an option or a positional argument reads the text with a method of your own, instead of the built-in conversion. The method has the form of a `TryParse` method: `static bool MethodName(string input, out T value)`, which returns `false` for text it cannot read (an error is reported) and `true` with the value otherwise. The generator looks for it in two places, in this order:
+1. The class that declares the property, in any of its parts. The method can be private. This is the place for a type you cannot add methods to, such as `int?`.
+2. The type of the property (`Point.TryParse` for a property of type `Point`).
+
+The generator reports [ARG030](ArgumentParser.Analyzer/docs/rules/ARG030.md) when it finds neither.
+
+When the property is nullable, `T` can be nullable too, so the method can turn some text into `null`. For example, to send the output of a program to a file descriptor, where the default is 1 and `NULL` means that there should be no output at all:
+```C#
+[Option("r", "redirectOutputStream", "File descriptor to send the output to, NULL for none")]
+[ParsedWithMethod(nameof(ParseDescriptor))]
+public int? RedirectOutputStream { get; set; } = 1;
+
+private static bool ParseDescriptor(string input, out int? value)
+{
+	if (input == "NULL")
+	{
+		value = null;
+		return true;
+	}
+	var parsed = int.TryParse(input, out var descriptor);
+	value = parsed ? descriptor : null;
+	return parsed;
+}
+```
+`myProgram` leaves `RedirectOutputStream` at 1, `myProgram --redirectOutputStream 2` sets 2 and `myProgram --redirectOutputStream NULL` sets `null`.
 
 ## Command trees
 Instead of one flat set of arguments, an application can have commands, in the form `appname subcommand action`:
