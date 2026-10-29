@@ -82,12 +82,15 @@ public class AttributeFactory
 	private PropertyAndAttributeInfo CreateInfo(PropertyDeclarationSyntax property, IPropertySymbol? propertySymbol, AttributeInfo attribute)
 	{
 		var parsedWithMethod = AttributeReader.StringArgument(AttributeReader.Find(propertySymbol, AttributeReader.ParsedWithMethod), 0);
+		var listElement = AttributeReader.ListElement(propertySymbol?.Type);
 		return new PropertyAndAttributeInfo
 		{
 			Attribute = attribute,
 			PropertyName = property.Identifier.Text,
 			PropertyType = propertySymbol?.Type.ToDisplayString() ?? "string", //default, no parsing
-			IsEnum = propertySymbol is not null && AttributeReader.UnwrapNullable(propertySymbol.Type).TypeKind == TypeKind.Enum,
+			IsList = listElement is not null,
+			ListElementType = listElement is null ? string.Empty : AttributeReader.DisplayElement(listElement),
+			IsEnum = propertySymbol is not null && AttributeReader.UnwrapNullable(listElement ?? propertySymbol.Type).TypeKind == TypeKind.Enum,
 			IsCommandClass = AttributeReader.IsCommandClass(propertySymbol?.Type),
 			ParseMethodName = parsedWithMethod,
 			ParseMethodOwner = ParseMethodResolver.Resolve(propertySymbol, parsedWithMethod, _semanticModel.Compilation)
@@ -163,13 +166,24 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 
 	/// <summary>
 	/// The type of the property without the question mark of a nullable type: the type that the text of the argument is converted to.
+	/// For a list it is the type of the elements, as each value of the argument is converted to one.
 	/// </summary>
-	public readonly string UnderlyingType => IsNullable ? PropertyType.Substring(0, PropertyType.Length - 1) : PropertyType;
+	public readonly string UnderlyingType => IsList ? ListElementType ?? string.Empty : IsNullable ? PropertyType.Substring(0, PropertyType.Length - 1) : PropertyType;
 
 	/// <summary>
 	/// Indicates whether the property type, or the type it is nullable of, is an enum.
 	/// </summary>
 	public bool IsEnum { get; set; }
+
+	/// <summary>
+	/// Indicates whether the property type is a <c>List&lt;T&gt;</c> (or a nullable one): the argument can be given several times.
+	/// </summary>
+	public bool IsList { get; set; }
+
+	/// <summary>
+	/// The type of the elements of a list property, empty for any other property. A nullable value type keeps its question mark.
+	/// </summary>
+	public string ListElementType { get; set; }
 
 	/// <summary>
 	/// Indicates whether the property type is a class with the Command or the CommandApp attribute, which an argument cannot have.
@@ -212,7 +226,7 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	/// <returns></returns>
 	public override int GetHashCode()
 	{
-		return 17 * 23 + (PropertyName?.GetHashCode() ?? 0) * 31 + (PropertyType?.GetHashCode() ?? 0) * 37 + (IsEnum ? 1 : 0) * 43 +
+		return 17 * 23 + (PropertyName?.GetHashCode() ?? 0) * 31 + (PropertyType?.GetHashCode() ?? 0) * 37 + (IsEnum ? 1 : 0) * 43 + (IsList ? 1 : 0) * 59 + (ListElementType?.GetHashCode() ?? 0) * 61 +
 		       (IsCommandClass ? 1 : 0) * 47 + (ParseMethodOwner?.GetHashCode() ?? 0) * 53 + Attribute.GetHashCode() * 41;
 	}
 
@@ -233,6 +247,8 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 		return PropertyName == other.PropertyName &&
 			PropertyType == other.PropertyType &&
 			IsEnum == other.IsEnum &&
+			IsList == other.IsList &&
+			ListElementType == other.ListElementType &&
 			IsCommandClass == other.IsCommandClass &&
 			ParseMethodName == other.ParseMethodName &&
 			ParseMethodOwner == other.ParseMethodOwner &&

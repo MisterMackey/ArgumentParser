@@ -160,12 +160,12 @@ public static class CommandHelpTextProvider
 
 	private static string PositionalLine(PropertyAndAttributeInfo positional)
 	{
-		return $"Position: {positional.Attribute.Position}: {positional.Attribute.Description}";
+		return $"Position: {positional.Attribute.Position}: {HelptextProvider.ArgumentDescription(positional)}";
 	}
 
 	private static string ArgumentLine(string kind, PropertyAndAttributeInfo argument)
 	{
-		return $"{kind}: {Names(argument.Attribute.ShortName, argument.Attribute.LongName)}: {argument.Attribute.Description}";
+		return $"{kind}: {Names(argument.Attribute.ShortName, argument.Attribute.LongName)}: {HelptextProvider.ArgumentDescription(argument)}";
 	}
 
 	private static string Names(string shortName, string longName)

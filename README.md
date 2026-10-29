@@ -10,6 +10,7 @@ Licensed under the Apache License, Version 2.0
 		- [Supported types for argument properties](#supported-types-for-argument-properties)
 		- [Numbers, dates and times](#numbers-dates-and-times)
 		- [Nullable arguments](#nullable-arguments)
+		- [List arguments](#list-arguments)
 		- [Custom parsing](#custom-parsing)
 	- [Command trees](#command-trees)
 		- [Declaring a tree](#declaring-a-tree)
@@ -155,7 +156,7 @@ DateTime
 Custom enum types are also supported. When used in combination with a Flag, the amount of times the flag is repeated (int) will be casted as the enum type.
 For Positionals and Options, the supplied string value will be used in a TryParse construction.
 
-Every one of these types can be nullable as well (`int?`, `DateTime?`, `bool?`, a nullable enum, ...), see [Nullable arguments](#nullable-arguments). Other types can be read with [custom parsing](#custom-parsing).
+Every one of these types can be nullable as well (`int?`, `DateTime?`, `bool?`, a nullable enum, ...), see [Nullable arguments](#nullable-arguments), and a `List<T>` of any of them can be given several times, see [List arguments](#list-arguments). Other types can be read with [custom parsing](#custom-parsing).
 
 ### Numbers, dates and times
 Numbers, dates and times are read the same way on every machine, whatever its culture, and only in forms that cannot be misread (the runtime class `ArgumentParser.ValueParser` does the conversion):
@@ -195,6 +196,29 @@ public bool? Verbose { get; set; }
 - A `?` on a reference type (`string?`, `Uri?`) only describes the property to the compiler, nothing changes for the parser.
 - `required: true` is allowed on a nullable property. A required argument counts as given as soon as it is on the command line, even when custom parsing turns its text into `null`.
 - The help text does not show types or defaults, so it does not change.
+
+### List arguments
+An option or a positional of type `List<T>` can be given several times, and every value becomes an element of the list, in the order they were written:
+```C#
+[Option("i", "include", "A pattern to include")]
+public List<string>? Include { get; set; }
+
+[Positional(0, "The target")]
+public string Target { get; set; } = "";
+
+[Positional(1, "The files")]
+public List<string>? Files { get; set; }
+```
+- `myProgram -i *.cs --include *.md out a.txt b.txt` gives `Include == ["*.cs", "*.md"]`, `Target == "out"` and `Files == ["a.txt", "b.txt"]`.
+- `T` can be any type that an option or a positional can have: the built-in types, enums and types with [custom parsing](#custom-parsing). The text of every value is converted on its own, like that of a single argument (see [Numbers, dates and times](#numbers-dates-and-times)). A value that cannot be converted is an error, and the other values are kept. A value is not split on commas: give the option again for the next value.
+- A list positional takes every positional value that is left, so it has to be the last positional (the one with the highest position), and there can only be one ([ARG031](ArgumentParser.Analyzer/docs/rules/ARG031.md)). Options and flags may come between the values: `myProgram out a.txt -v b.txt` gives both files to the list.
+- With `[ParsedWithMethod("MethodName")]` the method is called for every value, and its `out` parameter is the type of the elements (`T`, not `List<T>`). It is looked for on the class that declares the property first, then on `T`.
+- When no value is given the property is not touched, so it is `null` if it has no initializer (this is why `List<string>?` is the natural type for it), and keeps its initializer otherwise. When values are given they replace an initializer, they are not added to it.
+- `required: true` means at least one value.
+- Only `List<T>` is supported, not arrays or other collections. The elements cannot be a nullable value type, `List<int?>` is an error ([ARG032](ArgumentParser.Analyzer/docs/rules/ARG032.md)); make the list nullable instead (`List<int>?`). A flag cannot hold a list ([ARG013](ArgumentParser.Analyzer/docs/rules/ARG013.md)).
+- The help text adds `(can be repeated)` to the description of a list.
+- Like for any positional, a value that starts with `-` is read as an option or a flag, so it cannot be a value of a list positional. The value of an option can be anything, `--include -odd` works.
+- Options of a command tree can be lists too, on every level; a list positional is for a leaf.
 
 ### Custom parsing
 `[ParsedWithMethod("MethodName")]` on an option or a positional argument reads the text with a method of your own, instead of the built-in conversion. The method has the form of a `TryParse` method: `static bool MethodName(string input, out T value)`, which returns `false` for text it cannot read (an error is reported) and `true` with the value otherwise. The generator looks for it in two places, in this order:

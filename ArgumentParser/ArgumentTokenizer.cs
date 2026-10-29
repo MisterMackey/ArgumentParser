@@ -84,12 +84,16 @@ namespace ArgumentParser
 			}
 		}
 
-		private static void ProcessPositionalArgument(string arg, PositionalAttribute[] positionals, ref int positionalIndex, List<Token> tokens, List<ArgumentParserException> errors)
+		private static void ProcessPositionalArgument(string arg, PositionalAttribute[] positionals, ref int positionalIndex, bool lastPositionalRepeats, List<Token> tokens, List<ArgumentParserException> errors)
 		{
 			if (positionalIndex < positionals.Length)
 			{
 				tokens.Add(new PositionalToken(positionalIndex, arg));
-				positionalIndex++;
+				// a positional that holds a list keeps its position, so every value that follows is a value of the list
+				if (!lastPositionalRepeats || positionalIndex < positionals.Length - 1)
+				{
+					positionalIndex++;
+				}
 			}
 			else
 			{
@@ -145,9 +149,24 @@ namespace ArgumentParser
 		/// </returns>
 		public (List<Token> result, List<ArgumentParserException> err) TokenizeArguments(string[] args, OptionAttribute[] options, PositionalAttribute[] positionals, FlagAttribute[] flags)
 		{
+			return TokenizeArguments(args, options, positionals, flags, lastPositionalRepeats: false);
+		}
+
+		/// <summary>
+		/// Tokenizes the provided arguments into a list of tokens and errors, optionally letting the last positional take every remaining value.
+		/// </summary>
+		/// <param name="args">The array of arguments to tokenize.</param>
+		/// <param name="options">The array of option attributes to match against.</param>
+		/// <param name="positionals">The array of positional attributes to match against.</param>
+		/// <param name="flags">The array of flag attributes to match against.</param>
+		/// <param name="lastPositionalRepeats">True when the last positional holds a list: every positional argument after the ones before it
+		/// is then tokenized with the position of the last positional, instead of being an unexpected argument.</param>
+		/// <returns>A tuple containing a list of tokens and a list of errors, ordered as with the overload without <paramref name="lastPositionalRepeats"/>.</returns>
+		public (List<Token> result, List<ArgumentParserException> err) TokenizeArguments(string[] args, OptionAttribute[] options, PositionalAttribute[] positionals, FlagAttribute[] flags, bool lastPositionalRepeats)
+		{
 			if (positionals is null)
 				throw new System.ArgumentNullException(nameof(positionals));
-			var (tokens, errors, _) = Tokenize(args, options, positionals, flags, stopAtFirstPositional: false);
+			var (tokens, errors, _) = Tokenize(args, options, positionals, flags, stopAtFirstPositional: false, lastPositionalRepeats);
 			return (tokens, errors);
 		}
 
@@ -161,13 +180,13 @@ namespace ArgumentParser
 		/// <param name="flags">The array of flag attributes to match against.</param>
 		/// <returns>A tuple containing a list of tokens, a list of errors, and the index of the first argument that was not tokenized
 		/// (the length of <paramref name="args"/> when there is none).
-		/// The order of the tokens is not guaranteed, as with <see cref="TokenizeArguments"/>.</returns>
+		/// The order of the tokens is not guaranteed, as with <see cref="TokenizeArguments(string[], OptionAttribute[], PositionalAttribute[], FlagAttribute[])"/>.</returns>
 		public (List<Token> result, List<ArgumentParserException> err, int commandIndex) TokenizeLeadingArguments(string[] args, OptionAttribute[] options, FlagAttribute[] flags)
 		{
-			return Tokenize(args, options, System.Array.Empty<PositionalAttribute>(), flags, stopAtFirstPositional: true);
+			return Tokenize(args, options, System.Array.Empty<PositionalAttribute>(), flags, stopAtFirstPositional: true, lastPositionalRepeats: false);
 		}
 
-		private (List<Token> result, List<ArgumentParserException> err, int commandIndex) Tokenize(string[] args, OptionAttribute[] options, PositionalAttribute[] positionals, FlagAttribute[] flags, bool stopAtFirstPositional)
+		private (List<Token> result, List<ArgumentParserException> err, int commandIndex) Tokenize(string[] args, OptionAttribute[] options, PositionalAttribute[] positionals, FlagAttribute[] flags, bool stopAtFirstPositional, bool lastPositionalRepeats)
 		{
 			flagRepeatCounts.Clear();
 			if (args is null)
@@ -200,7 +219,7 @@ namespace ArgumentParser
 				}
 				else
 				{
-					ProcessPositionalArgument(arg, positionals, ref positionalIndex, tokens, errors);
+					ProcessPositionalArgument(arg, positionals, ref positionalIndex, lastPositionalRepeats, tokens, errors);
 				}
 			}
 			AddFlagTokensWithLevels(tokens);

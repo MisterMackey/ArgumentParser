@@ -5,7 +5,7 @@ namespace ArgumentParser.Internal.Utilities;
 /// <summary>
 /// Finds the method that a ParsedWithMethod attribute names. The method is looked for on the class that declares
 /// the property first (which is also where the generated code is, so it can be private, and it is the only place
-/// that can hold a method for a type that cannot be extended, such as <c>int?</c>), and then on the type of the property.
+/// that can hold a method for a type that cannot be extended, such as <c>int?</c>), and then on the type of the property (the type of the elements for a list).
 /// </summary>
 internal static class ParseMethodResolver
 {
@@ -27,7 +27,8 @@ internal static class ParseMethodResolver
 		{
 			return Qualified(declaringClass);
 		}
-		if (AttributeReader.UnwrapNullable(property.Type) is INamedTypeSymbol propertyType
+		// a list is parsed element by element, so its elements are the type that can hold the method
+		if (AttributeReader.UnwrapNullable(AttributeReader.ListElement(property.Type) ?? property.Type) is INamedTypeSymbol propertyType
 			&& HasParseMethod(propertyType, methodName, declaringClass, compilation))
 		{
 			return Qualified(propertyType);

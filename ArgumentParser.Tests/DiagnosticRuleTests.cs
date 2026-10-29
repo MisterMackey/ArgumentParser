@@ -42,6 +42,7 @@ public class DiagnosticRuleTests
 	{
 		var source = $$"""
 			using System;
+			using System.Collections.Generic;
 			using System.IO;
 			using ArgumentParser;
 
@@ -390,11 +391,14 @@ public class DiagnosticRuleTests
 		"int", "double", "float", "long", "short", "decimal", "byte", "sbyte", "char", "uint", "ulong", "ushort",
 		"bool", "string", "Guid", "Uri", "TimeSpan", "DateTime", "Colour",
 		"Int32", "System.Int32", "System.String", "System.Guid", "System.DateTime", "Boolean",
+		"List<string>", "List<int>", "List<Colour>", "List<Guid>", "List<DateTime>", "List<string>?", "List<int>?",
 	];
 
 	private static readonly string[] UnsupportedTypes =
 	[
-		"object", "Custom", "CustomStruct", "FileInfo", "DateTimeOffset", "Version", "List<string>", "int[]", "string[]", "Array",
+		"object", "Custom", "CustomStruct", "FileInfo", "DateTimeOffset", "Version", "int[]", "string[]", "Array",
+		"IList<string>", "IEnumerable<string>", "ICollection<string>", "IReadOnlyList<string>", "HashSet<string>",
+		"List<Custom>", "List<object>", "List<string[]>", "List<List<string>>",
 	];
 
 	public static TheoryData<string> SupportedTypeNames => new(SupportedTypes);
@@ -821,6 +825,216 @@ public class DiagnosticRuleTests
 		var result = Diagnose("[Option(\"c\", \"Cmd\", \"desc\")] [ParsedWithMethod(\"Read\")] public Custom? Command { get; set; }");
 
 		Assert.Empty(result.Rule("ARG026"));
+	}
+	#endregion
+
+	#region lists (ARG031 and ARG032)
+	[Theory]
+	[InlineData("List<Custom>")]
+	[InlineData("List<Custom>?")]
+	public void Lists_ElementOfAnUnsupportedType_IsReportedWithTheElementType(string type)
+	{
+		var result = Diagnose(Option("o", "Output", "Output", type));
+
+		var diagnostic = Assert.Single(result.Rule("ARG007"));
+		Assert.Contains("Diagnostics.Custom", diagnostic.GetMessage());
+		Assert.Equal(new[] { "ARG007" }, result.Ids);
+	}
+
+	[Fact]
+	public void Lists_ParseMethodOnTheElementType_IsFoundForTheList()
+	{
+		var result = Diagnose(Join(
+			"public class Parsable { public static bool Read(string input, out Parsable? value) { value = null; return true; } }",
+			"[ParsedWithMethod(\"Read\")] " + Option("o", "Output", "Output", "List<Parsable>"),
+			"[ParsedWithMethod(\"Read\")] " + Positional(0, "Input", "List<Parsable>?")));
+
+		Assert.Empty(result.Ids);
+	}
+
+	[Fact]
+	public void Lists_ParseMethodOnTheDeclaringClass_IsFoundForTheList()
+	{
+		var result = Diagnose(Join(
+			"[ParsedWithMethod(\"Read\")] " + Option("o", "Output", "Output", "List<int>"),
+			"private static bool Read(string input, out int value) { value = 0; return true; }"));
+
+		Assert.Empty(result.Ids);
+	}
+
+	[Fact]
+	public void Lists_ParseMethodThatDoesNotExist_IsReportedAsARG030WithTheElementType()
+	{
+		var result = Diagnose("[ParsedWithMethod(\"Read\")] " + Option("o", "Output", "Output", "List<Custom>"));
+
+		var diagnostic = Assert.Single(result.Rule("ARG030"));
+		Assert.Contains("'Read'", diagnostic.GetMessage());
+		Assert.Contains("'Output'", diagnostic.GetMessage());
+		Assert.Contains("Diagnostics.Custom", diagnostic.GetMessage());
+		Assert.Equal(new[] { "ARG030" }, result.Ids);
+	}
+
+	[Theory]
+	[InlineData("List<bool>")]
+	[InlineData("List<bool>?")]
+	[InlineData("List<Colour>")]
+	[InlineData("List<Colour>?")]
+	public void Lists_OnAFlag_AreReportedAsARG013(string type)
+	{
+		var result = Diagnose(Flag("f", "Flag", "Value", type));
+
+		var diagnostic = Assert.Single(result.Diagnostics);
+		Assert.Equal("ARG013", diagnostic.Id);
+		Assert.Contains("'Value'", diagnostic.GetMessage());
+		Assert.Empty(result.Output);
+	}
+
+	[Theory]
+	[InlineData("List<int?>")]
+	[InlineData("List<bool?>")]
+	[InlineData("List<Colour?>")]
+	[InlineData("List<Guid?>")]
+	[InlineData("List<DateTime?>")]
+	[InlineData("List<int?>?")]
+	public void ARG032_ListWithANullableValueTypeElement_IsReportedOnAnOptionAndAPositional(string type)
+	{
+		var result = Diagnose(Join(Option("o", "Output", "A", type), Positional(0, "B", type)));
+
+		Assert.Equal(new[] { "ARG032", "ARG032" }, result.Ids);
+		Assert.All(result.Rule("ARG032"), d => Assert.Equal(DiagnosticSeverity.Error, d.Severity));
+		Assert.Empty(result.Output);
+	}
+
+	[Fact]
+	public void ARG032_MessageNamesThePropertyAndItsType()
+	{
+		var result = Diagnose(Option("o", "Output", "Numbers", "List<int?>"));
+
+		var message = Assert.Single(result.Rule("ARG032")).GetMessage();
+		Assert.Contains("'Numbers'", message);
+		Assert.Contains("int?", message);
+	}
+
+	[Fact]
+	public void ARG032_IsReportedOnTheProperty()
+	{
+		var result = Diagnose(Option("o", "Output", "Numbers", "List<int?>"));
+
+		var diagnostic = Assert.Single(result.Rule("ARG032"));
+		Assert.Contains("Numbers", result.TextAt(diagnostic));
+	}
+
+	[Theory]
+	[InlineData("List<string?>")]
+	[InlineData("List<string>?")]
+	[InlineData("List<int>?")]
+	[InlineData("List<Colour>?")]
+	public void ARG032_AnnotationOfAReferenceTypeOrANullableList_IsNotReported(string type)
+	{
+		var result = Diagnose(Join(Option("o", "Output", "A", type), Positional(0, "B", type)));
+
+		Assert.Empty(result.Ids);
+		Assert.NotEmpty(result.Output);
+	}
+
+	[Fact]
+	public void ARG032_NullableElementOfAListThatIsAlsoUnsupported_IsReportedOnce()
+	{
+		var result = Diagnose(Option("o", "Output", "Output", "List<CustomStruct?>"));
+
+		Assert.Single(result.Diagnostics);
+	}
+
+	[Fact]
+	public void ARG031_ListPositionalBeforeAnotherPositional_IsReportedOnTheList()
+	{
+		var result = Diagnose(Join(Positional(0, "Files", "List<string>"), Positional(1, "Target")));
+
+		var diagnostic = Assert.Single(result.Diagnostics);
+		Assert.Equal("ARG031", diagnostic.Id);
+		Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+		Assert.Contains("'Files'", diagnostic.GetMessage());
+		Assert.Contains("Files", result.TextAt(diagnostic));
+		Assert.Empty(result.Output);
+	}
+
+	[Fact]
+	public void ARG031_TwoListPositionals_ReportsTheOneThatIsNotLast()
+	{
+		var result = Diagnose(Join(Positional(0, "First", "List<string>"), Positional(1, "Second", "List<int>")));
+
+		var diagnostic = Assert.Single(result.Rule("ARG031"));
+		Assert.Contains("'First'", diagnostic.GetMessage());
+		Assert.Equal(new[] { "ARG031" }, result.Ids);
+	}
+
+	[Fact]
+	public void ARG031_ListPositionalAmongThreeThatIsInTheMiddle_IsReported()
+	{
+		var result = Diagnose(Join(Positional(0, "A"), Positional(1, "B", "List<string>"), Positional(2, "C")));
+
+		Assert.Contains("'B'", Assert.Single(result.Rule("ARG031")).GetMessage());
+	}
+
+	[Fact]
+	public void ARG031_ListPositionalDeclaredFirstButWithTheHighestPosition_IsNotReported()
+	{
+		var result = Diagnose(Join(Positional(1, "Files", "List<string>"), Positional(0, "Target")));
+
+		Assert.Empty(result.Ids);
+		Assert.NotEmpty(result.Output);
+	}
+
+	[Theory]
+	[InlineData("List<string>")]
+	[InlineData("List<int>?")]
+	[InlineData("List<Colour>")]
+	public void ARG031_ListPositionalThatIsLast_IsNotReported(string type)
+	{
+		var result = Diagnose(Join(Positional(0, "Target"), Positional(1, "Files", type)));
+
+		Assert.Empty(result.Ids);
+		Assert.NotEmpty(result.Output);
+	}
+
+	[Fact]
+	public void ARG031_ListPositionalThatIsTheOnlyPositional_IsNotReported()
+	{
+		var result = Diagnose(Join(Positional(0, "Files", "List<string>"), Option("o", "Output", "Output", "List<string>"), Flag("v", "Verbose", "Verbose")));
+
+		Assert.Empty(result.Ids);
+	}
+
+	[Fact]
+	public void ARG031_ListOptionsAndPositionalsAfterThem_AreNotReported()
+	{
+		var result = Diagnose(Join(Option("i", "Include", "Include", "List<string>"), Positional(0, "Target"), Positional(1, "Other")));
+
+		Assert.Empty(result.Ids);
+	}
+
+	[Fact]
+	public void ARG031_ScalarPositionalsOnly_AreNotReported()
+	{
+		var result = Diagnose(Join(Positional(0, "A"), Positional(1, "B")));
+
+		Assert.Empty(result.Rule("ARG031"));
+	}
+
+	[Fact]
+	public void ARG031_ListPositionalNotLastInPartialClassPart_IsReported()
+	{
+		var result = Diagnose(Positional(0, "Files", "List<string>"), otherPart: Positional(1, "Target"));
+
+		Assert.Contains("'Files'", Assert.Single(result.Rule("ARG031")).GetMessage());
+	}
+
+	[Fact]
+	public void ARG031_AndARG007_AreBothReportedForAnUnsupportedListThatIsNotLast()
+	{
+		var result = Diagnose(Join(Positional(0, "Files", "List<Custom>"), Positional(1, "Target")));
+
+		Assert.Equal(new[] { "ARG007", "ARG031" }, result.Ids);
 	}
 	#endregion
 

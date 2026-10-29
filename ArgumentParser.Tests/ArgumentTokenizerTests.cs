@@ -573,5 +573,118 @@ namespace ArgumentParser.Tests
 		}
 
 		#endregion
+
+		#region repeating last positional
+
+		private static List<(int Position, string Value)> PositionalsOf(List<Token> tokens)
+			=> tokens.OfType<PositionalToken>().Select(t => (t.Position, t.Value)).ToList();
+
+		[Fact]
+		public void LastPositionalRepeats_RemainingValues_ShareThePositionOfTheLastPositional()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a", "b", "c", "d"], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(errors);
+			Assert.Equal([(0, "a"), (1, "b"), (1, "c"), (1, "d")], PositionalsOf(tokens));
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_OnlyThePositionalsBeforeTheList_GivesNoValuesToTheList()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a"], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(errors);
+			Assert.Equal([(0, "a")], PositionalsOf(tokens));
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_NoArguments_GivesNothing()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments([], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(tokens);
+			Assert.Empty(errors);
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_ASinglePositional_TakesEveryValue()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a", "b", "c"], _options, [new PositionalAttribute(0, "Files")], _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(errors);
+			Assert.Equal([(0, "a"), (0, "b"), (0, "c")], PositionalsOf(tokens));
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_OptionsAndFlagsBetweenTheValues_DoNotEndTheList()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a", "b", "--verbose", "c", "-o", "out.txt", "d"], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(errors);
+			Assert.Equal([(0, "a"), (1, "b"), (1, "c"), (1, "d")], PositionalsOf(tokens));
+			var option = Assert.Single(tokens.OfType<OptionToken>());
+			Assert.Equal("o", option.Name);
+			Assert.Equal("out.txt", option.Value);
+			Assert.Single(tokens.OfType<FlagToken>());
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_ValueOfAnOption_IsNotAddedToTheList()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a", "--output", "b", "c"], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(errors);
+			Assert.Equal([(0, "a"), (1, "c")], PositionalsOf(tokens));
+			Assert.Equal("b", Assert.Single(tokens.OfType<OptionToken>()).Value);
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_ValueStartingWithADash_IsStillAFlagOrOption()
+		{
+			var (_, errors) = _tokenizer.TokenizeArguments(["a", "-x"], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.IsType<UnexpectedArgumentException>(Assert.Single(errors));
+		}
+
+		[Fact]
+		public void LastPositionalDoesNotRepeat_ExtraValue_IsStillUnexpected()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a", "b", "c"], _options, _positionals, _flags, lastPositionalRepeats: false);
+
+			Assert.Equal([(0, "a"), (1, "b")], PositionalsOf(tokens));
+			var error = Assert.IsType<UnexpectedArgumentException>(Assert.Single(errors));
+			Assert.Contains("Unexpected positional argument 'c'", error.Message);
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_NoPositionalsAtAll_StillReportsTheUnexpectedValue()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a"], _options, [], _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(PositionalsOf(tokens));
+			Assert.IsType<UnexpectedArgumentException>(Assert.Single(errors));
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_NullArguments_Throw()
+		{
+			string[] args = ["a"];
+
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeArguments(null!, _options, _positionals, _flags, true));
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeArguments(args, null!, _positionals, _flags, true));
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeArguments(args, _options, null!, _flags, true));
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeArguments(args, _options, _positionals, null!, true));
+		}
+
+		[Fact]
+		public void RepeatedOption_GivesATokenForEveryOccurrenceInOrder()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["-o", "a", "--output", "b", "-o", "c"], _options, _positionals, _flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(["a", "b", "c"], tokens.OfType<OptionToken>().Select(t => t.Value));
+		}
+
+		#endregion
 	}
 }

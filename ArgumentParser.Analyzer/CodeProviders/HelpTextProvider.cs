@@ -54,7 +54,7 @@ public class HelptextProvider
 			if (positional.Attribute.Required)
 			{
 				hasRequiredArgs = true;
-				helpText.AppendLine($"\tPosition: {positional.Attribute.Position}: {positional.Attribute.Description}");
+				helpText.AppendLine($"\tPosition: {positional.Attribute.Position}: {ArgumentDescription(positional)}");
 			}
 		}
 		foreach (var option in options)
@@ -75,7 +75,7 @@ public class HelptextProvider
 				{
 					helpText.Append($"--{option.Attribute.LongName} ");
 				}
-				helpText.AppendLine($": {option.Attribute.Description}");
+				helpText.AppendLine($": {ArgumentDescription(option)}");
 			}
 		}
 		if (!hasRequiredArgs)
@@ -91,7 +91,7 @@ public class HelptextProvider
 			if (!positional.Attribute.Required)
 			{
 				hasOptionalArgs = true;
-				helpText.AppendLine($"\tPosition: {positional.Attribute.Position}: {positional.Attribute.Description}");
+				helpText.AppendLine($"\tPosition: {positional.Attribute.Position}: {ArgumentDescription(positional)}");
 			}
 		}
 		foreach (var flag in flags)
@@ -133,7 +133,7 @@ public class HelptextProvider
 				{
 					helpText.Append($"--{option.Attribute.LongName} ");
 				}
-				helpText.AppendLine($": {option.Attribute.Description}");
+				helpText.AppendLine($": {ArgumentDescription(option)}");
 			}
 		}
 		if (!hasOptionalArgs)
@@ -144,6 +144,16 @@ public class HelptextProvider
 		helpText.AppendLine();
 
 		return WrapInRawStringLiteral(helpText.ToString());
+	}
+
+	/// <summary>
+	/// Gets the description of an argument for the help text: an argument that holds a list says that it can be given again.
+	/// </summary>
+	/// <param name="argument">The option or positional.</param>
+	/// <returns>The description, ending with a note for a list.</returns>
+	internal static string ArgumentDescription(PropertyAndAttributeInfo argument)
+	{
+		return argument.IsList ? $"{argument.Attribute.Description} (can be repeated)" : argument.Attribute.Description;
 	}
 
 	private static string WrapInRawStringLiteral(string content)

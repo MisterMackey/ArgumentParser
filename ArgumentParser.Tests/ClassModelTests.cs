@@ -250,6 +250,23 @@ public class ClassModelTests
 	}
 
 	[Fact]
+	public void PropertyAndAttributeInfo_IsListIsPartOfTheComparison()
+	{
+		var scalar = Property("Files");
+		var list = Property("Files");
+		list.IsList = true;
+		var sameList = Property("Files");
+		sameList.IsList = true;
+
+		Assert.NotEqual(scalar, list);
+		Assert.True(scalar != list);
+		Assert.False(scalar.Equals((object)list));
+		Assert.NotEqual(scalar.GetHashCode(), list.GetHashCode());
+		Assert.Equal(list, sameList);
+		Assert.Equal(list.GetHashCode(), sameList.GetHashCode());
+	}
+
+	[Fact]
 	public void ClassModel_EqualWhenEverythingMatches()
 	{
 		var baseline = Model();

@@ -112,6 +112,38 @@ public partial class RequiredOnlyArguments
 	public int Number { get; set; }
 }
 
+/// <summary>
+/// Options and a positional that can be given several times. Selected with the "lists" scenario.
+/// </summary>
+[ParameterCollection(behaviourOnError: BehaviourOnError.ThrowNever)]
+public partial class ListArguments
+{
+	[Flag("v", "verbose", "Verbose output")]
+	public bool Verbose { get; set; }
+
+	[Option("i", "include", "A pattern to include")]
+	public List<string>? Include { get; set; }
+
+	[Option("n", "number", "A number")]
+	public List<int>? Numbers { get; set; }
+
+	[Option("m", "mode", "A mode")]
+	public List<MyVeryOwnEnum>? Modes { get; set; }
+
+	[ParsedWithMethod("TryParse")]
+	[Option("p", "point", "A custom type, given as x,y")]
+	public List<Point>? Points { get; set; }
+
+	[Option("e", "exclude", "A pattern to exclude, replaces the default")]
+	public List<string> Exclude { get; set; } = ["default"];
+
+	[Positional(0, "The target", required: true)]
+	public string Target { get; set; } = string.Empty;
+
+	[Positional(1, "The files")]
+	public List<string>? Files { get; set; }
+}
+
 public class Point
 {
 	public int X { get; private set; }

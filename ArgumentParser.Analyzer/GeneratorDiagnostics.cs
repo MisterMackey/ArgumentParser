@@ -147,6 +147,16 @@ public static class GeneratorDiagnostics
 	private const string ARG030_Message = "The ParsedWithMethod attribute names method '{0}' for property '{1}', but neither the class that declares the property nor type '{2}' has an accessible static method '{0}' " +
 					     "of the form bool {0}(string input, out {2} value). Add the method, or correct its name or signature.";
 
+	private const string ARG031_Id = "ARG031";
+	private const string ARG031_Title = "A list positional must be the last positional";
+	private const string ARG031_Message = "Positional argument '{0}' is a list, which takes every value that is left, but another positional argument comes after it. " +
+					     "Give the list the highest position, or use an option for it.";
+
+	private const string ARG032_Id = "ARG032";
+	private const string ARG032_Title = "The elements of a list cannot be nullable value types";
+	private const string ARG032_Message = "Property '{0}' has type '{1}', but the elements of a list are values that were given and cannot be null. " +
+					     "Use the type without the question mark for the elements; make the list itself nullable if it can be absent.";
+
 	/// <summary>
 	/// Diagnostic descriptor for ARG001: Classes with ParameterCollection attribute must be partial.
 	/// </summary>
@@ -535,5 +545,31 @@ public static class GeneratorDiagnostics
 	    DiagnosticSeverity.Error,
 	    true,
 	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG030.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG031: A positional argument that holds a list is not the last positional.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG031 = new DiagnosticDescriptor(
+	    ARG031_Id,
+	    ARG031_Title,
+	    ARG031_Message,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG031.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG032: The elements of a list are a nullable value type.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG032 = new DiagnosticDescriptor(
+	    ARG032_Id,
+	    ARG032_Title,
+	    ARG032_Message,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG032.md"
 	);
 }

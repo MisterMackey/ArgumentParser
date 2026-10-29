@@ -124,7 +124,9 @@ public static class CommandTreeSourceGenerator
 		writer.WriteLine("var (tokens, errors, commandIndex) = tokenizer.TokenizeLeadingArguments(args, options, flags);");
 		writer.WriteLine($"var instance = new {node.Source.Node.ClassName}();");
 		SourceTextGenerator.WriteRequiredProperties(writer, options, noPositionals);
+		SourceTextGenerator.WriteListCollectors(writer, options, noPositionals);
 		SourceTextGenerator.WriteTokenLoop(writer, options, noPositionals, flags, settings.UseCurrentCultureLiteral);
+		SourceTextGenerator.WriteListAssignments(writer, options, noPositionals);
 		SourceTextGenerator.WriteMissingRequired(writer);
 		if (settings.HasHelpArgument)
 		{

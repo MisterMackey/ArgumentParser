@@ -329,7 +329,7 @@ public static class Validation
 		var allProperties = options
 			.Concat(positionals)
 			.Concat(flags)
-			.Where(x => !x.HasParseMethod && !x.IsCommandClass)
+			.Where(x => !x.HasParseMethod && !x.IsCommandClass && !HasNullableValueElement(x))
 			.ToList();
 		foreach (var prop in allProperties)
 		{
@@ -346,8 +346,8 @@ public static class Validation
 		// Check that Flag attributes are only applied to boolean and enum properties
 		foreach (var flag in flags)
 		{
-			if (flag.UnderlyingType != "bool"
-				&& !flag.IsEnum
+			// the elements of a list are bool or an enum for List<bool>, but a flag never reads a value, so it cannot hold a list
+			if ((flag.IsList || (flag.UnderlyingType != "bool" && !flag.IsEnum))
 				&& !flag.IsCommandClass
 			)
 
@@ -359,6 +359,26 @@ public static class Validation
 					flag.PropertyName,
 					flag.PropertyType));
 			}
+		}
+
+		// The elements of a list are parsed one by one, and null is not a value of the list
+		foreach (var prop in options.Concat(positionals).Where(HasNullableValueElement))
+		{
+			diagnostics.Add(DiagnosticInfo.Create(
+				GeneratorDiagnostics.ARG032,
+				GetLocation(prop, classDeclarations),
+				prop.PropertyName,
+				prop.PropertyType));
+		}
+
+		// A list positional takes every value that is left, so no positional can come after it
+		var lastPosition = positionals.Count == 0 ? 0 : positionals.Max(p => p.Attribute.Position);
+		foreach (var prop in positionals.Where(p => p.IsList && p.Attribute.Position < lastPosition))
+		{
+			diagnostics.Add(DiagnosticInfo.Create(
+				GeneratorDiagnostics.ARG031,
+				GetLocation(prop, classDeclarations),
+				prop.PropertyName));
 		}
 
 		// A flag does not read a value, so only options and positionals need the method that ParsedWithMethod names
@@ -517,6 +537,12 @@ public static class Validation
 		}
 
 		return diagnostics.AsReadOnly();
+	}
+
+	// List<int?>: an element is a value that was given, so it cannot be null. A reference type (List<string?>) has no nullable element in the model.
+	private static bool HasNullableValueElement(PropertyAndAttributeInfo info)
+	{
+		return info.IsList && info.UnderlyingType.EndsWith("?", StringComparison.Ordinal);
 	}
 
 	/// <summary>

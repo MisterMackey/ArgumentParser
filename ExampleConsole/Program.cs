@@ -10,6 +10,7 @@ return args.FirstOrDefault() switch
 	"lenient" => RunLenient(args[1..]),
 	"strict" => RunThrowing(() => { var (parsed, _) = StrictArguments.Parse(args[1..]); return $"Number={parsed.Number}\nLabel={parsed.Label}"; }),
 	"required" => RunThrowing(() => { var (parsed, errors) = RequiredOnlyArguments.Parse(args[1..]); return $"Key={parsed.Key}\nNumber={parsed.Number}\nErrors={errors.Count}"; }),
+	"lists" => RunLists(args[1..]),
 	"commands" => RunCommands(args[1..]),
 	"commandlist" => RunCommandList(args[1..]),
 	_ => RunDefault(args),
@@ -54,6 +55,25 @@ static int RunLenient(string[] args)
 	Console.WriteLine($"Redirect={parsed.Redirect?.ToString(CultureInfo.InvariantCulture) ?? "null"}");
 	Console.WriteLine($"Source={parsed.Source}");
 	Console.WriteLine($"Copies={parsed.Copies.ToString(CultureInfo.InvariantCulture)}");
+	foreach (var error in errors)
+	{
+		Console.WriteLine($"Error: {error.GetType().Name}: {error.Message}");
+	}
+	return errors.Count == 0 ? 0 : 1;
+}
+
+static int RunLists(string[] args)
+{
+	var (parsed, errors) = ListArguments.Parse(args);
+	static string Join<T>(IEnumerable<T>? values) => values is null ? "null" : string.Join("|", values.Select(v => Convert.ToString(v, CultureInfo.InvariantCulture)));
+	Console.WriteLine($"Verbose={parsed.Verbose}");
+	Console.WriteLine($"Include={Join(parsed.Include)}");
+	Console.WriteLine($"Numbers={Join(parsed.Numbers)}");
+	Console.WriteLine($"Modes={Join(parsed.Modes)}");
+	Console.WriteLine($"Points={Join(parsed.Points?.Select(p => $"{p.X},{p.Y}"))}");
+	Console.WriteLine($"Exclude={Join(parsed.Exclude)}");
+	Console.WriteLine($"Target={parsed.Target}");
+	Console.WriteLine($"Files={Join(parsed.Files)}");
 	foreach (var error in errors)
 	{
 		Console.WriteLine($"Error: {error.GetType().Name}: {error.Message}");

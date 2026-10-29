@@ -205,11 +205,15 @@ public class SourceTextGenerator : ISourceTextGenerator
 	private void WriteParseCoreBody(IndentedTextWriter writer, string className, string flagsTable, string useCurrentCulture, string? ownHelpCondition = null)
 	{
 		writer.WriteLine("var tokenizer = new global::ArgumentParser.ArgumentTokenizer();");
-		writer.WriteLine($"var (tokens, errors) = tokenizer.TokenizeArguments(args, options, positionals, {flagsTable});");
+		// validation makes a list positional the last one, which is then the one that takes every value that is left
+		var repeatLast = Positionals.Any(p => p.IsList) ? ", true" : string.Empty;
+		writer.WriteLine($"var (tokens, errors) = tokenizer.TokenizeArguments(args, options, positionals, {flagsTable}{repeatLast});");
 		writer.WriteLine($"var instance = new {className}();");
-		// required arguments are tracked per call, never in static state
+		// required arguments and the values of lists are tracked per call, never in static state
 		WriteRequiredProperties(writer, Options, Positionals);
+		WriteListCollectors(writer, Options, Positionals);
 		WriteTokenLoop(writer, Options, Positionals, Flags, useCurrentCulture, ownHelpCondition);
+		WriteListAssignments(writer, Options, Positionals);
 		WriteMissingRequired(writer);
 	}
 
@@ -314,6 +318,47 @@ public class SourceTextGenerator : ISourceTextGenerator
 		}
 		writer.Indent--;
 		writer.WriteLine("};");
+	}
+
+	// the local that collects the values of a list property while the tokens are read
+	private static string ListLocal(PropertyAndAttributeInfo list)
+	{
+		return list.PropertyName.TrimStart('@') + "_values";
+	}
+
+	/// <summary>
+	/// Writes a local list for every list property, which the token loop adds the parsed values to.
+	/// A property is only set (<see cref="WriteListAssignments"/>) when a value was given, so the default of the user is kept otherwise.
+	/// </summary>
+	internal static void WriteListCollectors(
+		IndentedTextWriter writer,
+		IEnumerable<PropertyAndAttributeInfo> options,
+		IEnumerable<PropertyAndAttributeInfo> positionals)
+	{
+		foreach (var list in options.Concat(positionals).Where(p => p.IsList))
+		{
+			var elementType = list.UnderlyingType.StartsWith("System.", StringComparison.Ordinal) ? "global::" + list.UnderlyingType : list.UnderlyingType;
+			writer.WriteLine($"var {ListLocal(list)} = new global::System.Collections.Generic.List<{elementType}>();");
+		}
+	}
+
+	/// <summary>
+	/// Writes the code that sets every list property that received values, after the token loop.
+	/// </summary>
+	internal static void WriteListAssignments(
+		IndentedTextWriter writer,
+		IEnumerable<PropertyAndAttributeInfo> options,
+		IEnumerable<PropertyAndAttributeInfo> positionals)
+	{
+		foreach (var list in options.Concat(positionals).Where(p => p.IsList))
+		{
+			writer.WriteLine($"if ({ListLocal(list)}.Count > 0)");
+			writer.WriteLine("{");
+			writer.Indent++;
+			writer.WriteLine($"instance.{list.PropertyName} = {ListLocal(list)};");
+			writer.Indent--;
+			writer.WriteLine("}");
+		}
 	}
 
 	/// <summary>
@@ -460,8 +505,10 @@ public class SourceTextGenerator : ISourceTextGenerator
 	internal static void WriteValueParseCode(PropertyAndAttributeInfo propertyInfo, string localVariableName, string propertyName, IndentedTextWriter writer, string useCurrentCulture)
 	{
 		var value = $"{localVariableName}.Value";
-		// a nullable property is parsed as the type it is nullable of
+		// a nullable property is parsed as the type it is nullable of, and a list as the type of its elements
 		var propertyType = propertyInfo.UnderlyingType;
+		// the value of a list is added to the local list for the property, any other value is the value of the property
+		string Assign(string parsed) => propertyInfo.IsList ? $"{ListLocal(propertyInfo)}.Add({parsed});" : $"instance.{propertyName} = {parsed};";
 		string tryParse;
 		if (propertyInfo.IsEnum)
 		{
@@ -494,7 +541,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 					break;
 				case "string":
 				case "string?":
-					writer.WriteLine($"instance.{propertyName} = {value};");
+					writer.WriteLine(Assign(value));
 					return;
 				default:
 					writer.WriteLine($"// Unsupported property type: {propertyType}");
@@ -510,7 +557,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		writer.WriteLine("else");
 		writer.WriteLine("{");
 		writer.Indent++;
-		writer.WriteLine($"instance.{propertyName} = parsedValue;");
+		writer.WriteLine(Assign("parsedValue"));
 		writer.Indent--;
 		writer.WriteLine("}");
 	}

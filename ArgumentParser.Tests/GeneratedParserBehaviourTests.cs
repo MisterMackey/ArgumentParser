@@ -744,6 +744,720 @@ public class GeneratedParserBehaviourTests
 
 	#endregion
 
+	#region list parameters
+
+	private const string ListOptionMembers = """
+		[Option("i", "include", "patterns to include")]
+		public List<string>? Include { get; set; }
+		[Option("n", "number", "numbers")]
+		public List<int>? Numbers { get; set; }
+		[Option("l", "level", "levels")]
+		public List<Level>? Levels { get; set; }
+		[Option("o", "out", "a single value")]
+		public string Out { get; set; } = "";
+		[Flag("v", "verbose", "be verbose")]
+		public bool Verbose { get; set; }
+		""";
+
+	private static List<string>? Values(ParseOutcome outcome, string path)
+		=> outcome.GetPath<System.Collections.IEnumerable>(path)?.Cast<object>().Select(v => v.ToString()!).ToList();
+
+	private const string PointListType = """
+		public class Point
+		{
+			public int X { get; set; }
+			public int Y { get; set; }
+			public override string ToString() => $"{X}/{Y}";
+			public static bool TryParse(string input, out Point result)
+			{
+				result = new Point();
+				var parts = input.Split(',');
+				if (parts.Length != 2 || !int.TryParse(parts[0], out var x) || !int.TryParse(parts[1], out var y))
+				{
+					return false;
+				}
+				result = new Point { X = x, Y = y };
+				return true;
+			}
+		}
+		""";
+
+	[Fact]
+	public void ListOption_RepeatedUnderBothNames_CollectsTheValuesInOrder()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(ListOptionMembers, extraTypes: EnumType));
+
+		var outcome = parser.Parse("--include", "a", "-i", "b", "--include", "c");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(["a", "b", "c"], Values(outcome, "Include"));
+	}
+
+	[Fact]
+	public void ListOption_GivenOnce_HasOneElement()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(ListOptionMembers, extraTypes: EnumType));
+
+		var outcome = parser.Parse("-i", "only");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(["only"], Values(outcome, "Include"));
+	}
+
+	[Fact]
+	public void ListOption_ValuesAreNotSplitOnCommas()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(ListOptionMembers, extraTypes: EnumType));
+
+		var outcome = parser.Parse("-i", "a,b", "-i", "c d");
+
+		Assert.Equal(["a,b", "c d"], Values(outcome, "Include"));
+	}
+
+	[Fact]
+	public void ListOption_ValueThatLooksLikeAnOption_IsTheValue()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(ListOptionMembers, extraTypes: EnumType));
+
+		var outcome = parser.Parse("-i", "-value", "-i", "--other");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(["-value", "--other"], Values(outcome, "Include"));
+	}
+
+	[Fact]
+	public void ListOption_NotGiven_IsNullBecauseNobodyAssignedIt()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(ListOptionMembers, extraTypes: EnumType));
+
+		var outcome = parser.Parse("--out", "x");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Null(outcome.Get<object>("Include"));
+		Assert.Null(outcome.Get<object>("Numbers"));
+		Assert.Null(outcome.Get<object>("Levels"));
+	}
+
+	[Fact]
+	public void ListOption_NotGiven_KeepsTheDefaultOfTheUser()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("i", "include", "patterns")]
+			public List<string> Include { get; set; } = new() { "default" };
+			[Option("e", "exclude", "patterns")]
+			public List<string> Exclude { get; set; } = new();
+			"""));
+
+		var outcome = parser.Parse();
+
+		Assert.Equal(["default"], Values(outcome, "Include"));
+		Assert.Empty(Values(outcome, "Exclude")!);
+	}
+
+	[Fact]
+	public void ListOption_Given_ReplacesTheDefaultOfTheUser()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("i", "include", "patterns")]
+			public List<string> Include { get; set; } = new() { "default" };
+			"""));
+
+		var outcome = parser.Parse("-i", "a", "-i", "b");
+
+		Assert.Equal(["a", "b"], Values(outcome, "Include"));
+	}
+
+	[Fact]
+	public void ListOption_InAnotherCallToParse_DoesNotKeepTheValuesOfTheFirst()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(ListOptionMembers, extraTypes: EnumType));
+
+		var first = parser.Parse("-i", "a", "-i", "b");
+		var second = parser.Parse("-i", "c");
+
+		Assert.Equal(["a", "b"], Values(first, "Include"));
+		Assert.Equal(["c"], Values(second, "Include"));
+	}
+
+	[Fact]
+	public void ListOptions_AreCollectedSeparatelyFromEachOtherAndFromOtherArguments()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(ListOptionMembers, extraTypes: EnumType));
+
+		var outcome = parser.Parse("-n", "1", "-i", "a", "-v", "-l", "Low", "--out", "x", "-n", "2", "-l", "High", "-i", "b");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(["a", "b"], Values(outcome, "Include"));
+		Assert.Equal(["1", "2"], Values(outcome, "Numbers"));
+		Assert.Equal(["Low", "High"], Values(outcome, "Levels"));
+		Assert.Equal("x", outcome.Get<string>("Out"));
+		Assert.True(outcome.Get<bool>("Verbose"));
+	}
+
+	[Theory]
+	[InlineData("int", "1", "-2", "1,-2")]
+	[InlineData("long", "9000000000", "1", "9000000000,1")]
+	[InlineData("double", "1.5", "2.25", "1.5,2.25")]
+	[InlineData("decimal", "3.25", "4", "3.25,4")]
+	[InlineData("bool", "true", "false", "True,False")]
+	[InlineData("char", "x", "y", "x,y")]
+	[InlineData("string", "a b", "c", "a b,c")]
+	[InlineData("Guid", "d3b07384-d9a0-4c9f-a1b1-2b8f7c8e9a11", "00000000-0000-0000-0000-000000000000", "d3b07384-d9a0-4c9f-a1b1-2b8f7c8e9a11,00000000-0000-0000-0000-000000000000")]
+	[InlineData("Uri", "https://example.com/a", "https://example.com/b", "https://example.com/a,https://example.com/b")]
+	[InlineData("TimeSpan", "01:02:03", "00:00:04", "01:02:03,00:00:04")]
+	[InlineData("DateTime", "2024-01-02", "2024-03-04", "01/02/2024 00:00:00,03/04/2024 00:00:00")]
+	[InlineData("Level", "Low", "High", "Low,High")]
+	public void ListOption_ParsesEverySupportedElementType(string type, string first, string second, string expected)
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build($$"""
+			[Option("v", "Value", "values")]
+			public List<{{type}}>? Value { get; set; }
+			""", extraTypes: EnumType));
+
+		var outcome = parser.Parse("-v", first, "--Value", second);
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(expected, string.Join(",", Values(outcome, "Value")!));
+	}
+
+	[Theory]
+	[InlineData("int", "1", "2", "1,2")]
+	[InlineData("double", "1.5", "2.25", "1.5,2.25")]
+	[InlineData("string", "a b", "c", "a b,c")]
+	[InlineData("Level", "Low", "High", "Low,High")]
+	public void ListPositional_ParsesTheSupportedElementTypes(string type, string first, string second, string expected)
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build($$"""
+			[Positional(0, "values")]
+			public List<{{type}}>? Value { get; set; }
+			""", extraTypes: EnumType));
+
+		var outcome = parser.Parse(first, second);
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(expected, string.Join(",", Values(outcome, "Value")!));
+	}
+
+	[Fact]
+	public void ListOption_ElementThatCannotBeParsed_IsAnErrorAndTheOthersAreKept()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(ListOptionMembers, extraTypes: EnumType));
+
+		var outcome = parser.Parse("-n", "1", "-n", "x", "-n", "3", "-l", "Nope", "-l", "High");
+
+		Assert.Equal(["1", "3"], Values(outcome, "Numbers"));
+		Assert.Equal(["High"], Values(outcome, "Levels"));
+		Assert.Equal(2, outcome.Errors.Count);
+		Assert.All(outcome.Errors, e => Assert.IsType<InvalidArgumentValueException>(e));
+		Assert.Contains("x", outcome.Errors[0].Message);
+	}
+
+	[Fact]
+	public void ListOption_OnlyInvalidElements_LeavesThePropertyAsItWas()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(ListOptionMembers, extraTypes: EnumType));
+
+		var outcome = parser.Parse("-n", "x");
+
+		Assert.Single(outcome.Errors);
+		Assert.Null(outcome.Get<object>("Numbers"));
+	}
+
+	[Fact]
+	public void ListOption_Ambiguous_NumbersAreRejectedPerElementLikeAScalar()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("d", "double", "doubles")]
+			public List<double>? Doubles { get; set; }
+			"""));
+
+		var outcome = parser.Parse("-d", "1.5", "-d", "1,5", "-d", "1,000");
+
+		Assert.Equal(["1.5"], Values(outcome, "Doubles"));
+		Assert.Equal(2, outcome.Errors.Count);
+	}
+
+	[Fact]
+	public void ListOption_WithUseCurrentCulture_ReadsEveryElementWithTheCurrentCulture()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("d", "double", "doubles")]
+			public List<double>? Doubles { get; set; }
+			""", useCurrentCulture: true));
+		CultureInfo.CurrentCulture = new CultureInfo("nl-NL");
+
+		var outcome = parser.Parse("-d", "1,5", "-d", "2,25");
+
+		Assert.Empty(outcome.Errors);
+		// the values are formatted with the same culture
+		Assert.Equal(["1,5", "2,25"], Values(outcome, "Doubles"));
+	}
+
+	[Fact]
+	public void ListOption_MissingValueAtTheEnd_IsAnErrorAndKeepsTheEarlierValues()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(ListOptionMembers, extraTypes: EnumType));
+
+		var outcome = parser.Parse("-i", "a", "-i");
+
+		Assert.IsType<MissingRequiredArgumentException>(Assert.Single(outcome.Errors));
+		Assert.Equal(["a"], Values(outcome, "Include"));
+	}
+
+	[Fact]
+	public void ListOption_Required_IsMissingWithoutValuesAndSatisfiedByOne()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("i", "include", "patterns", true)]
+			public List<string>? Include { get; set; }
+			"""));
+
+		var without = parser.ParseCore();
+		var withOne = parser.ParseCore("-i", "a");
+		var withTwo = parser.ParseCore("-i", "a", "--include", "b");
+
+		Assert.IsType<MissingRequiredArgumentException>(Assert.Single(without.MissingRequired));
+		Assert.Empty(withOne.Errors);
+		Assert.Empty(withTwo.Errors);
+		Assert.Equal(["a", "b"], Values(withTwo, "Include"));
+	}
+
+	[Fact]
+	public void ListOption_RequiredAndOnlyInvalidElements_IsStillSatisfied()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("n", "number", "numbers", true)]
+			public List<int>? Numbers { get; set; }
+			"""));
+
+		var outcome = parser.ParseCore("-n", "x");
+
+		Assert.Empty(outcome.MissingRequired);
+		Assert.IsType<InvalidArgumentValueException>(Assert.Single(outcome.Errors));
+	}
+
+	[Fact]
+	public void ListPositional_LastPositional_CollectsEveryRemainingValue()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Positional(0, "the command")]
+			public string Command { get; set; } = "";
+			[Positional(1, "the files")]
+			public List<string>? Files { get; set; }
+			"""));
+
+		var outcome = parser.Parse("copy", "a", "b", "c");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal("copy", outcome.Get<string>("Command"));
+		Assert.Equal(["a", "b", "c"], Values(outcome, "Files"));
+	}
+
+	[Fact]
+	public void ListPositional_OnlyPositional_CollectsEveryValue()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Positional(0, "the files")]
+			public List<string>? Files { get; set; }
+			"""));
+
+		var outcome = parser.Parse("a", "b", "c");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(["a", "b", "c"], Values(outcome, "Files"));
+	}
+
+	[Fact]
+	public void ListPositional_GivenOnce_HasOneElement()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Positional(0, "the command")]
+			public string Command { get; set; } = "";
+			[Positional(1, "the files")]
+			public List<string>? Files { get; set; }
+			"""));
+
+		var outcome = parser.Parse("copy", "a");
+
+		Assert.Equal(["a"], Values(outcome, "Files"));
+	}
+
+	[Fact]
+	public void ListPositional_NoValues_IsNullOrKeepsTheDefault()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Positional(0, "the command")]
+			public string Command { get; set; } = "";
+			[Positional(1, "the files")]
+			public List<string>? Files { get; set; }
+			[Option("e", "extra", "extra files")]
+			public List<string> Extra { get; set; } = new() { "default" };
+			"""));
+
+		var outcome = parser.Parse("copy");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Null(outcome.Get<object>("Files"));
+		Assert.Equal(["default"], Values(outcome, "Extra"));
+	}
+
+	[Fact]
+	public void ListPositional_Given_ReplacesTheDefaultOfTheUser()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Positional(0, "the files")]
+			public List<string> Files { get; set; } = new() { "default" };
+			"""));
+
+		var outcome = parser.Parse("a", "b");
+
+		Assert.Equal(["a", "b"], Values(outcome, "Files"));
+	}
+
+	[Fact]
+	public void ListPositional_OptionsAndFlagsBetweenTheValues_DoNotEndTheList()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Positional(0, "the command")]
+			public string Command { get; set; } = "";
+			[Positional(1, "the files")]
+			public List<string>? Files { get; set; }
+			[Option("o", "out", "a single value")]
+			public string Out { get; set; } = "";
+			[Flag("v", "verbose", "be verbose")]
+			public bool Verbose { get; set; }
+			"""));
+
+		var outcome = parser.Parse("copy", "a", "-v", "b", "--out", "x", "c");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal("copy", outcome.Get<string>("Command"));
+		Assert.Equal(["a", "b", "c"], Values(outcome, "Files"));
+		Assert.Equal("x", outcome.Get<string>("Out"));
+		Assert.True(outcome.Get<bool>("Verbose"));
+	}
+
+	[Fact]
+	public void ListPositional_ElementThatCannotBeParsed_IsAnErrorAndTheOthersAreKept()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Positional(0, "the numbers")]
+			public List<int>? Numbers { get; set; }
+			"""));
+
+		var outcome = parser.Parse("1", "x", "3");
+
+		Assert.Equal(["1", "3"], Values(outcome, "Numbers"));
+		Assert.IsType<InvalidArgumentValueException>(Assert.Single(outcome.Errors));
+	}
+
+	[Fact]
+	public void ListPositional_Required_NeedsAtLeastOneValue()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Positional(0, "the files", true)]
+			public List<string>? Files { get; set; }
+			"""));
+
+		var without = parser.ParseCore();
+		var withOne = parser.ParseCore("a");
+		var withThree = parser.ParseCore("a", "b", "c");
+
+		Assert.IsType<MissingRequiredArgumentException>(Assert.Single(without.MissingRequired));
+		Assert.Empty(withOne.Errors);
+		Assert.Empty(withThree.Errors);
+		Assert.Equal(["a", "b", "c"], Values(withThree, "Files"));
+	}
+
+	[Fact]
+	public void ListPositional_ScalarPositionalsBeforeTheList_StillTakeOneValueEach()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Positional(0, "source")]
+			public string Source { get; set; } = "";
+			[Positional(1, "count")]
+			public int Count { get; set; }
+			[Positional(2, "the rest")]
+			public List<string>? Rest { get; set; }
+			"""));
+
+		var outcome = parser.Parse("src", "3", "x", "y");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal("src", outcome.Get<string>("Source"));
+		Assert.Equal(3, outcome.Get<int>("Count"));
+		Assert.Equal(["x", "y"], Values(outcome, "Rest"));
+	}
+
+	[Fact]
+	public void ScalarPositionals_ExtraValue_IsStillAnUnexpectedArgument()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Positional(0, "source")]
+			public string Source { get; set; } = "";
+			[Positional(1, "target")]
+			public string Target { get; set; } = "";
+			"""));
+
+		var outcome = parser.Parse("a", "b", "c");
+
+		Assert.IsType<UnexpectedArgumentException>(Assert.Single(outcome.Errors));
+	}
+
+	[Fact]
+	public void ListOptionAndListPositional_InOneClass_AreCollectedSeparately()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("t", "tag", "tags")]
+			public List<string>? Tags { get; set; }
+			[Positional(0, "the files")]
+			public List<string>? Files { get; set; }
+			"""));
+
+		var outcome = parser.Parse("a", "-t", "x", "b", "--tag", "y", "c");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(["x", "y"], Values(outcome, "Tags"));
+		Assert.Equal(["a", "b", "c"], Values(outcome, "Files"));
+	}
+
+	[Fact]
+	public void ParsedWithMethod_OnAListOption_ParsesEveryElementWithTheMethodOfTheElementType()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("p", "point", "points")]
+			[ParsedWithMethod("TryParse")]
+			public List<Point>? Points { get; set; }
+			""", extraTypes: PointListType));
+
+		var outcome = parser.Parse("-p", "1,2", "--point", "3,4", "-p", "five", "-p", "5,6");
+
+		Assert.Equal(["1/2", "3/4", "5/6"], Values(outcome, "Points"));
+		var error = Assert.IsType<InvalidArgumentValueException>(Assert.Single(outcome.Errors));
+		Assert.Contains("five", error.Message);
+	}
+
+	[Fact]
+	public void ParsedWithMethod_OnAListPositional_ParsesEveryElementWithTheMethodOfTheElementType()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Positional(0, "points")]
+			[ParsedWithMethod("TryParse")]
+			public List<Point>? Points { get; set; }
+			""", extraTypes: PointListType));
+
+		var outcome = parser.Parse("1,2", "3,4", "bad", "5,6");
+
+		Assert.Equal(["1/2", "3/4", "5/6"], Values(outcome, "Points"));
+		Assert.IsType<InvalidArgumentValueException>(Assert.Single(outcome.Errors));
+	}
+
+	[Fact]
+	public void ParsedWithMethod_OnTheDeclaringClassOfAList_ParsesEveryElement()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("x", "hex", "hex numbers")]
+			[ParsedWithMethod("ParseHex")]
+			public List<int>? Hex { get; set; }
+			[Positional(0, "more hex numbers")]
+			[ParsedWithMethod("ParseHex")]
+			public List<int>? MoreHex { get; set; }
+			private static bool ParseHex(string input, out int value)
+				=> int.TryParse(input, System.Globalization.NumberStyles.HexNumber, null, out value);
+			"""));
+
+		var outcome = parser.Parse("-x", "ff", "--hex", "10", "a", "1f");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(["255", "16"], Values(outcome, "Hex"));
+		Assert.Equal(["10", "31"], Values(outcome, "MoreHex"));
+	}
+
+	[Fact]
+	public void ListArguments_GeneratedCode_HasNoWarnings()
+	{
+		var diagnostics = GeneratedParser.GeneratedCodeDiagnostics(ParserSource.Build("""
+			[Option("i", "include", "patterns")]
+			public System.Collections.Generic.List<string>? Include { get; set; }
+			[Option("n", "number", "numbers", true)]
+			public System.Collections.Generic.List<int> Numbers { get; set; } = new();
+			[Option("l", "level", "levels")]
+			public System.Collections.Generic.List<Level>? Levels { get; set; }
+			[Positional(0, "the files")]
+			public System.Collections.Generic.List<string>? Files { get; set; }
+			""", extraTypes: EnumType));
+
+		Assert.Empty(diagnostics);
+	}
+
+	[Fact]
+	public void ListArguments_InATree_AreCollectedOnEveryLevel()
+	{
+		var parser = GeneratedParser.Compile("""
+			using ArgumentParser;
+
+			namespace ArgumentParser.Tests;
+
+			[CommandApp("app", "An app", HelpTextGeneration.GenerateTextOnly, behaviourOnError: BehaviourOnError.ThrowNever)]
+			public partial class TestClass
+			{
+				[Option("i", "include", "patterns")]
+				public List<string>? Include { get; set; }
+
+				public Files? Files { get; private set; }
+			}
+
+			[Command("files", "Handles files")]
+			public partial class Files
+			{
+				[Option("x", "exclude", "patterns")]
+				public List<string>? Exclude { get; set; }
+
+				public Copy? Copy { get; private set; }
+			}
+
+			[ParameterCollection]
+			[Command("copy", "Copies")]
+			public partial class Copy
+			{
+				[Option("t", "tag", "tags")]
+				public List<int>? Tags { get; set; }
+
+				[Positional(0, "target")]
+				public string Target { get; set; } = "";
+
+				[Positional(1, "the files")]
+				public List<string>? Sources { get; set; }
+			}
+			""");
+
+		var outcome = parser.ParseCommand("-i", "a", "--include", "b", "files", "-x", "c", "-x", "d", "copy", "-t", "1", "dest", "f1", "--tag", "2", "f2", "f3");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Equal(["a", "b"], Values(outcome, "Include"));
+		Assert.Equal(["c", "d"], Values(outcome, "Files.Exclude"));
+		Assert.Equal(["1", "2"], Values(outcome, "Files.Copy.Tags"));
+		Assert.Equal("dest", outcome.GetPath<string>("Files.Copy.Target"));
+		Assert.Equal(["f1", "f2", "f3"], Values(outcome, "Files.Copy.Sources"));
+	}
+
+	[Fact]
+	public void ListArguments_InATreeThatAreNotGiven_AreNull()
+	{
+		var parser = GeneratedParser.Compile("""
+			using ArgumentParser;
+
+			namespace ArgumentParser.Tests;
+
+			[CommandApp("app", "An app", HelpTextGeneration.GenerateTextOnly, behaviourOnError: BehaviourOnError.ThrowNever)]
+			public partial class TestClass
+			{
+				[Option("i", "include", "patterns")]
+				public List<string>? Include { get; set; }
+
+				public Run? Run { get; private set; }
+			}
+
+			[ParameterCollection]
+			[Command("run", "Runs")]
+			public partial class Run
+			{
+				[Positional(0, "the files")]
+				public List<string>? Files { get; set; }
+			}
+			""");
+
+		var outcome = parser.ParseCommand("run");
+
+		Assert.Empty(outcome.Errors);
+		Assert.Null(outcome.GetPath<object>("Include"));
+		Assert.Null(outcome.GetPath<object>("Run.Files"));
+	}
+
+	[Fact]
+	public void ListPositional_OfALeafThatHasItsOwnParse_IsCollectedWithoutATree()
+	{
+		var parser = GeneratedParser.Compile("""
+			using ArgumentParser;
+
+			namespace ArgumentParser.Tests;
+
+			[CommandApp("app", "An app", HelpTextGeneration.GenerateTextOnly, behaviourOnError: BehaviourOnError.ThrowNever)]
+			public partial class Root
+			{
+				public TestClass? Run { get; private set; }
+			}
+
+			[ParameterCollection(HelpTextGeneration.GenerateTextOnly, "h", "Help", BehaviourOnError.ThrowNever)]
+			[Command("run", "Runs")]
+			public partial class TestClass
+			{
+				[Positional(0, "the files")]
+				public List<string>? Files { get; set; }
+			}
+			""");
+
+		var alone = parser.Parse("a", "b");
+
+		Assert.Empty(alone.Errors);
+		Assert.Equal(["a", "b"], Values(alone, "Files"));
+	}
+
+	[Fact]
+	public void ListArguments_HelpText_SaysThatTheArgumentCanBeRepeated()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build("""
+			[Option("i", "include", "patterns to include")]
+			public List<string>? Include { get; set; }
+			[Option("o", "out", "a single value")]
+			public string Out { get; set; } = "";
+			[Positional(0, "the files")]
+			public List<string>? Files { get; set; }
+			"""));
+
+		var lines = parser.GetStaticMember<string>("HelpText")!.Split('\n');
+
+		Assert.Contains("repeated", lines.Single(l => l.Contains("patterns to include")));
+		Assert.Contains("repeated", lines.Single(l => l.Contains("the files")));
+		Assert.DoesNotContain("repeated", lines.Single(l => l.Contains("a single value")));
+	}
+
+	[Fact]
+	public void ListArguments_CommandHelpText_SaysThatTheArgumentCanBeRepeated()
+	{
+		var parser = GeneratedParser.Compile("""
+			using ArgumentParser;
+
+			namespace ArgumentParser.Tests;
+
+			[CommandApp("app", "An app", HelpTextGeneration.GenerateTextOnly, behaviourOnError: BehaviourOnError.ThrowNever)]
+			public partial class TestClass
+			{
+				public Run? Run { get; private set; }
+			}
+
+			[ParameterCollection]
+			[Command("run", "Runs")]
+			public partial class Run
+			{
+				[Option("t", "tag", "the tags")]
+				public List<string>? Tags { get; set; }
+				[Option("o", "out", "a single value")]
+				public string Out { get; set; } = "";
+				[Positional(0, "the files")]
+				public List<string>? Files { get; set; }
+			}
+			""", className: "Run");
+
+		var lines = parser.GetStaticMember<string>("CommandHelpText")!.Split('\n');
+
+		Assert.Contains("repeated", lines.Single(l => l.Contains("the tags")));
+		Assert.Contains("repeated", lines.Single(l => l.Contains("the files")));
+		Assert.DoesNotContain("repeated", lines.Single(l => l.Contains("a single value")));
+	}
+
+	#endregion
+
 	[Fact]
 	public void MultipleParameterCollections_InOneCompilation_AreParsedIndependently()
 	{

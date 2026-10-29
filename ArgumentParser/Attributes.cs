@@ -201,6 +201,7 @@ namespace ArgumentParser
 	/// This attribute is used to define an option parameter for the parser.
 	/// Options are identified by a short name (e.g., -o) or a long name (e.g., --option).
 	/// When an option is used, it is ALWAYS followed by a value (e.g., -o value).
+	/// An option of type <c>List&lt;T&gt;</c> can be given several times: every value becomes an element of the list.
 	/// They can include a description and specify whether they are required.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Property, Inherited = false)]
@@ -251,6 +252,7 @@ namespace ArgumentParser
 	/// This attribute is used to define a positional parameter for the parser.
 	/// Positional parameters are identified by their position in the argument list
 	/// and can include a description and specify whether they are required.
+	/// A positional of type <c>List&lt;T&gt;</c> takes every value that is left, so it must have the highest position.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Property, Inherited = false)]
 	public sealed class PositionalAttribute : Attribute

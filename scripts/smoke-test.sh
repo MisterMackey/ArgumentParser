@@ -4,7 +4,7 @@
 #
 # Each expected output entry must match a whole output line, or, when prefixed with "~", appear anywhere in the output.
 # An entry prefixed with "!" must NOT appear. The first argument after the expectations selects the scenario in
-# ExampleConsole/Program.cs (lenient, strict, required, commands, commandlist) or, when absent, the default MyCommandLineArguments.
+# ExampleConsole/Program.cs (lenient, strict, required, lists, commands, commandlist) or, when absent, the default MyCommandLineArguments.
 
 set -u
 
@@ -245,6 +245,41 @@ $'Threw: AggregateException: MissingRequiredArgumentException' \
 check "no arguments throws" 3 \
 $'Threw: AggregateException: MissingRequiredArgumentException' \
 	required
+
+echo "== lists scenario: options and a positional that can be given several times"
+check "a repeated option collects its values in order, under both names" 0 \
+$'Include=a|b|c\nNumbers=1|2\n!Error:' \
+	lists -i a --include b -n 1 -i c --number 2 target
+check "lists are null when no value is given, and keep the default of the property" 0 \
+$'Include=null\nNumbers=null\nModes=null\nPoints=null\nExclude=default\nFiles=null\nTarget=target\n!Error:' \
+	lists target
+check "values given replace the default of the property" 0 \
+$'Exclude=x|y\n!default' \
+	lists -e x target -e y
+check "the last positional collects every remaining value" 0 \
+$'Target=target\nFiles=a|b|c\n!Error:' \
+	lists target a b c
+check "options and flags between the values do not end the list" 0 \
+$'Verbose=True\nInclude=p\nTarget=target\nFiles=a|b|c\n!Error:' \
+	lists target a -v b --include p c
+check "enum elements" 0 \
+$'Modes=Level1|Level3\n!Error:' \
+	lists target -m Level1 -m Level3
+check "the custom parse method is called for every element" 0 \
+$'Points=1,2|3,4\n!Error:' \
+	lists target --point 1,2 -p 3,4
+check "an element that cannot be parsed is an error and the others are kept" 1 \
+$'Numbers=1|3\nError: InvalidArgumentValueException: Invalid value for Numbers: x' \
+	lists target -n 1 -n x -n 3
+check "an element that the custom parse method rejects is an error" 1 \
+$'Points=1,2\n~Invalid value for Points: oops' \
+	lists target -p 1,2 -p oops
+check "the required positional is missing when only the list is given by option" 1 \
+$'Error: MissingRequiredArgumentException: Missing required argument: Target' \
+	lists -i a
+check "help text says that an argument can be repeated" 0 \
+$'~Option: -i | --include : A pattern to include (can be repeated)\n~Position: 0: The target\n~Position: 1: The files (can be repeated)\n~Flag: -v | --verbose : Verbose output\n!The target (can be repeated)\n!Verbose output (can be repeated)' \
+	lists --Help
 
 echo "== commands scenario: a tree of commands (FileToolCommands.cs), displays help and exits on error"
 check "leaf below a group with its flag" 0 \

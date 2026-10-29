@@ -46,6 +46,23 @@ internal static class AttributeReader
 			: type;
 	}
 
+	// List<T> (and List<T>?, which is the same type): the argument can be given several times and the type that is read and parsed is T.
+	// Only List<T> counts; other collections are not lists.
+	internal static ITypeSymbol? ListElement(ITypeSymbol? type)
+	{
+		return type is INamedTypeSymbol { TypeArguments.Length: 1 } named
+			&& named.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.List<T>"
+			? named.TypeArguments[0]
+			: null;
+	}
+
+	// The element type as it is written in the model: a nullable value type keeps its question mark (int?),
+	// the annotation of a reference type (string?) says nothing about the parsing and is dropped.
+	internal static string DisplayElement(ITypeSymbol element)
+	{
+		return (element.IsReferenceType ? element.WithNullableAnnotation(NullableAnnotation.NotAnnotated) : element).ToDisplayString();
+	}
+
 	// The attribute properties are get-only, so every value reaches the generator as a constructor argument,
 	// whether the user wrote it positionally or by name. Omitted optional arguments are filled with their defaults by Roslyn.
 	internal static string StringArgument(AttributeData? data, int index)

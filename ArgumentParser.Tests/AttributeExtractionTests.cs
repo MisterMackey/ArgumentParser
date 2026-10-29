@@ -15,6 +15,7 @@ public class AttributeExtractionTests
 {
 	private const string Preamble = """
 		using System;
+		using System.Collections.Generic;
 		using ArgumentParser;
 
 		namespace Extraction;
@@ -343,10 +344,88 @@ public class AttributeExtractionTests
 	[Fact]
 	public void NullableGenericArgument_IsNotANullableProperty()
 	{
-		var option = Assert.Single(Factory("""[Option("o"), ParsedWithMethod("Read")] public System.Collections.Generic.List<int?> Value { get; set; } = new();""").GetOptionAttributes());
+		var option = Assert.Single(Factory("""[Option("o"), ParsedWithMethod("Read")] public System.Collections.Generic.Dictionary<string, int?> Value { get; set; } = new();""").GetOptionAttributes());
 
 		Assert.False(option.IsNullable);
+		Assert.False(option.IsList);
 		Assert.Equal(option.PropertyType, option.UnderlyingType);
+	}
+
+	[Theory]
+	[InlineData("List<string>", false, "string", false)]
+	[InlineData("List<int>", false, "int", false)]
+	[InlineData("List<Int32>", false, "int", false)]
+	[InlineData("System.Collections.Generic.List<System.Guid>", false, "System.Guid", false)]
+	[InlineData("List<DateTime>", false, "System.DateTime", false)]
+	[InlineData("List<Colour>", false, "Extraction.Colour", true)]
+	[InlineData("List<Custom>", false, "Extraction.Custom", false)]
+	[InlineData("List<string>?", true, "string", false)]
+	[InlineData("List<int>?", true, "int", false)]
+	[InlineData("List<Colour>?", true, "Extraction.Colour", true)]
+	public void ListTypes_AreAListAndTheirUnderlyingTypeIsTheElementType(string declared, bool nullable, string element, bool isEnum)
+	{
+		var option = Assert.Single(Factory($"[Option(\"o\")] public {declared} Value {{ get; set; }}").GetOptionAttributes());
+
+		Assert.True(option.IsList);
+		Assert.Equal(nullable, option.IsNullable);
+		Assert.Equal(element, option.UnderlyingType);
+		Assert.Equal(isEnum, option.IsEnum);
+	}
+
+	[Fact]
+	public void ListOfANullableValueType_KeepsTheNullableElementAsItsUnderlyingType()
+	{
+		var option = Assert.Single(Factory("""[Option("o")] public List<int?> Value { get; set; }""").GetOptionAttributes());
+
+		Assert.True(option.IsList);
+		Assert.False(option.IsNullable);
+		Assert.Equal("int?", option.UnderlyingType);
+	}
+
+	[Theory]
+	[InlineData("int")]
+	[InlineData("string")]
+	[InlineData("string[]")]
+	[InlineData("int[]")]
+	[InlineData("IList<string>")]
+	[InlineData("IEnumerable<string>")]
+	[InlineData("IReadOnlyList<string>")]
+	[InlineData("ICollection<string>")]
+	[InlineData("HashSet<string>")]
+	[InlineData("Custom")]
+	[InlineData("Colour?")]
+	public void TypesThatAreNotAList_AreNotReportedAsOne(string declared)
+	{
+		var option = Assert.Single(Factory($"[Option(\"o\")] public {declared} Value {{ get; set; }}").GetOptionAttributes());
+
+		Assert.False(option.IsList);
+	}
+
+	[Fact]
+	public void ListTypes_AreReportedOnEveryAttributeKind()
+	{
+		var factory = Factory("""
+			[Option("o")] public List<string> Opt { get; set; }
+			[Positional(0, "files")] public List<string> Pos { get; set; }
+			[Flag("f")] public List<bool> Flg { get; set; }
+			""");
+
+		Assert.True(Assert.Single(factory.GetOptionAttributes()).IsList);
+		Assert.True(Assert.Single(factory.GetPositionalAttributes()).IsList);
+		Assert.True(Assert.Single(factory.GetFlagAttributes()).IsList);
+	}
+
+	[Theory]
+	[InlineData("List<OnType>", "", "global::Extraction.OnType")]
+	[InlineData("List<OnType>?", "", "global::Extraction.OnType")]
+	[InlineData("List<OnBoth>", "private static bool TryParse(string input, out OnBoth result) { result = new(); return true; }", "global::Extraction.Target")]
+	[InlineData("List<int>", "private static bool TryParse(string input, out int result) { result = 0; return true; }", "global::Extraction.Target")]
+	[InlineData("List<int>", "", "int")]
+	public void ParsedWithMethod_OnAList_IsLookedForOnTheDeclaringClassAndThenOnTheElementType(string declared, string declaringMethod, string expectedOwner)
+	{
+		var option = Assert.Single(Factory($"[Option(\"o\"), ParsedWithMethod(\"TryParse\")] public {declared} Value {{ get; set; }} {declaringMethod}", ParseMethodTypes).GetOptionAttributes());
+
+		Assert.Equal(expectedOwner, option.ParseMethodOwner);
 	}
 
 	private const string ParseMethodTypes = """

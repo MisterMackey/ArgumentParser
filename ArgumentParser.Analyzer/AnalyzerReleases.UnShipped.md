@@ -21,3 +21,5 @@ ARG027 | CommandDeclaration | Error | Argument name used by a parent command
 ARG028 | CommandDeclaration | Error | Help setting not supported by a command tree
 ARG029 | CommandDeclaration | Warning | Help, error and culture settings of a leaf are not used by its command tree
 ARG030 | AttributeDeclaration | Error | Parse method not found
+ARG031 | AttributeDeclaration | Error | A list positional must be the last positional
+ARG032 | AttributeDeclaration | Error | The elements of a list cannot be nullable value types
