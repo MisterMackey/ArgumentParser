@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aot.ArgumentParser" Version="2.0.0-rc" />
+    <PackageReference Include="Aot.ArgumentParser" Version="2.0.0" />
   </ItemGroup>
 
 </Project>
