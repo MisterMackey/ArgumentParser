@@ -22,6 +22,7 @@ Licensed under the Apache License, Version 2.0
 		- [Rules of a tree](#rules-of-a-tree)
 	- [Inspecting the generated code](#inspecting-the-generated-code)
 	- [Default behaviour](#default-behaviour)
+		- [Behaviour on error](#behaviour-on-error)
 	- [Diagnostics and Errors](#diagnostics-and-errors)
 	- [Known bugs (past and present)](#known-bugs-past-and-present)
 - [Development](#development)
@@ -319,7 +320,7 @@ public partial class DeleteFile
 ```
 
 The generator reports an error when the tree breaks one of these rules (see [the rules](#rules-of-a-tree) below):
-- The root and groups can have `[Option]` and `[Flag]` properties, but no `[Positional]` ones: the first argument that is not an option is the name of the next command. They cannot have `required` members either.
+- The root and groups can have `[Option]` and `[Flag]` properties, but no `[Positional]` ones: the first argument that is not an option is the name of the next command. Properties may also not have the `required` modifier, but setting the `required` property on the `[Option]` or `[Flag]` attribute is allowed.
 - A class must declare its child commands itself; properties inherited from a base class are not child commands. A command class can be the type of one child property only.
 - The children of one command need different names. An option or flag cannot reuse a short or long name of a command above it, or a name of the help argument. Commands side by side may share names.
 - The classes cannot be generic, abstract or static. They can be `internal`, and they can be nested in other types as long as those are `partial` too.
