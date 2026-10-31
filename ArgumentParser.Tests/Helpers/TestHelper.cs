@@ -1,13 +1,14 @@
 ﻿using System.Collections.Immutable;
+using ArgumentParser.Internal;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using ArgumentParser.Internal;
 
 namespace ArgumentParser.Tests
 {
 	public static class TestHelper
 	{
-		public static (ImmutableArray<Diagnostic> Diagnostics, string Output) GetGeneratedOutput(string source)
+		// further files are named Other1.cs, Other2.cs, ... so a test can see in which file a diagnostic is
+		public static CSharpCompilation CreateCompilation(string source, params string[] otherFiles)
 		{
 			// Create the references needed for compilation
 			var references = new List<MetadataReference>
@@ -27,7 +28,9 @@ namespace ArgumentParser.Tests
 			var neededPlatformAssemblies = new[] {
 				"System.Runtime",
 				"System.Private.CoreLib",
-				"System.Private.Uri"
+				"System.Private.Uri",
+				// the JSON binder (EmitJsonBinder) needs it, or ARG035 is reported
+				"System.Text.Json"
 			};
 			foreach (var assemblyPath in trustedAssembliesPaths ?? Array.Empty<string>())
 			{
@@ -38,13 +41,17 @@ namespace ArgumentParser.Tests
 				}
 			}
 
-			// Create compilation
-			var compilation = CSharpCompilation.Create(
+			return CSharpCompilation.Create(
 				"TestAssembly",
-				new[] { CSharpSyntaxTree.ParseText(source) },
+				new[] { CSharpSyntaxTree.ParseText(source) }.Concat(otherFiles.Select((text, index) => CSharpSyntaxTree.ParseText(text, path: $"Other{index + 1}.cs"))),
 				references,
 				new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
 			);
+		}
+
+		public static (ImmutableArray<Diagnostic> Diagnostics, string Output) GetGeneratedOutput(string source, params string[] otherFiles)
+		{
+			var compilation = CreateCompilation(source, otherFiles);
 
 			// Create an instance of the generator
 			var generator = new ParserGenerator();

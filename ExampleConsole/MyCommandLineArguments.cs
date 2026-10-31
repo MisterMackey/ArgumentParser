@@ -85,6 +85,6 @@ public class MyVeryOwnType
 		}
 		result = null!;
 		return false;
-		
+
 	}
 }

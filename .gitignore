@@ -24,3 +24,5 @@ obj/
 # coverage reports
 coverage.cobertura.xml
 coveragereports/
+*feature-request.md
+TODO

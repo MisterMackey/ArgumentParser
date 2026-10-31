@@ -11,6 +11,7 @@ public static class GeneratorDiagnostics
 	private const string ClassErrorCategory = "ClassDeclaration";
 	private const string AttributeErrorCategory = "AttributeDeclaration";
 	private const string GenerationOptionsCategory = "GenerationOptions";
+	private const string CommandErrorCategory = "CommandDeclaration";
 
 	private const string ARG001_Id = "ARG001";
 	private const string ARG001_Title = "ParameterCollection must be partial";
@@ -65,6 +66,112 @@ public static class GeneratorDiagnostics
 	private const string ARG013_Id = "ARG013";
 	private const string ARG013_Title = "Flag attributes should only be applied to boolean or enum properties";
 	private const string ARG013_Message = "Flag attribute is applied to property '{0}' of type '{1}', but flags can only be applied to boolean or enum properties";
+
+	private const string ARG014_Id = "ARG014";
+	private const string ARG014_Title = "Invalid command name";
+	private const string ARG014_Message = "Command name '{0}' on class '{1}' is not valid. A name must be 1 to 127 characters long, of ASCII letters, digits, '_', '-' and '.' only, must not start with '-' and must not contain '__'.";
+
+	private const string ARG015_Id = "ARG015";
+	private const string ARG015_Title = "Positional argument on a class with child commands";
+	private const string ARG015_Message = "Property '{1}' of class '{0}' cannot be a Positional argument. The first positional argument of a command group or application root " +
+					     "is the name of the next command. Only a leaf command (with the ParameterCollection attribute) can have positional arguments.";
+
+	private const string ARG016_Id = "ARG016";
+	private const string ARG016_Title = "Conflicting command attributes";
+	private const string ARG016_Message = "Class '{0}' has the CommandApp attribute together with the {1} attribute. The root of the command tree cannot also be a command.";
+
+	private const string ARG017_Id = "ARG017";
+	private const string ARG017_Title = "Duplicate command name";
+	private const string ARG017_Message = "Command name '{0}' is used by more than one child command of '{1}'. The names of the children of one command must be unique.";
+
+	private const string ARG018_Id = "ARG018";
+	private const string ARG018_Title = "Command class used more than once";
+	private const string ARG018_Message = "Class '{0}' is the type of property '{2}' of '{1}', but it is also the type of another child command property, or it is the root of the tree. " +
+					     "A command class must be the type of exactly one child command property, and the root of none.";
+
+	private const string ARG019_Id = "ARG019";
+	private const string ARG019_Title = "Command class is not part of a tree";
+	private const string ARG019_Message = "Command class '{0}' cannot be reached from a class with the CommandApp attribute, so it can never be selected. " +
+					     "Declare it as a property of its parent command.";
+
+	private const string ARG020_Id = "ARG020";
+	private const string ARG020_Title = "Command group without commands";
+	private const string ARG020_Message = "Class '{0}' has no child commands. Add a property whose type is a command class, " +
+					     "or give a command class the ParameterCollection attribute to make it a leaf command.";
+
+	private const string ARG021_Id = "ARG021";
+	private const string ARG021_Title = "Leaf command with child commands";
+	private const string ARG021_Message = "Property '{1}' of leaf command '{0}' declares a child command, but a class with the ParameterCollection attribute cannot have child commands. " +
+					     "Remove the ParameterCollection attribute to make the class a command group.";
+
+	private const string ARG022_Id = "ARG022";
+	private const string ARG022_Title = "Child command property cannot be set";
+	private const string ARG022_Message = "Property '{1}' of '{0}' declares a child command, but it has no setter the generated code can call. " +
+					     "Give it a private setter; an init-only setter does not work.";
+
+	private const string ARG023_Id = "ARG023";
+	private const string ARG023_Title = "Generic command class";
+	private const string ARG023_Message = "Command class '{0}' is generic or nested in a generic type. The classes of a command tree are created by the generated parser, which cannot supply type arguments.";
+
+	private const string ARG024_Id = "ARG024";
+	private const string ARG024_Title = "Abstract command class";
+	private const string ARG024_Message = "Command class '{0}' is abstract or static. The generated parser creates an object of every class in the command tree, so it must be a concrete class.";
+
+	private const string ARG025_Id = "ARG025";
+	private const string ARG025_Title = "Required member on a command group";
+	private const string ARG025_Message = "Member '{1}' of '{0}' has the required modifier, but the generated parser creates groups and the root of a command tree without setting it. " +
+					     "Remove the required modifier.";
+
+	private const string ARG026_Id = "ARG026";
+	private const string ARG026_Title = "Argument of a command class type";
+	private const string ARG026_Message = "Property '{0}' has the {1} attribute, but its type '{2}' is a command class. A property of a command class type declares a child command " +
+					     "and cannot also be an argument. Keep the argument attributes and the command attributes on separate types.";
+
+	private const string ARG027_Id = "ARG027";
+	private const string ARG027_Title = "Argument name used by a parent command";
+	private const string ARG027_Message = "Property '{1}' of '{0}' has the {2} name '{3}', which {4} already uses. " +
+					     "A command cannot reuse the option and flag names of the commands it is part of, or the names of the help argument of the tree. Rename one of the two.";
+
+	private const string ARG028_Id = "ARG028";
+	private const string ARG028_Title = "Help setting not supported by a command tree";
+	private const string ARG028_Message = "The CommandApp attribute of '{0}' uses {1}, which a command tree does not support. The tree generates the help text of every level, " +
+					     "so HelpTextGeneration must be GenerateAll, GenerateTextOnly or None, and None cannot be combined with BehaviourOnError.DisplayHelpAndExit, which displays the help text on an error.";
+
+	private const string ARG029_Id = "ARG029";
+	private const string ARG029_Title = "Help, error, culture and tool settings of a leaf are not used by its command tree";
+	private const string ARG029_Message = "The ParameterCollection attribute of leaf command '{0}' sets help, error, culture or tool settings, but the command tree uses those of the CommandApp attribute of '{1}'. " +
+					     "They only apply to the Parse method of '{0}' itself. Set them on the CommandApp attribute instead, or leave them out.";
+
+	private const string ARG030_Id = "ARG030";
+	private const string ARG030_Title = "Parse method not found";
+	private const string ARG030_Message = "The ParsedWithMethod attribute names method '{0}' for property '{1}', but neither the class that declares the property nor type '{2}' has an accessible static method '{0}' " +
+					     "of the form bool {0}(string input, out {2} value). Add the method, or correct its name or signature.";
+
+	private const string ARG031_Id = "ARG031";
+	private const string ARG031_Title = "A list positional must be the last positional";
+	private const string ARG031_Message = "Positional argument '{0}' is a list, which takes every value that is left, but another positional argument comes after it. " +
+					     "Give the list the highest position, or use an option for it.";
+
+	private const string ARG032_Id = "ARG032";
+	private const string ARG032_Title = "The elements of a list cannot be nullable value types";
+	private const string ARG032_Message = "Property '{0}' has type '{1}', but the elements of a list are values that were given and cannot be null. " +
+					     "Use the type without the question mark for the elements; make the list itself nullable if it can be absent.";
+
+	private const string ARG033_Id = "ARG033";
+	private const string ARG033_Title = "A required argument cannot be excluded from the manifest";
+	private const string ARG033_Message = "Property '{0}' is required, but the ExcludeFromManifest attribute leaves it out of the JSON Schema, so a tool call could never give it. " +
+					     "Remove required, or the ExcludeFromManifest attribute.";
+
+	private const string ARG034_Id = "ARG034";
+	private const string ARG034_Title = "Two arguments have the same key in a JSON Schema";
+	private const string ARG034_Message = "Property '{0}' of '{1}' has the key '{2}' in the JSON Schema, which property '{3}' of '{4}' already has. " +
+					     "The keys are the names of the properties in camelCase, and the schema of a command in a tree also holds the options of the commands above it. " +
+					     "Rename one of the properties, or leave one out with the ExcludeFromManifest attribute.";
+
+	private const string ARG035_Id = "ARG035";
+	private const string ARG035_Title = "The JSON binder needs System.Text.Json";
+	private const string ARG035_Message = "'{0}' sets EmitJsonBinder, but the project does not reference System.Text.Json, which the generated Bind methods use. " +
+					     "Add a reference to the System.Text.Json package (it is part of .NET Core 3.0 and later), or remove EmitJsonBinder.";
 
 	/// <summary>
 	/// Diagnostic descriptor for ARG001: Classes with ParameterCollection attribute must be partial.
@@ -141,7 +248,7 @@ public static class GeneratorDiagnostics
 	    ClassErrorCategory,
 	    DiagnosticSeverity.Error,
 	    true,
-	    helpLinkUri: "blah"
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG006.md"
 	);
 
 	/// <summary>
@@ -233,5 +340,291 @@ public static class GeneratorDiagnostics
 	    DiagnosticSeverity.Error,
 	    true,
 	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG013.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG014: A command name must be 1 to 127 characters of ASCII letters, digits, '_', '-' and '.', not start with '-' and not contain '__'.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG014 = new DiagnosticDescriptor(
+	    ARG014_Id,
+	    ARG014_Title,
+	    ARG014_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG014.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG015: A command group or application root cannot have positional arguments.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG015 = new DiagnosticDescriptor(
+	    ARG015_Id,
+	    ARG015_Title,
+	    ARG015_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG015.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG016: The CommandApp attribute cannot be combined with the Command or ParameterCollection attribute.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG016 = new DiagnosticDescriptor(
+	    ARG016_Id,
+	    ARG016_Title,
+	    ARG016_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG016.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG017: The children of one command must have different names.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG017 = new DiagnosticDescriptor(
+	    ARG017_Id,
+	    ARG017_Title,
+	    ARG017_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG017.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG018: A command class can be the child of one property only.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG018 = new DiagnosticDescriptor(
+	    ARG018_Id,
+	    ARG018_Title,
+	    ARG018_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG018.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG019: A command class that cannot be reached from a CommandApp class is never selected.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG019 = new DiagnosticDescriptor(
+	    ARG019_Id,
+	    ARG019_Title,
+	    ARG019_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Warning,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG019.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG020: A command group or application root needs at least one child command.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG020 = new DiagnosticDescriptor(
+	    ARG020_Id,
+	    ARG020_Title,
+	    ARG020_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG020.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG021: A leaf command cannot have child commands.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG021 = new DiagnosticDescriptor(
+	    ARG021_Id,
+	    ARG021_Title,
+	    ARG021_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG021.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG022: A child command property needs a setter that the generated code can call.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG022 = new DiagnosticDescriptor(
+	    ARG022_Id,
+	    ARG022_Title,
+	    ARG022_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG022.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG023: A class of a command tree cannot be generic.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG023 = new DiagnosticDescriptor(
+	    ARG023_Id,
+	    ARG023_Title,
+	    ARG023_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG023.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG024: A class of a command tree cannot be abstract.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG024 = new DiagnosticDescriptor(
+	    ARG024_Id,
+	    ARG024_Title,
+	    ARG024_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG024.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG025: A command group or the root cannot have required members.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG025 = new DiagnosticDescriptor(
+	    ARG025_Id,
+	    ARG025_Title,
+	    ARG025_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG025.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG026: An argument cannot have a command class as its type.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG026 = new DiagnosticDescriptor(
+	    ARG026_Id,
+	    ARG026_Title,
+	    ARG026_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG026.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG027: A command cannot reuse an option or flag name of a command above it, or of the help argument of the tree.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG027 = new DiagnosticDescriptor(
+	    ARG027_Id,
+	    ARG027_Title,
+	    ARG027_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG027.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG028: The CommandApp attribute uses a help setting a tree cannot use.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG028 = new DiagnosticDescriptor(
+	    ARG028_Id,
+	    ARG028_Title,
+	    ARG028_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG028.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG029: The help and error settings of a leaf in a tree are not used by the tree.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG029 = new DiagnosticDescriptor(
+	    ARG029_Id,
+	    ARG029_Title,
+	    ARG029_Message,
+	    CommandErrorCategory,
+	    DiagnosticSeverity.Warning,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG029.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG030: The method named by the ParsedWithMethod attribute does not exist.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG030 = new DiagnosticDescriptor(
+	    ARG030_Id,
+	    ARG030_Title,
+	    ARG030_Message,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG030.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG031: A positional argument that holds a list is not the last positional.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG031 = new DiagnosticDescriptor(
+	    ARG031_Id,
+	    ARG031_Title,
+	    ARG031_Message,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG031.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG032: The elements of a list are a nullable value type.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG032 = new DiagnosticDescriptor(
+	    ARG032_Id,
+	    ARG032_Title,
+	    ARG032_Message,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG032.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG033: A required argument has the ExcludeFromManifest attribute.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG033 = new DiagnosticDescriptor(
+	    ARG033_Id,
+	    ARG033_Title,
+	    ARG033_Message,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG033.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG034: Two arguments of one JSON Schema have the same key.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG034 = new DiagnosticDescriptor(
+	    ARG034_Id,
+	    ARG034_Title,
+	    ARG034_Message,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG034.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG035: EmitJsonBinder is set, but System.Text.Json is not referenced.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG035 = new DiagnosticDescriptor(
+	    ARG035_Id,
+	    ARG035_Title,
+	    ARG035_Message,
+	    GenerationOptionsCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG035.md"
 	);
 }

@@ -39,7 +39,6 @@ public class HelptextProvider
 		var flags = _argumentProvider.GetFlagArguments();
 		var positionals = _argumentProvider.GetPositionalArguments();
 		StringBuilder helpText = new StringBuilder();
-		helpText.AppendLine("public const string HelpText = \"\"\"");
 		helpText.AppendLine(ProgramName);
 		helpText.AppendLine();
 		helpText.AppendLine("Example usage: ");
@@ -55,28 +54,7 @@ public class HelptextProvider
 			if (positional.Attribute.Required)
 			{
 				hasRequiredArgs = true;
-				helpText.AppendLine($"\tPosition: {positional.Attribute.Position}: {positional.Attribute.Description}");
-			}
-		}
-		foreach (var flag in flags)
-		{
-			if (flag.Attribute.Required)
-			{
-				hasRequiredArgs = true;
-				helpText.Append("\tFlag: ");
-				if (!string.IsNullOrEmpty(flag.Attribute.ShortName))
-				{
-					helpText.Append($"-{flag.Attribute.ShortName} ");
-					if (!string.IsNullOrEmpty(flag.Attribute.LongName))
-					{
-						helpText.Append($"| --{flag.Attribute.LongName} ");
-					}
-				}
-				else if (!string.IsNullOrEmpty(flag.Attribute.LongName))
-				{
-					helpText.Append($"--{flag.Attribute.LongName} ");
-				}
-				helpText.AppendLine($": {flag.Attribute.Description}");
+				helpText.AppendLine($"\tPosition: {positional.Attribute.Position}: {ArgumentDescription(positional)}");
 			}
 		}
 		foreach (var option in options)
@@ -97,7 +75,7 @@ public class HelptextProvider
 				{
 					helpText.Append($"--{option.Attribute.LongName} ");
 				}
-				helpText.AppendLine($": {option.Attribute.Description}");
+				helpText.AppendLine($": {ArgumentDescription(option)}");
 			}
 		}
 		if (!hasRequiredArgs)
@@ -113,7 +91,7 @@ public class HelptextProvider
 			if (!positional.Attribute.Required)
 			{
 				hasOptionalArgs = true;
-				helpText.AppendLine($"\tPosition: {positional.Attribute.Position}: {positional.Attribute.Description}");
+				helpText.AppendLine($"\tPosition: {positional.Attribute.Position}: {ArgumentDescription(positional)}");
 			}
 		}
 		foreach (var flag in flags)
@@ -155,7 +133,7 @@ public class HelptextProvider
 				{
 					helpText.Append($"--{option.Attribute.LongName} ");
 				}
-				helpText.AppendLine($": {option.Attribute.Description}");
+				helpText.AppendLine($": {ArgumentDescription(option)}");
 			}
 		}
 		if (!hasOptionalArgs)
@@ -164,8 +142,47 @@ public class HelptextProvider
 		}
 
 		helpText.AppendLine();
-		helpText.AppendLine("\"\"\";");
 
-		return helpText.ToString();
+		return WrapInRawStringLiteral(helpText.ToString());
+	}
+
+	/// <summary>
+	/// Gets the description of an argument for the help text: an argument that holds a list says that it can be given again.
+	/// </summary>
+	/// <param name="argument">The option or positional.</param>
+	/// <returns>The description, ending with a note for a list.</returns>
+	internal static string ArgumentDescription(PropertyAndAttributeInfo argument)
+	{
+		return argument.IsList ? $"{argument.Attribute.Description} (can be repeated)" : argument.Attribute.Description;
+	}
+
+	private static string WrapInRawStringLiteral(string content)
+	{
+		return ConstDeclaration("HelpText", content);
+	}
+
+	/// <summary>
+	/// Declares a public string constant whose value is the content, as a raw string literal.
+	/// The content must end with a line break; the closing delimiter goes on a line of its own.
+	/// </summary>
+	/// <param name="name">The name of the constant.</param>
+	/// <param name="content">The text of the constant.</param>
+	/// <returns>The declaration, ending with a line break.</returns>
+	internal static string ConstDeclaration(string name, string content)
+	{
+		// a raw string literal needs more quote characters in its delimiter than the longest run inside the content
+		int longestRun = 0;
+		int currentRun = 0;
+		foreach (var c in content)
+		{
+			currentRun = c == '"' ? currentRun + 1 : 0;
+			longestRun = Math.Max(longestRun, currentRun);
+		}
+		var delimiter = new string('"', Math.Max(3, longestRun + 1));
+		var literal = new StringBuilder();
+		literal.AppendLine($"public const string {name} = {delimiter}");
+		literal.Append(content);
+		literal.AppendLine($"{delimiter};");
+		return literal.ToString();
 	}
 }

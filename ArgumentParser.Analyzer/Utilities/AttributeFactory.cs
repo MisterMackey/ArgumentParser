@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using ArgumentParser.Internal.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -41,15 +42,8 @@ public class AttributeFactory
 	public IList<PropertyAndAttributeInfo> GetOptionAttributes()
 	{
 		return _properties
-			.Where(p => p.AttributeLists
-				.SelectMany(al => al.Attributes)
-				.Any(attr =>
-				{
-					if (!(_semanticModel.GetSymbolInfo(attr).Symbol is IMethodSymbol symbol))
-						return false;
-					return symbol.ContainingType.ToDisplayString().Contains("OptionAttribute");
-				}))
-			.Select(o => CreateOptionAttribute(o))
+			.Where(p => HasAttribute(p, AttributeReader.Option))
+			.Select(CreateOptionAttribute)
 			.ToList();
 	}
 
@@ -60,15 +54,8 @@ public class AttributeFactory
 	public IList<PropertyAndAttributeInfo> GetPositionalAttributes()
 	{
 		return _properties
-			.Where(p => p.AttributeLists
-				.SelectMany(al => al.Attributes)
-				.Any(attr =>
-				{
-					if (!(_semanticModel.GetSymbolInfo(attr).Symbol is IMethodSymbol symbol))
-						return false;
-					return symbol.ContainingType.ToDisplayString().Contains("PositionalAttribute");
-				}))
-			.Select(p => CreatePositionalInfo(p))
+			.Where(p => HasAttribute(p, AttributeReader.Positional))
+			.Select(CreatePositionalInfo)
 			.ToList();
 	}
 
@@ -79,16 +66,37 @@ public class AttributeFactory
 	public IList<PropertyAndAttributeInfo> GetFlagAttributes()
 	{
 		return _properties
-			.Where(p => p.AttributeLists
-				.SelectMany(al => al.Attributes)
-				.Any(attr =>
-				{
-					if (!(_semanticModel.GetSymbolInfo(attr).Symbol is IMethodSymbol symbol))
-						return false;
-					return symbol.ContainingType.ToDisplayString().Contains("FlagAttribute");
-				}))
-			.Select(f => CreateFlagAttribute(f))
+			.Where(p => HasAttribute(p, AttributeReader.Flag))
+			.Select(CreateFlagAttribute)
 			.ToList();
+	}
+
+	private bool HasAttribute(PropertyDeclarationSyntax property, string attributeName)
+	{
+		return property.AttributeLists
+			.SelectMany(al => al.Attributes)
+			.Any(attr => _semanticModel.GetSymbolInfo(attr).Symbol is IMethodSymbol symbol
+				&& symbol.ContainingType.ToDisplayString() == attributeName);
+	}
+
+	private PropertyAndAttributeInfo CreateInfo(PropertyDeclarationSyntax property, IPropertySymbol? propertySymbol, AttributeInfo attribute)
+	{
+		var parsedWithMethod = AttributeReader.StringArgument(AttributeReader.Find(propertySymbol, AttributeReader.ParsedWithMethod), 0);
+		var listElement = AttributeReader.ListElement(propertySymbol?.Type);
+		return new PropertyAndAttributeInfo
+		{
+			Attribute = attribute,
+			PropertyName = property.Identifier.Text,
+			PropertyType = propertySymbol?.Type.ToDisplayString() ?? "string", //default, no parsing
+			IsList = listElement is not null,
+			ListElementType = listElement is null ? string.Empty : AttributeReader.DisplayElement(listElement),
+			IsEnum = propertySymbol is not null && AttributeReader.UnwrapNullable(listElement ?? propertySymbol.Type).TypeKind == TypeKind.Enum,
+			EnumMembers = new EquatableArray<string>(AttributeReader.EnumMemberNames(listElement ?? propertySymbol?.Type)),
+			IsCommandClass = AttributeReader.IsCommandClass(propertySymbol?.Type),
+			ParseMethodName = parsedWithMethod,
+			ParseMethodOwner = ParseMethodResolver.Resolve(propertySymbol, parsedWithMethod, _semanticModel.Compilation),
+			ExcludeFromManifest = propertySymbol is not null && AttributeReader.Has(propertySymbol, AttributeReader.ExcludeFromManifest)
+		};
 	}
 
 	/// <summary>
@@ -98,78 +106,10 @@ public class AttributeFactory
 	/// <returns>A PropertyAndAttributeInfo instance for the FlagAttribute.</returns>
 	private PropertyAndAttributeInfo CreateFlagAttribute(PropertyDeclarationSyntax property)
 	{
-		var flagAttributeData = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
-		    .FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("FlagAttribute") == true);
-
-		var parsedWithMethodAttribute = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
-			.FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("ParsedWithMethodAttribute") == true);
-
-		string shortName = string.Empty;
-		string longName = string.Empty;
-		string description = string.Empty;
-		string parsedWithMethod = string.Empty;
-
-		if (flagAttributeData != null)
-		{
-			// Extract positional arguments
-			if (flagAttributeData.ConstructorArguments.Length > 0)
-			{
-				shortName = flagAttributeData.ConstructorArguments[0].Value?.ToString() ?? string.Empty;
-			}
-			if (flagAttributeData.ConstructorArguments.Length > 1)
-			{
-				longName = flagAttributeData.ConstructorArguments[1].Value?.ToString() ?? string.Empty;
-			}
-			if (flagAttributeData.ConstructorArguments.Length > 2)
-			{
-				description = flagAttributeData.ConstructorArguments[2].Value?.ToString() ?? string.Empty;
-			}
-
-			// Extract named arguments
-			foreach (var namedArg in flagAttributeData.NamedArguments)
-			{
-				if (namedArg.Key == "name")
-				{
-					shortName = namedArg.Value.Value?.ToString() ?? shortName; // Override if named argument is provided
-				}
-				else if (namedArg.Key == "longName")
-				{
-					longName = namedArg.Value.Value?.ToString() ?? longName;
-				}
-				else if (namedArg.Key == "description")
-				{
-					description = namedArg.Value.Value?.ToString() ?? description;
-				}
-			}
-		}
-
-		if (parsedWithMethodAttribute != null)
-		{
-			if (parsedWithMethodAttribute.ConstructorArguments.Length > 0)
-			{
-				parsedWithMethod = parsedWithMethodAttribute.ConstructorArguments[0].Value?.ToString() ?? string.Empty;
-			}
-			foreach (var namedArg in parsedWithMethodAttribute.NamedArguments)
-			{
-				if (namedArg.Key == "methodName")
-				{
-					parsedWithMethod = namedArg.Value.Value?.ToString() ?? string.Empty;
-				}
-			}
-		}
-
-		var propertyName = property.Identifier.Text;
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
-		var propertyType = propertySymbol?.Type.ToDisplayString() ?? "string"; //default, no parsing
-
-		return new PropertyAndAttributeInfo
-		{
-			Attribute = new AttributeInfo(shortName, longName, description, false, -1),
-			PropertyName = propertyName,
-			PropertyType = propertyType,
-			PropertySymbol = propertySymbol,
-			ParseMethodName = parsedWithMethod
-		};
+		var data = AttributeReader.Find(propertySymbol, AttributeReader.Flag);
+		var attribute = new AttributeInfo(AttributeReader.StringArgument(data, 0), AttributeReader.StringArgument(data, 1), AttributeReader.StringArgument(data, 2), false, -1);
+		return CreateInfo(property, propertySymbol, attribute);
 	}
 
 	/// <summary>
@@ -179,95 +119,10 @@ public class AttributeFactory
 	/// <returns>A PropertyAndAttributeInfo instance for the OptionAttribute.</returns>
 	private PropertyAndAttributeInfo CreateOptionAttribute(PropertyDeclarationSyntax property)
 	{
-		var optionAttributeData = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
-		    .FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("OptionAttribute") == true);
-
-		var parsedWithMethodAttribute = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
-			.FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("ParsedWithMethodAttribute") == true);
-
-		string shortName = string.Empty;
-		string longName = string.Empty;
-		string description = string.Empty;
-		bool required = false;
-		string parsedWithMethod = string.Empty;
-
-		if (optionAttributeData != null)
-		{
-			// Extract positional arguments
-			if (optionAttributeData.ConstructorArguments.Length > 0)
-			{
-				shortName = optionAttributeData.ConstructorArguments[0].Value?.ToString() ?? string.Empty;
-			}
-			if (optionAttributeData.ConstructorArguments.Length > 1)
-			{
-				longName = optionAttributeData.ConstructorArguments[1].Value?.ToString() ?? string.Empty;
-			}
-			if (optionAttributeData.ConstructorArguments.Length > 2)
-			{
-				description = optionAttributeData.ConstructorArguments[2].Value?.ToString() ?? string.Empty;
-			}
-			if (optionAttributeData.ConstructorArguments.Length > 3)
-			{
-				var value = optionAttributeData.ConstructorArguments[3].Value;
-				if (value is bool)
-				{
-					required = (bool)value;
-				}
-			}
-
-			// Extract named arguments
-			foreach (var namedArg in optionAttributeData.NamedArguments)
-			{
-				if (namedArg.Key == "shortName")
-				{
-					shortName = namedArg.Value.Value?.ToString() ?? shortName;
-				}
-				else if (namedArg.Key == "longName")
-				{
-					longName = namedArg.Value.Value?.ToString() ?? longName;
-				}
-				else if (namedArg.Key == "description")
-				{
-					description = namedArg.Value.Value?.ToString() ?? description;
-				}
-				else if (namedArg.Key == "required")
-				{
-					var value = namedArg.Value.Value;
-					if (value is bool)
-					{
-						required = (bool)value;
-					}
-				}
-			}
-		}
-
-		if (parsedWithMethodAttribute != null)
-		{
-			if (parsedWithMethodAttribute.ConstructorArguments.Length > 0)
-			{
-				parsedWithMethod = parsedWithMethodAttribute.ConstructorArguments[0].Value?.ToString() ?? string.Empty;
-			}
-			foreach (var namedArg in parsedWithMethodAttribute.NamedArguments)
-			{
-				if (namedArg.Key == "methodName")
-				{
-					parsedWithMethod = namedArg.Value.Value?.ToString() ?? string.Empty;
-				}
-			}
-		}
-
-		var propertyName = property.Identifier.Text;
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
-		var propertyType = propertySymbol?.Type.ToDisplayString() ?? "string"; //default, no parsing
-
-		return new PropertyAndAttributeInfo
-		{
-			Attribute = new AttributeInfo(shortName, longName, description, required, -1),
-			PropertyName = propertyName,
-			PropertyType = propertyType,
-			PropertySymbol = propertySymbol,
-			ParseMethodName = parsedWithMethod
-		};
+		var data = AttributeReader.Find(propertySymbol, AttributeReader.Option);
+		var attribute = new AttributeInfo(AttributeReader.StringArgument(data, 0), AttributeReader.StringArgument(data, 1), AttributeReader.StringArgument(data, 2), AttributeReader.BoolArgument(data, 3), -1);
+		return CreateInfo(property, propertySymbol, attribute);
 	}
 
 	/// <summary>
@@ -277,86 +132,11 @@ public class AttributeFactory
 	/// <returns>A PropertyAndAttributeInfo instance for the PositionalAttribute.</returns>
 	private PropertyAndAttributeInfo CreatePositionalInfo(PropertyDeclarationSyntax property)
 	{
-		var positionalAttributeData = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
-		    .FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("PositionalAttribute") == true);
-
-		var parsedWithMethodAttribute = _semanticModel.GetDeclaredSymbol(property)?.GetAttributes()
-			.FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString().Contains("ParsedWithMethodAttribute") == true);
-
-		string position = string.Empty;
-		string description = string.Empty;
-		bool required = false;
-		string parsedWithMethod = string.Empty;
-
-		if (positionalAttributeData != null)
-		{
-			// Extract positional arguments
-			if (positionalAttributeData.ConstructorArguments.Length > 0)
-			{
-				position = positionalAttributeData.ConstructorArguments[0].Value?.ToString() ?? string.Empty;
-			}
-			if (positionalAttributeData.ConstructorArguments.Length > 1)
-			{
-				description = positionalAttributeData.ConstructorArguments[1].Value?.ToString() ?? string.Empty;
-			}
-			if (positionalAttributeData.ConstructorArguments.Length > 2)
-			{
-				var value = positionalAttributeData.ConstructorArguments[2].Value;
-				if (value is bool)
-				{
-					required = (bool)value;
-				}
-			}
-
-			// Extract named arguments
-			foreach (var namedArg in positionalAttributeData.NamedArguments)
-			{
-				if (namedArg.Key == "position")
-				{
-					position = namedArg.Value.Value?.ToString() ?? position;
-				}
-				else if (namedArg.Key == "description")
-				{
-					description = namedArg.Value.Value?.ToString() ?? description;
-				}
-				else if (namedArg.Key == "required")
-				{
-					var value = namedArg.Value.Value;
-					if (value is bool)
-					{
-						required = (bool)value;
-					}
-				}
-			}
-		}
-
-		if (parsedWithMethodAttribute != null)
-		{
-			if (parsedWithMethodAttribute.ConstructorArguments.Length > 0)
-			{
-				parsedWithMethod = parsedWithMethodAttribute.ConstructorArguments[0].Value?.ToString() ?? string.Empty;
-			}
-			foreach (var namedArg in parsedWithMethodAttribute.NamedArguments)
-			{
-				if (namedArg.Key == "methodName")
-				{
-					parsedWithMethod = namedArg.Value.Value?.ToString() ?? string.Empty;
-				}
-			}
-		}
-
-		var propertyName = property.Identifier.Text;
 		var propertySymbol = _semanticModel.GetDeclaredSymbol(property) as IPropertySymbol;
-		var propertyType = propertySymbol?.Type.ToDisplayString() ?? "string"; //default, no parsing
-
-		return new PropertyAndAttributeInfo
-		{
-			Attribute = new AttributeInfo("", "", description, required, int.Parse(position, CultureInfo.InvariantCulture)),
-			PropertyName = propertyName,
-			PropertyType = propertyType,
-			PropertySymbol = propertySymbol,
-			ParseMethodName = parsedWithMethod
-		};
+		var data = AttributeReader.Find(propertySymbol, AttributeReader.Positional);
+		var position = int.Parse(AttributeReader.StringArgument(data, 0), CultureInfo.InvariantCulture);
+		var attribute = new AttributeInfo("", "", AttributeReader.StringArgument(data, 1), AttributeReader.BoolArgument(data, 2), position);
+		return CreateInfo(property, propertySymbol, attribute);
 	}
 }
 
@@ -376,19 +156,63 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	public string PropertyName { get; set; }
 
 	/// <summary>
-	/// The type of the property.
+	/// The type of the property as it is written, including the question mark of a nullable type.
 	/// </summary>
 	public string PropertyType { get; set; }
 
 	/// <summary>
-	/// The symbol representing the property.
+	/// Indicates whether the property type is nullable (<c>int?</c>, <c>string?</c>). Such a property is <c>null</c> when the argument was not given,
+	/// unless the property has another default.
 	/// </summary>
-	public IPropertySymbol? PropertySymbol { get; set; }
+	public readonly bool IsNullable => !string.IsNullOrEmpty(PropertyType) && PropertyType[PropertyType.Length - 1] == '?';
+
+	/// <summary>
+	/// The type of the property without the question mark of a nullable type: the type that the text of the argument is converted to.
+	/// For a list it is the type of the elements, as each value of the argument is converted to one.
+	/// </summary>
+	public readonly string UnderlyingType => IsList ? ListElementType ?? string.Empty : IsNullable ? PropertyType.Substring(0, PropertyType.Length - 1) : PropertyType;
+
+	/// <summary>
+	/// Indicates whether the property type, or the type it is nullable of, is an enum.
+	/// </summary>
+	public bool IsEnum { get; set; }
+
+	/// <summary>
+	/// The names of the members of the enum, in the order they are declared, when <see cref="IsEnum"/> is true; empty otherwise.
+	/// The JSON Schema of the argument lists them.
+	/// </summary>
+	public EquatableArray<string> EnumMembers { get; set; }
+
+	/// <summary>
+	/// Indicates whether the property has the ExcludeFromManifest attribute, which leaves it out of the JSON Schema and the JSON binding.
+	/// </summary>
+	public bool ExcludeFromManifest { get; set; }
+
+	/// <summary>
+	/// Indicates whether the property type is a <c>List&lt;T&gt;</c> (or a nullable one): the argument can be given several times.
+	/// </summary>
+	public bool IsList { get; set; }
+
+	/// <summary>
+	/// The type of the elements of a list property, empty for any other property. A nullable value type keeps its question mark.
+	/// </summary>
+	public string ListElementType { get; set; }
+
+	/// <summary>
+	/// Indicates whether the property type is a class with the Command or the CommandApp attribute, which an argument cannot have.
+	/// </summary>
+	public bool IsCommandClass { get; set; }
 
 	/// <summary>
 	/// The name of the method used for parsing the property value.
 	/// </summary>
 	public string ParseMethodName { get; set; }
+
+	/// <summary>
+	/// The type that holds the parse method, written to be used in generated code, or empty when the method was not found.
+	/// It is the class that declares the property if that has the method, otherwise the type of the property.
+	/// </summary>
+	public string ParseMethodOwner { get; set; }
 
 	/// <summary>
 	/// Indicates whether the property has a parse method defined.
@@ -400,7 +224,7 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	/// </summary>
 	/// <param name="obj"></param>
 	/// <returns></returns>
-	public override bool Equals(object obj)
+	public override bool Equals(object? obj)
 	{
 		if (obj is PropertyAndAttributeInfo other)
 		{
@@ -415,8 +239,9 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	/// <returns></returns>
 	public override int GetHashCode()
 	{
-		return 17 * 23 + PropertyName.GetHashCode() * 31 + PropertyType.GetHashCode() * 37 +
-		       Attribute.GetType().GetHashCode() * 41;
+		return 17 * 23 + (PropertyName?.GetHashCode() ?? 0) * 31 + (PropertyType?.GetHashCode() ?? 0) * 37 + (IsEnum ? 1 : 0) * 43 + (IsList ? 1 : 0) * 59 + (ListElementType?.GetHashCode() ?? 0) * 61 +
+		       (IsCommandClass ? 1 : 0) * 47 + (ParseMethodOwner?.GetHashCode() ?? 0) * 53 + Attribute.GetHashCode() * 41 +
+		       EnumMembers.GetHashCode() * 67 + (ExcludeFromManifest ? 1 : 0) * 71;
 	}
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
@@ -435,7 +260,15 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	{
 		return PropertyName == other.PropertyName &&
 			PropertyType == other.PropertyType &&
-			Attribute.GetType() == other.Attribute.GetType();
+			IsEnum == other.IsEnum &&
+			IsList == other.IsList &&
+			ListElementType == other.ListElementType &&
+			IsCommandClass == other.IsCommandClass &&
+			ParseMethodName == other.ParseMethodName &&
+			ParseMethodOwner == other.ParseMethodOwner &&
+			EnumMembers.Equals(other.EnumMembers) &&
+			ExcludeFromManifest == other.ExcludeFromManifest &&
+			Attribute.Equals(other.Attribute);
 	}
 }
 
@@ -473,7 +306,8 @@ public struct AttributeInfo : IEquatable<AttributeInfo>
 		return string.Equals(ShortName, other.ShortName, StringComparison.Ordinal) &&
 			string.Equals(LongName, other.LongName, StringComparison.Ordinal) &&
 			string.Equals(Description, other.Description, StringComparison.Ordinal) &&
-			Required == other.Required;
+			Required == other.Required &&
+			Position == other.Position;
 	}
 
 	public override int GetHashCode()
@@ -483,6 +317,7 @@ public struct AttributeInfo : IEquatable<AttributeInfo>
 		hash = hash * 23 + (LongName != null ? LongName.GetHashCode() : 0);
 		hash = hash * 23 + (Description != null ? Description.GetHashCode() : 0);
 		hash = hash * 23 + Required.GetHashCode();
+		hash = hash * 23 + Position;
 		return hash;
 	}
 

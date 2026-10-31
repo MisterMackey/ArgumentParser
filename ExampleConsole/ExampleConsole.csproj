@@ -7,11 +7,13 @@
     <Nullable>enable</Nullable>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors> <!-- trim and AOT warnings (IL2xxx, IL3xxx) must fail the smoke test -->
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier> <!-- fix for unable to find  Unable to find package runtime.arch-x64.Microsoft.DotNet.ILCompiler-->
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aot.ArgumentParser" Version="1.3.0" />
+    <PackageReference Include="Aot.ArgumentParser" Version="2.0.0-rc" />
   </ItemGroup>
 
 </Project>

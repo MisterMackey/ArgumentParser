@@ -21,13 +21,12 @@ $(ANALYZER_STAMP): $(ANALYZER_SOURCES) | $(STAMP_DIR)
 
 $(RESTORE_EXAMPLE_STAMP): $(ANALYZER_STAMP) | $(STAMP_DIR)
 	dotnet remove ExampleConsole package Aot.ArgumentParser || true
-	dotnet nuget locals all --clear
 	dotnet restore
-	dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg --prerelease
+	dotnet add ExampleConsole package Aot.ArgumentParser --source ArgumentParser/bin/nupkg --version $$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' ArgumentParser/ArgumentParser.csproj)
 	touch $@
 
 $(EXAMPLE_STAMP): $(EXAMPLE_SOURCES) $(RESTORE_EXAMPLE_STAMP) | $(STAMP_DIR)
-	dotnet build ExampleConsole -v:d
+	dotnet publish ExampleConsole -c Release
 	touch $@
 
 $(TESTPROJ_STAMP): $(TEST_SOURCES) $(ANALYZER_STAMP) | $(STAMP_DIR)
@@ -42,7 +41,7 @@ help:
 	@echo "  clean                  - Clean the build artifacts and coverage reports"
 	@echo "  build-analyzer         - Build the ArgumentParser analyzer (Release)"
 	@echo "  restore-example        - Add locally built Aot.ArgumentParser package to ExampleConsole"
-	@echo "  build-example          - Build the ExampleConsole project"
+	@echo "  build-example          - Publish the ExampleConsole project as a native AOT executable"
 	@echo "  build-tests            - Build the ArgumentParser.Tests project (Debug)"
 	@echo "  test                   - Run the tests in ArgumentParser.Tests with coverage"
 	@echo "  coverage               - Generate a coverage report for ArgumentParser.Tests"
@@ -51,6 +50,8 @@ help:
 	@echo "  pre-release            - Performs checks and cuts a pre-release (FullSemVer tag)"
 	@echo "  release-stable         - Performs checks and cuts a stable release (MajorMinorPatch tag)"
 	@echo "  smoke-test             - Run smoke tests on the ExampleConsole executable"
+	@echo "  format                 - Fix formatting and import order with dotnet format"
+	@echo "  format-check           - Fail if dotnet format would change anything (needs the example restored, so run build-example first)"
 	@echo "  help                   - Show this help message"
 
 all: build-analyzer build-example build-tests test
@@ -71,6 +72,14 @@ build-tests: $(TESTPROJ_STAMP)
 
 test: build-tests
 	dotnet test ArgumentParser.Tests --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
+
+.PHONY: format format-check
+
+format:
+	dotnet format ArgumentParser.sln
+
+format-check:
+	dotnet format ArgumentParser.sln --verify-no-changes
 
 coverage: build-tests
 	reportgenerator -reports:ArgumentParser.Tests/coverage.cobertura.xml -targetdir:coveragereports -reporttypes:Html
@@ -125,28 +134,4 @@ release-stable: clean set-version-stable test smoke-test
 
 smoke-test: build-example
 	@echo "running smoke tests..."
-	@echo "Checking display help on error."
-	@ExampleConsole/bin/Debug/net9.0/ExampleConsole; \
-	RET=$$?; \
-	if [ $$RET -ne 2 ]; then \
-		echo "display help on error failed"; \
-		exit 1; \
-	else \
-		echo "display help on error test passed successfully"; \
-	fi
-	@echo "Checking display help on request."
-	@ExampleConsole/bin/Debug/net9.0/ExampleConsole --Help; \
-	if [ $$? -ne 0 ]; then \
-		echo "display help on request failed"; \
-		exit 1; \
-	else \
-		echo "display help on request test passed successfully"; \
-	fi
-	@echo "Checking regular use..."
-	@ExampleConsole/bin/Debug/net9.0/ExampleConsole --Target target 15 -llvt 2025-05-05T12:00:00Z; \
-	if [ $$? -ne 0 ]; then \
-		echo "regular use failed"; \
-		exit 1; \
-	else \
-		echo "regular use test passed successfully"; \
-	fi
+	@scripts/smoke-test.sh ExampleConsole/bin/Release/net10.0/linux-x64/publish/ExampleConsole

@@ -15,7 +15,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '9'
+        dotnet-version: '10'
 
     - name: Clean all
       run: make clean
@@ -28,6 +28,9 @@ jobs:
       
     - name: Build example project
       run: make build-example
+
+    - name: Check formatting
+      run: make format-check
     
     - name: smoke test
       run: make smoke-test

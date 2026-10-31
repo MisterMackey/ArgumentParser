@@ -79,6 +79,64 @@ namespace ArgumentParser.Tests
 		}
 
 		[Fact]
+		public void TokenizeArguments_OptionTokens_RecordWhetherTheShortOrLongNameWasUsed()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["-o", "a", "--output", "b"], _options, _positionals, _flags);
+
+			Assert.Empty(errors);
+			Assert.True(((OptionToken)tokens[0]).IsShort);
+			Assert.False(((OptionToken)tokens[1]).IsShort);
+		}
+
+		[Fact]
+		public void TokenizeArguments_FlagWithShortName_IsAlwaysReportedAsShort()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["--verbose"], _options, _positionals, _flags);
+
+			Assert.Empty(errors);
+			var token = Assert.IsType<FlagToken>(Assert.Single(tokens));
+			Assert.Equal("v", token.Name);
+			Assert.True(token.IsShort);
+		}
+
+		[Fact]
+		public void TokenizeArguments_FlagWithOnlyALongName_IsReportedAsLong()
+		{
+			var flags = new[] { new FlagAttribute("", "verbose", "desc") };
+
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["--verbose"], [], [], flags);
+
+			Assert.Empty(errors);
+			var token = Assert.IsType<FlagToken>(Assert.Single(tokens));
+			Assert.Equal("verbose", token.Name);
+			Assert.False(token.IsShort);
+		}
+
+		[Fact]
+		public void TokenizeArguments_ShortAndLongFlagsWithTheSameText_AreCountedSeparately()
+		{
+			var flags = new[] { new FlagAttribute("v", "", "short only"), new FlagAttribute("", "v", "long only") };
+
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["-v", "-v", "--v"], [], [], flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(2, tokens.Count);
+			Assert.Equal(2, tokens.OfType<FlagToken>().Single(t => t.IsShort).Level);
+			Assert.Equal(1, tokens.OfType<FlagToken>().Single(t => !t.IsShort).Level);
+		}
+
+		[Fact]
+		public void TokenizeArguments_DoubleDashAlone_IsNotMatchedToAnArgumentWithoutALongName()
+		{
+			var options = new[] { new OptionAttribute("o", "", "short only") };
+
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["--"], options, [], []);
+
+			Assert.Empty(tokens);
+			Assert.IsType<UnexpectedArgumentException>(Assert.Single(errors));
+		}
+
+		[Fact]
 		public void TokenizeArguments_ShortNameOption_ReturnsOptionToken()
 		{
 			// Arrange
@@ -365,5 +423,268 @@ namespace ArgumentParser.Tests
 			Assert.Equal("verbose", flagToken.Name);
 			Assert.Equal(expectedCount, flagToken.Level);
 		}
+
+		#region TokenizeLeadingArguments
+
+		[Fact]
+		public void TokenizeLeadingArguments_NoArguments_HasNoCommand()
+		{
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments([], _options, _flags);
+
+			Assert.Empty(tokens);
+			Assert.Empty(errors);
+			Assert.Equal(0, commandIndex);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_StopsAtTheFirstArgumentThatIsNotAnOptionOrFlag()
+		{
+			string[] args = ["--output", "out.txt", "-v", "add", "--input", "in.txt"];
+
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(args, _options, _flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(3, commandIndex);
+			Assert.Equal(2, tokens.Count);
+			var option = Assert.IsType<OptionToken>(tokens[0]);
+			Assert.Equal("output", option.Name);
+			Assert.Equal("out.txt", option.Value);
+			var flag = Assert.IsType<FlagToken>(tokens[1]);
+			Assert.Equal("v", flag.Name);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_OnlyOptions_ReturnsTheLengthAsTheCommandIndex()
+		{
+			string[] args = ["-o", "out.txt", "--verbose"];
+
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(args, _options, _flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(2, tokens.Count);
+			Assert.Equal(args.Length, commandIndex);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_ValueOfAnOptionIsNotTheCommand_EvenWhenItLooksLikeOne()
+		{
+			string[] args = ["--output", "add", "add"];
+
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(args, _options, _flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(2, commandIndex);
+			Assert.Equal("add", Assert.IsType<OptionToken>(Assert.Single(tokens)).Value);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_UnknownOption_IsAnErrorAndTokenizingContinues()
+		{
+			string[] args = ["--bogus", "-v", "run"];
+
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(args, _options, _flags);
+
+			Assert.IsType<UnexpectedArgumentException>(Assert.Single(errors));
+			Assert.IsType<FlagToken>(Assert.Single(tokens));
+			Assert.Equal(2, commandIndex);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_OptionWithoutAValueAtTheEnd_IsAnError()
+		{
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(["--output"], _options, _flags);
+
+			Assert.Empty(tokens);
+			Assert.IsType<MissingRequiredArgumentException>(Assert.Single(errors));
+			Assert.Equal(1, commandIndex);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_CountsRepeatedFlagsIntoALevel()
+		{
+			var (tokens, errors, commandIndex) = _tokenizer.TokenizeLeadingArguments(["-vv", "--verbose", "run"], _options, _flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(3, Assert.IsType<FlagToken>(Assert.Single(tokens)).Level);
+			Assert.Equal(2, commandIndex);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_CanBeCalledAgainOnTheSameTokenizer()
+		{
+			_tokenizer.TokenizeLeadingArguments(["-v", "run"], _options, _flags);
+
+			var (tokens, _, _) = _tokenizer.TokenizeLeadingArguments(["-f", "run"], _options, _flags);
+
+			Assert.Equal("f", Assert.IsType<FlagToken>(Assert.Single(tokens)).Name);
+		}
+
+		[Fact]
+		public void TokenizeLeadingArguments_NullArguments_ThrowsArgumentNullException()
+		{
+			string[] validArgs = ["--output", "file.txt"];
+
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeLeadingArguments(null!, _options, _flags));
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeLeadingArguments(validArgs, null!, _flags));
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeLeadingArguments(validArgs, _options, null!));
+		}
+
+		#endregion
+
+		#region ContainsFlag
+
+		[Theory]
+		[InlineData("-h", true)]
+		[InlineData("--help", true)]
+		[InlineData("-vh", true)]
+		[InlineData("-v", false)]
+		[InlineData("--h", false)]
+		public void ContainsFlag_FindsTheFlagByEitherName(string arg, bool expected)
+		{
+			var (tokens, _) = _tokenizer.TokenizeArguments([arg], _options, _positionals, _flags);
+
+			Assert.Equal(expected, ArgumentTokenizer.ContainsFlag(tokens, _flags[0]));
+		}
+
+		[Theory]
+		[InlineData("--info", true)]
+		[InlineData("-i", false)]
+		public void ContainsFlag_FlagWithOnlyALongName_IsFoundByIt(string arg, bool expected)
+		{
+			var info = new FlagAttribute("", "info", "Long name only");
+			var (tokens, _) = _tokenizer.TokenizeArguments([arg], [], [], [info]);
+
+			Assert.Equal(expected, ArgumentTokenizer.ContainsFlag(tokens, info));
+		}
+
+		[Fact]
+		public void ContainsFlag_AnOptionValueThatLooksLikeTheFlag_IsNotTheFlag()
+		{
+			var (tokens, _) = _tokenizer.TokenizeArguments(["--output", "-h"], _options, _positionals, _flags);
+
+			Assert.False(ArgumentTokenizer.ContainsFlag(tokens, _flags[0]));
+		}
+
+		[Fact]
+		public void ContainsFlag_NullArguments_Throw()
+		{
+			Assert.Throws<ArgumentNullException>(() => ArgumentTokenizer.ContainsFlag(null!, _flags[0]));
+			Assert.Throws<ArgumentNullException>(() => ArgumentTokenizer.ContainsFlag([], null!));
+		}
+
+		#endregion
+
+		#region repeating last positional
+
+		private static List<(int Position, string Value)> PositionalsOf(List<Token> tokens)
+			=> tokens.OfType<PositionalToken>().Select(t => (t.Position, t.Value)).ToList();
+
+		[Fact]
+		public void LastPositionalRepeats_RemainingValues_ShareThePositionOfTheLastPositional()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a", "b", "c", "d"], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(errors);
+			Assert.Equal([(0, "a"), (1, "b"), (1, "c"), (1, "d")], PositionalsOf(tokens));
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_OnlyThePositionalsBeforeTheList_GivesNoValuesToTheList()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a"], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(errors);
+			Assert.Equal([(0, "a")], PositionalsOf(tokens));
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_NoArguments_GivesNothing()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments([], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(tokens);
+			Assert.Empty(errors);
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_ASinglePositional_TakesEveryValue()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a", "b", "c"], _options, [new PositionalAttribute(0, "Files")], _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(errors);
+			Assert.Equal([(0, "a"), (0, "b"), (0, "c")], PositionalsOf(tokens));
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_OptionsAndFlagsBetweenTheValues_DoNotEndTheList()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a", "b", "--verbose", "c", "-o", "out.txt", "d"], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(errors);
+			Assert.Equal([(0, "a"), (1, "b"), (1, "c"), (1, "d")], PositionalsOf(tokens));
+			var option = Assert.Single(tokens.OfType<OptionToken>());
+			Assert.Equal("o", option.Name);
+			Assert.Equal("out.txt", option.Value);
+			Assert.Single(tokens.OfType<FlagToken>());
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_ValueOfAnOption_IsNotAddedToTheList()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a", "--output", "b", "c"], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(errors);
+			Assert.Equal([(0, "a"), (1, "c")], PositionalsOf(tokens));
+			Assert.Equal("b", Assert.Single(tokens.OfType<OptionToken>()).Value);
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_ValueStartingWithADash_IsStillAFlagOrOption()
+		{
+			var (_, errors) = _tokenizer.TokenizeArguments(["a", "-x"], _options, _positionals, _flags, lastPositionalRepeats: true);
+
+			Assert.IsType<UnexpectedArgumentException>(Assert.Single(errors));
+		}
+
+		[Fact]
+		public void LastPositionalDoesNotRepeat_ExtraValue_IsStillUnexpected()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a", "b", "c"], _options, _positionals, _flags, lastPositionalRepeats: false);
+
+			Assert.Equal([(0, "a"), (1, "b")], PositionalsOf(tokens));
+			var error = Assert.IsType<UnexpectedArgumentException>(Assert.Single(errors));
+			Assert.Contains("Unexpected positional argument 'c'", error.Message);
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_NoPositionalsAtAll_StillReportsTheUnexpectedValue()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["a"], _options, [], _flags, lastPositionalRepeats: true);
+
+			Assert.Empty(PositionalsOf(tokens));
+			Assert.IsType<UnexpectedArgumentException>(Assert.Single(errors));
+		}
+
+		[Fact]
+		public void LastPositionalRepeats_NullArguments_Throw()
+		{
+			string[] args = ["a"];
+
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeArguments(null!, _options, _positionals, _flags, true));
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeArguments(args, null!, _positionals, _flags, true));
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeArguments(args, _options, null!, _flags, true));
+			Assert.Throws<ArgumentNullException>(() => _tokenizer.TokenizeArguments(args, _options, _positionals, null!, true));
+		}
+
+		[Fact]
+		public void RepeatedOption_GivesATokenForEveryOccurrenceInOrder()
+		{
+			var (tokens, errors) = _tokenizer.TokenizeArguments(["-o", "a", "--output", "b", "-o", "c"], _options, _positionals, _flags);
+
+			Assert.Empty(errors);
+			Assert.Equal(["a", "b", "c"], tokens.OfType<OptionToken>().Select(t => t.Value));
+		}
+
+		#endregion
 	}
 }

@@ -8,7 +8,7 @@ namespace ArgumentParser.Internal.Utilities;
 /// <summary>
 /// Represents the configuration settings for the ArgumentParser.
 /// </summary>
-public class GeneratorConfiguration
+public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 {
 	/// <summary>
 	/// Gets or sets the help text generation mode.
@@ -26,6 +26,23 @@ public class GeneratorConfiguration
 	/// Gets or sets the behavior of the parser when errors are encountered during argument parsing.
 	/// </summary>
 	public string? BehaviourOnError { get; set; }
+	/// <summary>
+	/// Gets or sets a value indicating whether numbers, dates and times are read with the current culture instead of the invariant culture.
+	/// </summary>
+	public bool UseCurrentCulture { get; set; }
+	/// <summary>
+	/// Gets or sets a value indicating whether the JSON Schema of the class is generated.
+	/// </summary>
+	public bool EmitMcpManifest { get; set; }
+	/// <summary>
+	/// Gets or sets a value indicating whether the JSON binder of the class is generated.
+	/// </summary>
+	public bool EmitJsonBinder { get; set; }
+	/// <summary>
+	/// Gets a value indicating whether the class is described as a tool, by its JSON Schema, its JSON binder or both.
+	/// The rules about the keys of the schema only apply then.
+	/// </summary>
+	public bool DescribesTool => EmitMcpManifest || EmitJsonBinder;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="GeneratorConfiguration"/> class by extracting configuration values from the <see cref="ClassDeclarationSyntax"/>.
@@ -43,6 +60,10 @@ public class GeneratorConfiguration
 		{
 			throw new ArgumentNullException(nameof(classDeclaration));
 		}
+		if (semanticModel == null)
+		{
+			throw new ArgumentNullException(nameof(semanticModel));
+		}
 
 		// get the ParameterCollection attribute from the class
 		var attribute = classDeclaration.AttributeLists
@@ -57,30 +78,11 @@ public class GeneratorConfiguration
 		// get the named and positional arguments used in the attribute
 		var namedArguments = attribute.ArgumentList?.Arguments
 			.Where(arg => arg.NameColon != null)
-			.ToDictionary(arg => arg.NameColon!.Name.ToString(), arg =>
-			{
-				if (arg.Expression is MemberAccessExpressionSyntax memberAccess)
-				{
-					return memberAccess.Name.Identifier.ValueText;
-				}
-				else
-				{
-					return arg.GetFirstToken().ValueText;
-				}
-			});
+			.ToDictionary(arg => arg.NameColon!.Name.ToString(), arg => ArgumentValue(arg, semanticModel));
+		// a property set by name (Annotations = ...) is no constructor argument
 		var positionalArguments = attribute.ArgumentList?.Arguments
-			.Where(arg => arg.NameColon == null)
-			.Select(arg =>
-			{
-				if (arg.Expression is MemberAccessExpressionSyntax memberAccess)
-				{
-					return memberAccess.Name.Identifier.ValueText;
-				}
-				else
-				{
-					return arg.GetFirstToken().ValueText;
-				}
-			})
+			.Where(arg => arg.NameColon == null && arg.NameEquals == null)
+			.Select(arg => ArgumentValue(arg, semanticModel))
 			.ToList();
 		// make sure to update this part if the attribute changes
 		for (int i = 0; i < positionalArguments?.Count; i++)
@@ -121,6 +123,66 @@ public class GeneratorConfiguration
 				BehaviourOnError = errBehaviour;
 			}
 		}
+		UseCurrentCulture = NamedBool(attribute, semanticModel, "UseCurrentCulture");
+		EmitMcpManifest = NamedBool(attribute, semanticModel, "EmitMcpManifest");
+		EmitJsonBinder = NamedBool(attribute, semanticModel, "EmitJsonBinder");
+	}
+
+	// a property of the attribute, set with Name = value
+	private static bool NamedBool(AttributeSyntax attribute, SemanticModel semanticModel, string name)
+	{
+		var argument = attribute.ArgumentList?.Arguments
+			.FirstOrDefault(arg => arg.NameEquals?.Name.Identifier.ValueText == name);
+		return argument is not null && semanticModel.GetConstantValue(argument.Expression).Value is true;
+	}
+
+	// Strings are taken from their constant value, so literals and constants both work.
+	// Enum values are taken from the member name, so qualified and unqualified spellings are the same.
+	// The first token is taken from the expression, not the argument: for a named argument the argument starts with the name.
+	private static string ArgumentValue(AttributeArgumentSyntax argument, SemanticModel semanticModel)
+	{
+		if (semanticModel.GetConstantValue(argument.Expression).Value is string text)
+		{
+			return text;
+		}
+		if (argument.Expression is MemberAccessExpressionSyntax memberAccess)
+		{
+			return memberAccess.Name.Identifier.ValueText;
+		}
+		return argument.Expression.GetFirstToken().ValueText;
+	}
+
+	/// <inheritdoc/>
+	public bool Equals(GeneratorConfiguration? other)
+	{
+		return other is not null
+			&& string.Equals(HelpTextGenerationMode, other.HelpTextGenerationMode, StringComparison.Ordinal)
+			&& string.Equals(HelpArgumentShortName, other.HelpArgumentShortName, StringComparison.Ordinal)
+			&& string.Equals(HelpArgumentLongName, other.HelpArgumentLongName, StringComparison.Ordinal)
+			&& string.Equals(BehaviourOnError, other.BehaviourOnError, StringComparison.Ordinal)
+			&& UseCurrentCulture == other.UseCurrentCulture
+			&& EmitMcpManifest == other.EmitMcpManifest
+			&& EmitJsonBinder == other.EmitJsonBinder;
+	}
+
+	/// <inheritdoc/>
+	public override bool Equals(object? obj)
+	{
+		return Equals(obj as GeneratorConfiguration);
+	}
+
+	/// <inheritdoc/>
+	public override int GetHashCode()
+	{
+		int hash = 17;
+		hash = hash * 23 + (HelpTextGenerationMode?.GetHashCode() ?? 0);
+		hash = hash * 23 + (HelpArgumentShortName?.GetHashCode() ?? 0);
+		hash = hash * 23 + (HelpArgumentLongName?.GetHashCode() ?? 0);
+		hash = hash * 23 + (BehaviourOnError?.GetHashCode() ?? 0);
+		hash = hash * 23 + (UseCurrentCulture ? 1 : 0);
+		hash = hash * 23 + (EmitMcpManifest ? 1 : 0);
+		hash = hash * 23 + (EmitJsonBinder ? 1 : 0);
+		return hash;
 	}
 
 	/// <summary>
