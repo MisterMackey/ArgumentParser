@@ -10,5 +10,5 @@ public static class AssemblyVersionProvider
 	/// The fullsemver version of the assembly.
 	/// Updated automatically by the build pipeline.
 	/// </summary>
-	public const string FullSemVer = "2.0.0-rc";
+	public const string FullSemVer = "2.0.0";
 }
