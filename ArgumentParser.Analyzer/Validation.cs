@@ -135,6 +135,29 @@ public static class Validation
 	}
 
 	/// <summary>
+	/// Validates that the generated JSON binder can compile: it uses System.Text.Json, which the project must reference (ARG035).
+	/// </summary>
+	/// <param name="emitJsonBinder">Whether the attribute sets EmitJsonBinder.</param>
+	/// <param name="compilation">The compilation of the project.</param>
+	/// <param name="attributeLocation">Where the attribute that sets it is.</param>
+	/// <param name="className">The name of the class.</param>
+	/// <returns>The diagnostics, empty when there is nothing wrong.</returns>
+	public static ReadOnlyCollection<DiagnosticInfo> ValidateJsonBinder(bool emitJsonBinder, Compilation compilation, Location? attributeLocation, string className)
+	{
+		if (compilation is null)
+		{
+			throw new ArgumentNullException(nameof(compilation));
+		}
+		var diagnostics = new List<DiagnosticInfo>();
+		// GetTypeByMetadataName answers null when two references define the type, so every definition is looked at
+		if (emitJsonBinder && compilation.GetTypesByMetadataName("System.Text.Json.JsonElement").IsEmpty)
+		{
+			diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG035, attributeLocation, className));
+		}
+		return diagnostics.AsReadOnly();
+	}
+
+	/// <summary>
 	/// The longest command name: a tool name of the Model Context Protocol has at most 128 characters.
 	/// </summary>
 	public const int MaxCommandNameLength = 127;

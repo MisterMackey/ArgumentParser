@@ -25,7 +25,7 @@ public static class JsonSchemaProvider
 	public const string TimeSpanNote = "a time span: [-][d.]hh:mm[:ss[.fffffff]] (01:30, 2.12:00:00), or a number of days";
 
 	// the integer types and their ranges, so the schema agrees with the range check of the binder
-	private static readonly Dictionary<string, (string Minimum, string Maximum)> IntegerRanges = new()
+	internal static readonly Dictionary<string, (string Minimum, string Maximum)> IntegerRanges = new()
 	{
 		["byte"] = ("0", "255"),
 		["sbyte"] = ("-128", "127"),
@@ -208,7 +208,7 @@ public static class JsonSchemaProvider
 			return members;
 		}
 		members.Add("\"type\":" + Types(field.JsonType, nullable));
-		if (field.EnumMembers.Count > 0)
+		if (field.IsEnum)
 		{
 			// enum lists the values themselves, so null must be one of them too
 			var values = field.EnumMembers.Select(Quote).ToList();

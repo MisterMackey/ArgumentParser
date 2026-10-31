@@ -13,6 +13,7 @@ return args.FirstOrDefault() switch
 	"lists" => RunLists(args[1..]),
 	"commands" => RunCommands(args[1..]),
 	"commandlist" => RunCommandList(args[1..]),
+	"mcp" => RunMcp(args[1..]),
 	_ => RunDefault(args),
 };
 
@@ -85,12 +86,38 @@ static int RunLists(string[] args)
 static int RunCommands(string[] args)
 {
 	var (tool, _) = FileTool.Parse(args);
+	PrintTool(tool);
+	return 0;
+}
+
+// the tree as MCP tools: without arguments the manifest, otherwise a tool call (the name of a tool and its arguments as JSON) bound to the tree
+static int RunMcp(string[] args)
+{
+	if (args.Length == 0)
+	{
+		Console.WriteLine(FileTool.McpManifest);
+		return 0;
+	}
+	using var arguments = System.Text.Json.JsonDocument.Parse(args.Length > 1 ? args[1] : "{}");
+	var (tool, errors) = FileTool.Bind(args[0], arguments.RootElement);
+	PrintTool(tool);
+	foreach (var error in errors)
+	{
+		Console.WriteLine($"Error: {error.GetType().Name} ({error.Key ?? "no key"}): {error.Message}");
+	}
+	return errors.Count == 0 ? 0 : 1;
+}
+
+static void PrintTool(FileTool tool)
+{
 	Console.WriteLine($"Root={tool.Root}");
 	Console.WriteLine($"Command={tool.SelectedCommand}");
 	switch (tool.Selected)
 	{
 		case ListDirectories list:
 			Console.WriteLine($"ShowHidden={list.ShowHidden}");
+			Console.WriteLine($"Depth={list.Depth?.ToString(CultureInfo.InvariantCulture) ?? "null"}");
+			Console.WriteLine($"Exclude={(list.Exclude is null ? "null" : string.Join("|", list.Exclude))}");
 			break;
 		case CreateDirectory create:
 			Console.WriteLine($"Name={create.Name}");
@@ -101,7 +128,6 @@ static int RunCommands(string[] args)
 			Console.WriteLine($"Force={delete.Force}");
 			break;
 	}
-	return 0;
 }
 
 // the list of commands the root of the tree gets; with arguments, they are parsed by the command they start with, which never exits

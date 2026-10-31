@@ -156,6 +156,24 @@ public static class ToolSpecProvider
 		return new ToolSpec(ToolName(leaf.Path.AsReadOnly()), info.Description, info.Annotations, fields);
 	}
 
+	/// <summary>
+	/// Gets the fields that the arguments of one node of a tree give the tools below it, with targets relative to the node
+	/// (only the property name): what the node binds itself when a tool call is bound.
+	/// </summary>
+	/// <param name="node">The node.</param>
+	/// <returns>The fields of the node.</returns>
+	public static IReadOnlyList<ToolField> FieldsOf(TreeNode node)
+	{
+		if (node is null)
+		{
+			throw new ArgumentNullException(nameof(node));
+		}
+		var arguments = node.Source.Arguments;
+		return FieldArguments(arguments.Options.AsReadOnly(), arguments.Flags.AsReadOnly(), arguments.Positionals.AsReadOnly())
+			.Select(item => Field(item.Argument, item.Kind, []))
+			.ToList();
+	}
+
 	private static ToolField Field(PropertyAndAttributeInfo argument, ArgumentKind kind, IEnumerable<string> access)
 	{
 		// a flag reads no text, so a parse method on it does nothing (as on the command line)
@@ -168,6 +186,7 @@ public static class ToolSpecProvider
 			argument.UnderlyingType,
 			// the method decides which text it takes, also for an enum, so the names of the members are no longer the only values
 			parseMethod ? Enumerable.Empty<string>() : argument.EnumMembers.AsReadOnly(),
+			argument.IsEnum && !parseMethod,
 			argument.IsList,
 			argument.Attribute.Required,
 			argument.IsNullable,

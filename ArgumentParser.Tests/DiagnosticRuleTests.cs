@@ -920,6 +920,67 @@ public class DiagnosticRuleTests
 		Assert.Equal(["ARG034"], result.Ids);
 	}
 
+	[Theory]
+	[InlineData(true)]
+	[InlineData(false)]
+	public void ARG035_TheBinderNeedsSystemTextJson(bool referenced)
+	{
+		var source = """
+			using ArgumentParser;
+			namespace Tools;
+
+			[ParameterCollection(EmitJsonBinder = true)]
+			public partial class Standalone { }
+
+			[CommandApp("app", EmitJsonBinder = true)]
+			public partial class App { public Leaf? Leaf { get; private set; } }
+
+			[ParameterCollection] [Command("leaf")] public partial class Leaf { }
+			""";
+		var compilation = TestHelper.CreateCompilation(source);
+		if (!referenced)
+		{
+			compilation = compilation.RemoveReferences(compilation.References.Where(r => r.Display?.EndsWith("System.Text.Json.dll", StringComparison.Ordinal) == true));
+		}
+
+		var driver = Microsoft.CodeAnalysis.CSharp.CSharpGeneratorDriver.Create(new ParserGenerator()).RunGenerators(compilation);
+		var diagnostics = driver.GetRunResult().Diagnostics.Where(d => d.Id.StartsWith("ARG", StringComparison.Ordinal)).ToList();
+
+		if (referenced)
+		{
+			Assert.Empty(diagnostics);
+			return;
+		}
+		Assert.Equal(["ARG035", "ARG035"], diagnostics.Select(d => d.Id));
+		Assert.All(diagnostics, d => Assert.Equal(DiagnosticSeverity.Error, d.Severity));
+		Assert.Contains(diagnostics, d => d.GetMessage(System.Globalization.CultureInfo.InvariantCulture).StartsWith("'Standalone' sets EmitJsonBinder", StringComparison.Ordinal));
+		Assert.Contains(diagnostics, d => d.GetMessage(System.Globalization.CultureInfo.InvariantCulture).StartsWith("'App' sets EmitJsonBinder", StringComparison.Ordinal));
+	}
+
+	[Fact]
+	public void ARG035_IsReportedTogetherWithTheRulesOfTheArguments()
+	{
+		// adding the reference must not bring up errors that were hidden until then
+		var compilation = TestHelper.CreateCompilation("""
+			using ArgumentParser;
+			namespace Tools;
+
+			[ParameterCollection(EmitJsonBinder = true)]
+			public partial class Standalone
+			{
+				[Option("s", "one", "")] public string One { get; set; } = "";
+				[Option("s", "two", "")] public string Two { get; set; } = "";
+			}
+			""");
+		compilation = compilation.RemoveReferences(compilation.References.Where(r => r.Display?.EndsWith("System.Text.Json.dll", StringComparison.Ordinal) == true));
+
+		var driver = Microsoft.CodeAnalysis.CSharp.CSharpGeneratorDriver.Create(new ParserGenerator()).RunGenerators(compilation);
+		var ids = driver.GetRunResult().Diagnostics.Select(d => d.Id).Where(id => id.StartsWith("ARG", StringComparison.Ordinal)).Order(StringComparer.Ordinal).ToList();
+
+		Assert.Contains("ARG035", ids);
+		Assert.True(ids.Count > 1, "the duplicate short name is reported too: " + string.Join(", ", ids));
+	}
+
 	// a whole tree, with every rule of the class pipeline and of the linker
 	private static IReadOnlyList<string> DiagnoseTree(string commandApp, string leafAttribute, string rootMembers, string leafMembers)
 	{

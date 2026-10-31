@@ -25,3 +25,4 @@ ARG031 | AttributeDeclaration | Error | A list positional must be the last posit
 ARG032 | AttributeDeclaration | Error | The elements of a list cannot be nullable value types
 ARG033 | AttributeDeclaration | Error | A required argument cannot be excluded from the manifest
 ARG034 | AttributeDeclaration | Error | Two arguments have the same key in a JSON Schema
+ARG035 | GenerationOptions | Error | The JSON binder needs System.Text.Json

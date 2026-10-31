@@ -183,6 +183,20 @@ public class JsonSchemaTests
 	}
 
 	[Fact]
+	public void JsonSchema_AnEnumWithoutMembers_AllowsNoValue()
+	{
+		var parser = GeneratedParser.Compile(ClassSource("""
+			[Option("e", "empty", "")] public Nothing Empty { get; set; }
+			[Option("n", "maybe", "")] public Nothing? Maybe { get; set; }
+			""").Replace("public enum Level", "public enum Nothing { }\npublic enum Level", StringComparison.Ordinal));
+
+		var schema = JsonNode.Parse(parser.GetStaticMember<string>("JsonSchema")!)!.AsObject();
+
+		Assert.Equal("""{"type":"string","enum":[]}""", Json(Property(schema, "empty")));
+		Assert.Equal("""{"type":["string","null"],"enum":[null]}""", Json(Property(schema, "maybe")));
+	}
+
+	[Fact]
 	public void JsonSchema_TextIsEscaped()
 	{
 		var schema = Schema("""

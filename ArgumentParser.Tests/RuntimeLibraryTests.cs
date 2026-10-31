@@ -386,6 +386,16 @@ public class RuntimeLibraryTests
 	}
 
 	[Fact]
+	public void CommandInfo_InputSchema_IsNullUnlessGiven()
+	{
+		var withSchema = new CommandInfo(["x"], "d", CommandAnnotations.None, "", "{\"type\":\"object\"}", _ => ("r", []));
+
+		Assert.Null(Info().InputSchema);
+		Assert.Equal("{\"type\":\"object\"}", withSchema.InputSchema);
+		Assert.Throws<ArgumentNullException>(() => new CommandInfo(["x"], "d", CommandAnnotations.None, "", null, null!));
+	}
+
+	[Fact]
 	public void CommandInfo_NullArguments_Throw()
 	{
 		Assert.Throws<ArgumentNullException>(() => new CommandInfo(null!, "d", CommandAnnotations.None, "", _ => ("r", [])));
@@ -431,6 +441,25 @@ public class RuntimeLibraryTests
 	{
 		Assert.True(typeof(ArgumentParserException).IsAssignableFrom(type));
 		Assert.True(typeof(Exception).IsAssignableFrom(type));
+	}
+
+	[Theory]
+	[MemberData(nameof(ConcreteExceptionTypes))]
+	public void Exception_Key_IsNullUnlessSet(Type type)
+	{
+		var exception = (ArgumentParserException)Activator.CreateInstance(type, "something went wrong")!;
+
+		Assert.Null(exception.Key);
+		Assert.Equal("filePath", new InvalidArgumentValueException("x") { Key = "filePath" }.Key);
+	}
+
+	[Fact]
+	public void Exception_Key_CanOnlyBeSetWhenTheExceptionIsCreated()
+	{
+		var setter = typeof(ArgumentParserException).GetProperty(nameof(ArgumentParserException.Key))!.SetMethod!;
+
+		// an init accessor carries the IsExternalInit modifier on its return value
+		Assert.Contains(typeof(System.Runtime.CompilerServices.IsExternalInit), setter.ReturnParameter.GetRequiredCustomModifiers());
 	}
 
 	[Fact]

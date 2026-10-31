@@ -122,6 +122,11 @@ public static class CommandNodeExtractor
 			command is not null,
 			hasParameterCollection,
 			ReadPositionals(symbol)));
+		// the binder of a tree is generated for every class of it, with the setting of the root
+		if (kind == CommandNodeKind.Root)
+		{
+			diagnostics.AddRange(Validation.ValidateJsonBinder(node.Settings.EmitJsonBinder, semanticModel.Compilation, commandApp?.ApplicationSyntaxReference?.GetSyntax().GetLocation(), node.ClassName));
+		}
 
 		return new CommandNodeModel(
 			node,

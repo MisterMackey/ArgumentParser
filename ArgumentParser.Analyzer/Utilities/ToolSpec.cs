@@ -42,6 +42,7 @@ public sealed class ToolField
 	/// <param name="jsonType">The JSON type of a value: string, integer, number or boolean.</param>
 	/// <param name="valueType">The type that a value is converted to, as Roslyn displays it, without <c>global::</c> (the element type for a list).</param>
 	/// <param name="enumMembers">The names of the members of an enum, empty for any other type and for an enum with a ParsedWithMethod attribute.</param>
+	/// <param name="isEnum">Whether the value is given by the names of <paramref name="enumMembers"/> (an enum without a ParsedWithMethod attribute), even when it has none.</param>
 	/// <param name="isArray">Whether the value is an array of values (a list argument).</param>
 	/// <param name="required">Whether the key must be in the JSON object.</param>
 	/// <param name="nullable">Whether the value can be JSON null.</param>
@@ -55,6 +56,7 @@ public sealed class ToolField
 		string jsonType,
 		string valueType,
 		IEnumerable<string> enumMembers,
+		bool isEnum,
 		bool isArray,
 		bool required,
 		bool nullable,
@@ -68,6 +70,7 @@ public sealed class ToolField
 		JsonType = jsonType ?? throw new ArgumentNullException(nameof(jsonType));
 		ValueType = valueType ?? "";
 		EnumMembers = (enumMembers ?? []).ToList().AsReadOnly();
+		IsEnum = isEnum;
 		IsArray = isArray;
 		Required = required;
 		Nullable = nullable;
@@ -122,7 +125,13 @@ public sealed class ToolField
 	/// Gets a value indicating whether the value can also be the number of an enum member: a flag that holds an enum counts how often it is given,
 	/// so it takes the level as a number as well as the name.
 	/// </summary>
-	public bool AcceptsEnumNumber => Kind == ArgumentKind.Flag && EnumMembers.Count > 0;
+	public bool AcceptsEnumNumber => Kind == ArgumentKind.Flag && IsEnum;
+
+	/// <summary>
+	/// Gets a value indicating whether the value is the name of one of the <see cref="EnumMembers"/>: an enum without a ParsedWithMethod attribute.
+	/// An enum without members is one too, and then takes no value at all.
+	/// </summary>
+	public bool IsEnum { get; }
 
 	/// <summary>
 	/// Gets a value indicating whether the value is an array of values, for a list argument.

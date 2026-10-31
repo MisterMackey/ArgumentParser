@@ -6,11 +6,12 @@ namespace ExampleConsole;
 // Selected with the "commands" scenario, so the smoke test runs it as 'ExampleConsole commands directories list --showhidden'.
 // The root is the application, a group holds other commands, and a leaf (which also has ParameterCollection) does the work.
 // The child commands are the properties whose type is a Command class; only the ones that were typed are filled in.
+// The tree is also described as MCP tools (FileTool.McpManifest) and can bind a tool call (FileTool.Bind), see the "mcp" scenario.
 
 /// <summary>
 /// The root of the tree. Its options come before the first command word.
 /// </summary>
-[CommandApp("myFileManagingTool", "Manage files and directories")]
+[CommandApp("myFileManagingTool", "Manage files and directories", EmitMcpManifest = true, EmitJsonBinder = true)]
 public partial class FileTool
 {
 	[Option("r", "root", "Directory to work in")]
@@ -51,6 +52,12 @@ public partial class ListDirectories
 {
 	[Flag("", "showhidden", "Include hidden directories")]
 	public bool ShowHidden { get; set; }
+
+	[Option("d", "depth", "How many levels deep to list")]
+	public int? Depth { get; set; }
+
+	[Option("x", "exclude", "A pattern to leave out")]
+	public List<string>? Exclude { get; set; }
 }
 
 /// <summary>

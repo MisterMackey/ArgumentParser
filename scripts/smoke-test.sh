@@ -4,7 +4,7 @@
 #
 # Each expected output entry must match a whole output line, or, when prefixed with "~", appear anywhere in the output.
 # An entry prefixed with "!" must NOT appear. The first argument after the expectations selects the scenario in
-# ExampleConsole/Program.cs (lenient, strict, required, lists, commands, commandlist) or, when absent, the default MyCommandLineArguments.
+# ExampleConsole/Program.cs (lenient, strict, required, lists, commands, commandlist, mcp) or, when absent, the default MyCommandLineArguments.
 
 set -u
 
@@ -291,6 +291,9 @@ $'Command=directories create\nName=photos' \
 check "options of the root and of a group, each before the next command word" 0 \
 $'Root=/tmp\nCommand=files delete\nDryRun=True\nFilePath=old.txt\nForce=True' \
 	commands --root /tmp files -n delete old.txt --force
+check "an optional number and a list option of a leaf" 0 \
+$'Command=directories list\nShowHidden=False\nDepth=2\nExclude=bin|obj' \
+	commands directories list --depth 2 -x bin -x obj
 check "short name of a root option" 0 \
 $'Root=/tmp\nCommand=directories list\nShowHidden=False' \
 	commands -r /tmp directories list
@@ -332,6 +335,23 @@ $'Result=CreateDirectory\nName=photos\n!Error:' \
 check "a command of the list collects errors instead of exiting" 1 \
 $'Result=CreateDirectory\nError: MissingRequiredArgumentException: Missing required argument: Name\n!myFileManagingTool' \
 	commandlist directories create
+
+echo "== mcp scenario: the tree as MCP tools, its manifest and a bound tool call"
+check "the manifest lists every command as a tool with its schema and hints" 0 \
+$'~{"tools":[{"name":"directories__list","description":"List the directories","inputSchema":{"type":"object","properties":{"root":{"type":"string","description":"Directory to work in"},"depth":{"type":["integer","null"],"minimum":-2147483648,"maximum":2147483647,"description":"How many levels deep to list"},"exclude":{"type":["array","null"],"items":{"type":"string"},"description":"A pattern to leave out"},"showHidden":{"type":"boolean","description":"Include hidden directories"}},"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":false,"openWorldHint":false}}\n~{"name":"files__delete","description":"Delete a file","inputSchema":{"type":"object","properties":{"root":\n~"required":["filePath"]' \
+	mcp
+check "a tool call is bound to the chain from the root to its command" 0 \
+$'Root=/tmp\nCommand=directories list\nShowHidden=True\nDepth=2\nExclude=bin|obj' \
+	mcp directories__list '{"root": "/tmp", "showHidden": true, "depth": 2, "exclude": ["bin", "obj"]}'
+check "the same call as the command line gives the same object" 0 \
+$'Root=/tmp\nCommand=files delete\nDryRun=True\nFilePath=old.txt\nForce=True' \
+	mcp files__delete '{"root": "/tmp", "dryRun": true, "filePath": "old.txt", "force": true}'
+check "errors of a tool call carry their key and never exit" 1 \
+$'Command=directories create\nError: UnexpectedArgumentException (showHidden): Unknown key \'showHidden\'.\nError: InvalidArgumentValueException (root): Invalid value for \'root\': 5. Expected a string.\nError: MissingRequiredArgumentException (name): Missing required key \'name\'.\n!myFileManagingTool' \
+	mcp directories__create '{"showHidden": true, "root": 5}'
+check "an unknown tool is an error" 1 \
+$'Command=\nError: UnknownCommandException (no key): Unknown tool \'files__remove\'. Expected one of: directories__list, directories__create, files__delete.' \
+	mcp files__remove '{}'
 
 echo
 echo "$((total - failed)) of $total smoke checks passed"

@@ -168,6 +168,11 @@ public static class GeneratorDiagnostics
 					     "The keys are the names of the properties in camelCase, and the schema of a command in a tree also holds the options of the commands above it. " +
 					     "Rename one of the properties, or leave one out with the ExcludeFromManifest attribute.";
 
+	private const string ARG035_Id = "ARG035";
+	private const string ARG035_Title = "The JSON binder needs System.Text.Json";
+	private const string ARG035_Message = "'{0}' sets EmitJsonBinder, but the project does not reference System.Text.Json, which the generated Bind methods use. " +
+					     "Add a reference to the System.Text.Json package (it is part of .NET Core 3.0 and later), or remove EmitJsonBinder.";
+
 	/// <summary>
 	/// Diagnostic descriptor for ARG001: Classes with ParameterCollection attribute must be partial.
 	/// </summary>
@@ -608,5 +613,18 @@ public static class GeneratorDiagnostics
 	    DiagnosticSeverity.Error,
 	    true,
 	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG034.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG035: EmitJsonBinder is set, but System.Text.Json is not referenced.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG035 = new DiagnosticDescriptor(
+	    ARG035_Id,
+	    ARG035_Title,
+	    ARG035_Message,
+	    GenerationOptionsCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG035.md"
 	);
 }

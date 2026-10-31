@@ -28,7 +28,9 @@ namespace ArgumentParser.Tests
 			var neededPlatformAssemblies = new[] {
 				"System.Runtime",
 				"System.Private.CoreLib",
-				"System.Private.Uri"
+				"System.Private.Uri",
+				// the JSON binder (EmitJsonBinder) needs it, or ARG035 is reported
+				"System.Text.Json"
 			};
 			foreach (var assemblyPath in trustedAssembliesPaths ?? Array.Empty<string>())
 			{

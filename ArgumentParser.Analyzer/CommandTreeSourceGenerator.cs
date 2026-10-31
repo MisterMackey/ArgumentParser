@@ -105,6 +105,19 @@ public static class CommandTreeSourceGenerator
 			WriteCommands(writer, tree, settings, tools);
 			writer.WriteLine();
 			WriteSelected(writer, tree);
+			if (settings.EmitJsonBinder)
+			{
+				writer.WriteLine();
+				var leaves = Leaves(tree).ToList();
+				JsonBinderProvider.WriteTreeBind(writer, className, ToolSpecProvider.ForTree(tree), leaves.Select(leaf => (IReadOnlyList<string>)leaf.Path.AsReadOnly()).ToList());
+			}
+		}
+
+		// every class of the tree binds its own arguments and the child on the path of the tool
+		if (settings.EmitJsonBinder)
+		{
+			writer.WriteLine();
+			JsonBinderProvider.WriteBindCommand(writer, node, ToolSpecProvider.FieldsOf(node));
 		}
 
 		SourceTextGenerator.WriteClassEnd(writer, info.NamespaceName, info.ContainingTypes);

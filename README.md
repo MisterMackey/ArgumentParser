@@ -25,6 +25,7 @@ Licensed under the Apache License, Version 2.0
 		- [The manifest of a tree](#the-manifest-of-a-tree)
 		- [How arguments are described](#how-arguments-are-described)
 		- [Leaving an argument out](#leaving-an-argument-out)
+		- [Binding a tool call](#binding-a-tool-call)
 	- [Inspecting the generated code](#inspecting-the-generated-code)
 	- [Default behaviour](#default-behaviour)
 		- [Behaviour on error](#behaviour-on-error)
@@ -458,7 +459,7 @@ A flag that is set states that its hint is true and a flag that is not set state
 In a tree of commands, every leaf hands its annotations on to its entry in the `Commands` list (`CommandInfo.Annotations`).
 
 ### Generated members
-Besides `Parse`, `Commands`, `Selected` and `SelectedCommand` on the root (and `McpManifest` with `EmitMcpManifest`), the generator adds `ParseCommand`, `CommandHelpText` and `CommandHelpArgument` to every class of the tree, and `commandFlags` to every leaf. Do not declare members with these names in those classes; there is no diagnostic for it yet, the code just does not compile.
+Besides `Parse`, `Commands`, `Selected` and `SelectedCommand` on the root (and `McpManifest` with `EmitMcpManifest`, `Bind` with `EmitJsonBinder`), the generator adds `ParseCommand`, `CommandHelpText` and `CommandHelpArgument` to every class of the tree (and `BindCommand` with `EmitJsonBinder`), and `commandFlags` to every leaf. Do not declare members with these names in those classes; there is no diagnostic for it yet, the code just does not compile.
 
 A tree is only generated when it has no errors, including the errors of its leaves: fix the reported problems first.
 
@@ -485,7 +486,7 @@ A tree is only generated when it has no errors, including the errors of its leav
 ## MCP tools and JSON Schema
 A program that also serves its commands as tools of the [Model Context Protocol](https://modelcontextprotocol.io) (MCP), for an AI agent, can have the generator describe the arguments as JSON Schema, from the same attributes as the command line. Nothing is emitted unless asked for: set `EmitMcpManifest = true` on `[ParameterCollection]` or `[CommandApp]`. The schema is a `const string`, so it costs nothing at run time; the generator cannot write files.
 
-(`EmitJsonBinder`, the other setting, is for binding a tool call back to the class. It is not implemented yet and does nothing for now.)
+The other setting, `EmitJsonBinder = true`, generates `Bind` methods that set the properties from the arguments of a tool call, see [Binding a tool call](#binding-a-tool-call). The two settings are independent.
 
 ### The schema of a class
 A class on its own gets a `JsonSchema` constant:
@@ -557,6 +558,35 @@ An argument that the program sets itself, such as the path of a database or a to
 [Option("d", "database", "The database to use"), ExcludeFromManifest]
 public string Database { get; set; } = "app.db";
 ```
+
+### Binding a tool call
+With `EmitJsonBinder = true`, the generator also writes `Bind` methods, which take the arguments of a tool call, a JSON object, and return the same as `Parse`: the object and a list of errors. They accept what the schema describes, and they never print, exit or throw because of the arguments, whatever `BehaviourOnError` says. Two things can still throw, as they would anywhere else: a `[ParsedWithMethod]` method that throws (the exception is not caught, as on the command line), and a `JsonElement` whose `JsonDocument` was already disposed. Every error has the key it is about in its `Key` property (`null` for an error about no key in particular), so the caller can tell the agent what to fix.
+
+A class on its own gets `Bind(JsonElement arguments)` and `Bind(IEnumerable<KeyValuePair<string, JsonElement>> arguments)`, which takes any dictionary of keys and values. The root of a tree gets `Bind(string toolName, JsonElement arguments)` and `Bind(string toolName, IEnumerable<KeyValuePair<string, JsonElement>> arguments)`: the tool name is the `name` of the tool in the manifest, and the root, the groups and the command of the tool are created and filled, so `Selected` and `SelectedCommand` work as after `Parse`. The C# MCP SDK hands over the arguments of a call as an `IDictionary<string, JsonElement>`, which can be passed as it is (`null` counts as no arguments):
+```C#
+var (tool, errors) = FileTool.Bind(request.Params.Name, request.Params.Arguments);
+if (errors.Count > 0)
+{
+	return Error(string.Join(Environment.NewLine, errors.Select(e => e.Message)));
+}
+return tool.Selected switch
+{
+	DeleteFile delete => Delete(tool.Root, delete.FilePath),
+	// ...
+};
+```
+The binder uses System.Text.Json. It is part of .NET Core 3.0 and later; a project that targets netstandard2.0 or .NET Framework needs the System.Text.Json package ([ARG035](ArgumentParser.Analyzer/docs/rules/ARG035.md)). The runtime library of the parser does not depend on it.
+
+How a tool call is read:
+- A key is the name of a property in camelCase, matched exactly. A key that is no argument of the tool (including one with `[ExcludeFromManifest]`, or one of another command) is an error, and so is a key that is given twice.
+- A key that is not given leaves the property alone, as an argument that is not on the command line does. A required key that is not given is an error.
+- `null` is accepted for a nullable argument and sets it to `null`, also when the argument is required: a required key must be given, but its value may be `null`. Note that this is more than the command line can do: a required `int?` without a parse method can never be `null` from the command line, as no text converts to `null`, but a tool call can make it `null`. Make the argument non-nullable if that must not happen.
+- An integer is any JSON number without a fraction, as `"type": "integer"` of the schema says: `5`, `5.0` and `5e0` are all 5, and `1e3` is 1000. `1.5` is an error, and so is a number outside the range of the type. Numbers and booleans written as strings (`"5"`, `"true"`) are errors.
+- An enum option or positional takes the name of a member, exactly as it is declared; unlike the command line it does not take the number of a member. An enum flag takes the name or the level as a number.
+- Dates and time spans are always read the invariant way (see [Numbers, dates and times](#numbers-dates-and-times)), also when `UseCurrentCulture` is set: a tool call comes from a program, not from a person, and has no culture. A `Guid` must be in the standard form (`0f8fad5b-d9cb-469f-a165-70867728950e`). A `char` is one UTF-16 character, so a character outside the Basic Multilingual Plane (most emoji), which the schema counts as one, is an error. An enum without members takes no value at all.
+- A `[ParsedWithMethod]` argument takes a JSON string, which is handed to the method as on the command line; when the method rejects it, the error names the method.
+- The errors of unknown keys and keys given twice come first, then the errors of the fields in the order of the schema. When a key is given twice, the first value is used.
+- A list takes a JSON array. A value of the array that cannot be read is an error, and the other values are kept. An array replaces what the property held, also when it is empty (`[]`), which the command line cannot express; a required list needs one value at least.
 
 ## Inspecting the generated code
 

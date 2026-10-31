@@ -209,6 +209,16 @@ namespace ArgumentParser.Internal
 			{
 				attributeDiagnostics = attributeDiagnostics.Concat(Validation.ValidateManifestKeys(options, flags, positionals, className, declarations)).ToList().AsReadOnly();
 			}
+			// reported with the rules of the arguments, so adding the reference does not bring up errors that were hidden until then
+			var binderDiagnostics = Validation.ValidateJsonBinder(
+				config.EmitJsonBinder,
+				semanticModel.Compilation,
+				generatorContext.Attributes.FirstOrDefault()?.ApplicationSyntaxReference?.GetSyntax(cancellationToken).GetLocation(),
+				className);
+			if (binderDiagnostics.Count > 0)
+			{
+				attributeDiagnostics = attributeDiagnostics.Concat(binderDiagnostics).ToList().AsReadOnly();
+			}
 			if (attributeDiagnostics.Count > 0)
 			{
 				return Rejected(attributeDiagnostics);
@@ -253,7 +263,8 @@ namespace ArgumentParser.Internal
 				config,
 				model.ContainingTypes,
 				model.IsCommand,
-				config.EmitMcpManifest ? JsonSchemaProvider.InputSchema(ToolSpecProvider.ForClass(model)) : null
+				config.EmitMcpManifest ? JsonSchemaProvider.InputSchema(ToolSpecProvider.ForClass(model)) : null,
+				config.EmitJsonBinder ? ToolSpecProvider.ForClass(model).Fields : null
 			);
 			var sourceText = textGenerator.GenerateSourceText();
 			// the namespace and the types the class is nested in are part of the name: command classes with the same name (an Add below each of two groups) are common

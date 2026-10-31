@@ -31,6 +31,13 @@ namespace ArgumentParser
 		protected ArgumentParserException(string message, Exception innerException) : base(message, innerException)
 		{
 		}
+
+		/// <summary>
+		/// Gets the key of the JSON object that the error is about, when it comes from binding a tool call (the generated <c>Bind</c>),
+		/// such as <c>filePath</c>. Null for the errors of parsing a command line, and for errors that are about no key in particular.
+		/// It can only be set when the exception is created (<c>new InvalidArgumentValueException(message) { Key = "filePath" }</c>).
+		/// </summary>
+		public string? Key { get; init; }
 	}
 
 	/// <summary>

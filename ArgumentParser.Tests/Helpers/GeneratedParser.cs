@@ -153,6 +153,43 @@ public sealed class GeneratedParser
 	}
 
 	/// <summary>
+	/// Calls the generated Bind(JsonElement) of a class on its own with the JSON text; null passes the default JsonElement (no arguments at all).
+	/// </summary>
+	public ParseOutcome Bind(string? json)
+		=> InvokeBind([typeof(System.Text.Json.JsonElement)], [Element(json)]);
+
+	/// <summary>
+	/// Calls the generated Bind(IEnumerable&lt;KeyValuePair&lt;string, JsonElement&gt;&gt;) of a class on its own.
+	/// </summary>
+	public ParseOutcome Bind(IEnumerable<KeyValuePair<string, System.Text.Json.JsonElement>>? arguments)
+		=> InvokeBind([typeof(IEnumerable<KeyValuePair<string, System.Text.Json.JsonElement>>)], [arguments]);
+
+	/// <summary>
+	/// Calls the generated Bind(string, JsonElement) of the root of a tree with the name of a tool and the JSON text of its arguments.
+	/// </summary>
+	public ParseOutcome BindTool(string? toolName, string? json)
+		=> InvokeBind([typeof(string), typeof(System.Text.Json.JsonElement)], [toolName, Element(json)]);
+
+	/// <summary>
+	/// Calls the generated Bind(string, IEnumerable&lt;KeyValuePair&lt;string, JsonElement&gt;&gt;) of the root of a tree.
+	/// </summary>
+	public ParseOutcome BindTool(string? toolName, IEnumerable<KeyValuePair<string, System.Text.Json.JsonElement>>? arguments)
+		=> InvokeBind([typeof(string), typeof(IEnumerable<KeyValuePair<string, System.Text.Json.JsonElement>>)], [toolName, arguments]);
+
+	private static System.Text.Json.JsonElement Element(string? json)
+		=> json is null ? default : System.Text.Json.JsonDocument.Parse(json).RootElement.Clone();
+
+	private ParseOutcome InvokeBind(Type[] parameterTypes, object?[] arguments)
+	{
+		var type = GetParameterCollectionType();
+		var method = type.GetMethod("Bind", BindingFlags.Public | BindingFlags.Static, parameterTypes)
+			?? throw new InvalidOperationException($"{type.FullName} has no public static Bind({string.Join(", ", parameterTypes.Select(t => t.Name))}) method.");
+		var items = (ITuple)method.Invoke(null, arguments)!;
+		var errors = ((IEnumerable<ArgumentParserException>)items[1]!).ToList();
+		return new ParseOutcome(items[0]!, errors);
+	}
+
+	/// <summary>
 	/// Reads a public constant or static field of the generated class (for example HelpText).
 	/// </summary>
 	public T? GetStaticMember<T>(string name)
