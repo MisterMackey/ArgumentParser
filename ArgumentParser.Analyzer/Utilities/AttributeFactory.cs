@@ -91,9 +91,11 @@ public class AttributeFactory
 			IsList = listElement is not null,
 			ListElementType = listElement is null ? string.Empty : AttributeReader.DisplayElement(listElement),
 			IsEnum = propertySymbol is not null && AttributeReader.UnwrapNullable(listElement ?? propertySymbol.Type).TypeKind == TypeKind.Enum,
+			EnumMembers = new EquatableArray<string>(AttributeReader.EnumMemberNames(listElement ?? propertySymbol?.Type)),
 			IsCommandClass = AttributeReader.IsCommandClass(propertySymbol?.Type),
 			ParseMethodName = parsedWithMethod,
-			ParseMethodOwner = ParseMethodResolver.Resolve(propertySymbol, parsedWithMethod, _semanticModel.Compilation)
+			ParseMethodOwner = ParseMethodResolver.Resolve(propertySymbol, parsedWithMethod, _semanticModel.Compilation),
+			ExcludeFromManifest = propertySymbol is not null && AttributeReader.Has(propertySymbol, AttributeReader.ExcludeFromManifest)
 		};
 	}
 
@@ -176,6 +178,17 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	public bool IsEnum { get; set; }
 
 	/// <summary>
+	/// The names of the members of the enum, in the order they are declared, when <see cref="IsEnum"/> is true; empty otherwise.
+	/// The JSON Schema of the argument lists them.
+	/// </summary>
+	public EquatableArray<string> EnumMembers { get; set; }
+
+	/// <summary>
+	/// Indicates whether the property has the ExcludeFromManifest attribute, which leaves it out of the JSON Schema and the JSON binding.
+	/// </summary>
+	public bool ExcludeFromManifest { get; set; }
+
+	/// <summary>
 	/// Indicates whether the property type is a <c>List&lt;T&gt;</c> (or a nullable one): the argument can be given several times.
 	/// </summary>
 	public bool IsList { get; set; }
@@ -227,7 +240,8 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 	public override int GetHashCode()
 	{
 		return 17 * 23 + (PropertyName?.GetHashCode() ?? 0) * 31 + (PropertyType?.GetHashCode() ?? 0) * 37 + (IsEnum ? 1 : 0) * 43 + (IsList ? 1 : 0) * 59 + (ListElementType?.GetHashCode() ?? 0) * 61 +
-		       (IsCommandClass ? 1 : 0) * 47 + (ParseMethodOwner?.GetHashCode() ?? 0) * 53 + Attribute.GetHashCode() * 41;
+		       (IsCommandClass ? 1 : 0) * 47 + (ParseMethodOwner?.GetHashCode() ?? 0) * 53 + Attribute.GetHashCode() * 41 +
+		       EnumMembers.GetHashCode() * 67 + (ExcludeFromManifest ? 1 : 0) * 71;
 	}
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
@@ -252,6 +266,8 @@ public struct PropertyAndAttributeInfo : IEquatable<PropertyAndAttributeInfo>
 			IsCommandClass == other.IsCommandClass &&
 			ParseMethodName == other.ParseMethodName &&
 			ParseMethodOwner == other.ParseMethodOwner &&
+			EnumMembers.Equals(other.EnumMembers) &&
+			ExcludeFromManifest == other.ExcludeFromManifest &&
 			Attribute.Equals(other.Attribute);
 	}
 }

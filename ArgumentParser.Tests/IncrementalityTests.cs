@@ -381,6 +381,46 @@ public class IncrementalityTests
 		Assert.Contains("ValueParser.TryParse(optionToken.Value, true, out double parsedValue)", generated, StringComparison.Ordinal);
 	}
 
+	[Theory]
+	[InlineData("[ParameterCollection]", "[ParameterCollection(EmitMcpManifest = true)]")]
+	[InlineData("[ParameterCollection]", "[ParameterCollection(EmitJsonBinder = true)]")]
+	[InlineData("[Option(\"a\", \"amount\", \"An amount\")]", "[Option(\"a\", \"amount\", \"An amount\"), ExcludeFromManifest]")]
+	public void ChangingAToolSetting_ChangesTheModelOfTheClass(string before, string after)
+	{
+		const string source = """
+			using ArgumentParser;
+
+			[ParameterCollection]
+			public partial class Args
+			{
+				[Option("a", "amount", "An amount")]
+				public double Amount { get; set; }
+			}
+			""";
+		var driver = RunTwice(
+			source,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == source),
+				Parse(source.Replace(before, after, StringComparison.Ordinal))));
+
+		Assert.Contains(IncrementalStepRunReason.Modified, OutputReasons(driver));
+	}
+
+	[Theory]
+	[InlineData("[CommandApp(\"app\", \"An app\")]", "[CommandApp(\"app\", \"An app\", EmitMcpManifest = true)]")]
+	[InlineData("[CommandApp(\"app\", \"An app\")]", "[CommandApp(\"app\", \"An app\", EmitJsonBinder = true)]")]
+	[InlineData("[Option(\"d\", \"db\", \"DESCRIPTION\")]", "[Option(\"d\", \"db\", \"DESCRIPTION\"), ExcludeFromManifest]")]
+	public void Tree_ChangingAToolSetting_LinksTheTreeAgain(string before, string after)
+	{
+		var driver = RunTwice(
+			TreeSource,
+			compilation => compilation.ReplaceSyntaxTree(
+				compilation.SyntaxTrees.Single(t => t.ToString() == TreeSource),
+				Parse(TreeSource.Replace(before, after, StringComparison.Ordinal))));
+
+		Assert.All(ModelReasons(driver, ParserGenerator.LinkedTreesStepName), reason => Assert.Equal(IncrementalStepRunReason.Modified, reason));
+	}
+
 	[Fact]
 	public void EditToTheParserClass_LeavesAGroupInTheSameFileCached()
 	{

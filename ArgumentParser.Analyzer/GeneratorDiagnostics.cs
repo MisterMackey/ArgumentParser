@@ -138,8 +138,8 @@ public static class GeneratorDiagnostics
 					     "so HelpTextGeneration must be GenerateAll, GenerateTextOnly or None, and None cannot be combined with BehaviourOnError.DisplayHelpAndExit, which displays the help text on an error.";
 
 	private const string ARG029_Id = "ARG029";
-	private const string ARG029_Title = "Help, error and culture settings of a leaf are not used by its command tree";
-	private const string ARG029_Message = "The ParameterCollection attribute of leaf command '{0}' sets help, error or culture settings, but parsing through the command tree uses those of the CommandApp attribute of '{1}'. " +
+	private const string ARG029_Title = "Help, error, culture and tool settings of a leaf are not used by its command tree";
+	private const string ARG029_Message = "The ParameterCollection attribute of leaf command '{0}' sets help, error, culture or tool settings, but the command tree uses those of the CommandApp attribute of '{1}'. " +
 					     "They only apply to the Parse method of '{0}' itself. Set them on the CommandApp attribute instead, or leave them out.";
 
 	private const string ARG030_Id = "ARG030";
@@ -156,6 +156,17 @@ public static class GeneratorDiagnostics
 	private const string ARG032_Title = "The elements of a list cannot be nullable value types";
 	private const string ARG032_Message = "Property '{0}' has type '{1}', but the elements of a list are values that were given and cannot be null. " +
 					     "Use the type without the question mark for the elements; make the list itself nullable if it can be absent.";
+
+	private const string ARG033_Id = "ARG033";
+	private const string ARG033_Title = "A required argument cannot be excluded from the manifest";
+	private const string ARG033_Message = "Property '{0}' is required, but the ExcludeFromManifest attribute leaves it out of the JSON Schema, so a tool call could never give it. " +
+					     "Remove required, or the ExcludeFromManifest attribute.";
+
+	private const string ARG034_Id = "ARG034";
+	private const string ARG034_Title = "Two arguments have the same key in a JSON Schema";
+	private const string ARG034_Message = "Property '{0}' of '{1}' has the key '{2}' in the JSON Schema, which property '{3}' of '{4}' already has. " +
+					     "The keys are the names of the properties in camelCase, and the schema of a command in a tree also holds the options of the commands above it. " +
+					     "Rename one of the properties, or leave one out with the ExcludeFromManifest attribute.";
 
 	/// <summary>
 	/// Diagnostic descriptor for ARG001: Classes with ParameterCollection attribute must be partial.
@@ -571,5 +582,31 @@ public static class GeneratorDiagnostics
 	    DiagnosticSeverity.Error,
 	    true,
 	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG032.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG033: A required argument has the ExcludeFromManifest attribute.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG033 = new DiagnosticDescriptor(
+	    ARG033_Id,
+	    ARG033_Title,
+	    ARG033_Message,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG033.md"
+	);
+
+	/// <summary>
+	/// Diagnostic descriptor for ARG034: Two arguments of one JSON Schema have the same key.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ARG034 = new DiagnosticDescriptor(
+	    ARG034_Id,
+	    ARG034_Title,
+	    ARG034_Message,
+	    AttributeErrorCategory,
+	    DiagnosticSeverity.Error,
+	    true,
+	    helpLinkUri: "https://github.com/MisterMackey/ArgumentParser/blob/main/ArgumentParser.Analyzer/docs/rules/ARG034.md"
 	);
 }

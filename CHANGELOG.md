@@ -37,6 +37,13 @@
   - `ArgumentTokenizer.TokenizeArguments` has an overload with `lastPositionalRepeats`, which gives every positional value after the ones before the last positional that last position.
 - ARG030: the method named by `ParsedWithMethod` must exist. It used to surface as a compiler error in the generated code.
 - `ValueParser`, the runtime class that the generated parsers call to convert the text of numbers, dates and times, with a `TryParse(string, bool useCurrentCulture, out T)` overload per type.
+- The groundwork for describing a class or the commands of a tree as tools of the Model Context Protocol (MCP), with a JSON Schema and a JSON binder generated from the same attributes as the parser. The generator does not emit the schema or the binder yet.
+  - `EmitMcpManifest` and `EmitJsonBinder` on `ParameterCollection` and `CommandApp` (both off by default) ask for the schema and the binder. On `CommandApp` they apply to the whole tree; a leaf that sets them in a tree gets ARG029.
+  - The `ExcludeFromManifest` attribute leaves an argument out of the schema and the binding, for an argument that the program sets itself (such as the path of a database). The command line is not affected.
+  - The keys of the schema are the property names in camelCase (as System.Text.Json writes them). The schema of a command in a tree also holds the options and flags of the root and of the groups above it. A tool is named after the path of its command, joined with `__` (`ingredient__add`).
+  - ARG033: a required argument cannot have `ExcludeFromManifest`, as a tool call could never give it.
+  - ARG034: two arguments of one schema cannot have the same key, in one class or along the path from the root of a tree to a leaf. Only reported when `EmitMcpManifest` or `EmitJsonBinder` is on.
+  - ARG029 now also covers `EmitMcpManifest` and `EmitJsonBinder` on the `ParameterCollection` of a leaf in a tree.
 - `ParseOutcomePolicy.Apply` applies a `BehaviourOnError` setting and the help text to the outcome of a parse. An overload takes the `TextWriter` to write to and the `Action<int>` to call instead of `Environment.Exit`, so the policy can be used and tested without ending the process.
 
 ### Changed

@@ -7,6 +7,9 @@ C# incremental source generator (published as the NuGet package `Aot.ArgumentPar
 - Don't add comments to the code that the generator emits unless essential.
 - XML doc comments are expected on public members: both library projects build with `AnalysisMode=All`, `GenerateDocumentationFile` and `TreatWarningsAsErrors`, so a new analyzer warning or a missing doc comment fails the build.
 
+## Reporting your choices
+When you implement something that was designed or agreed beforehand, the code always settles details the design did not, and sometimes differs from it. List those choices explicitly when you report back (what you chose, the alternative, and why), instead of leaving them to be found in the diff. Examples: a rule that fires in more or fewer cases than discussed, an open question you settled to keep going, a planned diagnostic you dropped because the precedent turned out not to exist. If the design is written down (a feature request or design document in the repository), record the choices there too.
+
 ## Commands
 Everything goes through the `Makefile` (stamp files in `.build-stamps/` skip up-to-date steps; `make clean` resets them).
 

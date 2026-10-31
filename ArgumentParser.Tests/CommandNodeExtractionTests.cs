@@ -100,7 +100,8 @@ public class CommandNodeExtractionTests
 		// the names are compared along the tree (ARG027); the duplicate (ARG003) is reported by the other pipeline
 		Assert.Equal(["Db", "Other"], model.Arguments.Options.AsReadOnly().Select(o => o.PropertyName));
 		Assert.Equal(["Verbose"], model.Arguments.Flags.AsReadOnly().Select(f => f.PropertyName));
-		Assert.Equal(["Db", "Other", "Verbose"], model.ArgumentLocations.AsReadOnly().Select(l => l.PropertyName));
+		// the positionals of a leaf have locations too, for a key of the JSON Schema that a command above uses (ARG034)
+		Assert.Equal(["Db", "Other", "Verbose", "File"], model.ArgumentLocations.AsReadOnly().Select(l => l.PropertyName));
 		Assert.Empty(Ids(model));
 	}
 
@@ -148,6 +149,63 @@ public class CommandNodeExtractionTests
 		Assert.Equal(new NodeSettings(0, "h", "Help", 0, useCurrentCulture: true), Extract(types, "App").Node.Settings);
 		Assert.Equal(NodeSettings.Default, Extract(types, "Group").Node.Settings);
 		Assert.Equal(new NodeSettings(0, "h", "Help", 0, useCurrentCulture: true), Extract(types, "Leaf").Node.Settings);
+	}
+
+	[Fact]
+	public void Settings_ToolSettings_AreReadForTheRootAndALeaf()
+	{
+		const string types = """
+			[CommandApp("app", EmitMcpManifest = true)]
+			public partial class App { public Group? Group { get; private set; } }
+
+			[Command("group")]
+			public partial class Group { public Leaf? Leaf { get; private set; } }
+
+			[ParameterCollection(EmitJsonBinder = true)]
+			[Command("leaf")]
+			public partial class Leaf { }
+			""";
+
+		Assert.Equal(new NodeSettings(0, "h", "Help", 0, emitMcpManifest: true), Extract(types, "App").Node.Settings);
+		Assert.Equal(NodeSettings.Default, Extract(types, "Group").Node.Settings);
+		Assert.Equal(new NodeSettings(0, "h", "Help", 0, emitJsonBinder: true), Extract(types, "Leaf").Node.Settings);
+	}
+
+	[Fact]
+	public void Leaf_PositionalsHaveLocations_SoARuleAboutOneCanPointAtIt()
+	{
+		var model = Extract("""
+			[ParameterCollection]
+			[Command("leaf")]
+			public partial class Leaf
+			{
+				[Positional(0, "first")] public string First { get; set; } = "";
+				[Option("o", "out", "out")] public string Out { get; set; } = "";
+			}
+			""", "Leaf");
+
+		Assert.Equal(["Out", "First"], model.ArgumentLocations.AsReadOnly().Select(l => l.PropertyName));
+	}
+
+	[Theory]
+	[InlineData("[CommandApp(\"app\")]", "App")]
+	[InlineData("[Command(\"group\")]", "Group")]
+	public void ARG033_RequiredOptionOfTheRootOrAGroupThatIsExcluded_IsReported(string attribute, string className)
+	{
+		var model = Extract($$"""
+			{{attribute}}
+			public partial class {{className}}
+			{
+				[Option("", "db", "Path", true), ExcludeFromManifest] public string Db { get; set; } = "";
+				[Option("", "log", "Log", true)] public string Log { get; set; } = "";
+				[Option("", "tmp", "Temp"), ExcludeFromManifest] public string Temp { get; set; } = "";
+				public Leaf? Leaf { get; private set; }
+			}
+
+			[ParameterCollection] [Command("leaf")] public partial class Leaf { }
+			""", className);
+
+		Assert.Equal(["ARG033"], Ids(model));
 	}
 
 	[Fact]

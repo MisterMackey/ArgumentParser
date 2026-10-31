@@ -260,14 +260,15 @@ public static class CommandTreeSourceGenerator
 		writer.WriteLine("}");
 	}
 
-	private static IEnumerable<TreeNode> Leaves(CommandTree tree)
+	// the leaves in the order of Commands
+	internal static IEnumerable<TreeNode> Leaves(CommandTree tree)
 	{
 		return tree.Nodes.AsReadOnly().Where(n => n.Source.Node.Kind == CommandNodeKind.Leaf);
 	}
 
-	// the properties that lead from the root to a leaf: the child with the next name of the path, at every level
+	// the properties that lead from the root to a node: the child with the next name of the path, at every level
 	// (the names of the children of one node are unique, ARG017)
-	private static List<string> PropertyAccess(CommandTree tree, TreeNode leaf)
+	internal static List<string> PropertyAccess(CommandTree tree, TreeNode leaf)
 	{
 		var properties = new List<string>();
 		var current = tree.Root;

@@ -4,7 +4,7 @@ using System.Globalization;
 namespace ArgumentParser.Internal.Utilities;
 
 /// <summary>
-/// The help, error and culture settings of a node, as plain data: those of the CommandApp attribute for the root, which apply to the whole tree,
+/// The help, error, culture and tool settings of a node, as plain data: those of the CommandApp attribute for the root, which apply to the whole tree,
 /// and those of the ParameterCollection attribute for a leaf, which only apply to its own Parse. A group has the defaults.
 /// The enum values are kept as their numbers, the way they reach the generator.
 /// </summary>
@@ -49,6 +49,22 @@ public sealed class NodeSettings : IEquatable<NodeSettings>
 	public bool UseCurrentCulture { get; }
 
 	/// <summary>
+	/// Gets a value indicating whether the JSON Schema (and for a tree the MCP manifest) is generated.
+	/// </summary>
+	public bool EmitMcpManifest { get; }
+
+	/// <summary>
+	/// Gets a value indicating whether the JSON binder is generated.
+	/// </summary>
+	public bool EmitJsonBinder { get; }
+
+	/// <summary>
+	/// Gets a value indicating whether the commands are described as tools, by their JSON Schema, their JSON binder or both.
+	/// The rules about the keys of the schema only apply then.
+	/// </summary>
+	public bool DescribesTools => EmitMcpManifest || EmitJsonBinder;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="NodeSettings"/> class.
 	/// </summary>
 	/// <param name="helpTextGeneration">The numeric value of the HelpTextGeneration setting.</param>
@@ -56,13 +72,24 @@ public sealed class NodeSettings : IEquatable<NodeSettings>
 	/// <param name="helpLongName">The long name of the help argument.</param>
 	/// <param name="behaviourOnError">The numeric value of the BehaviourOnError setting.</param>
 	/// <param name="useCurrentCulture">The UseCurrentCulture setting.</param>
-	public NodeSettings(int helpTextGeneration, string helpShortName, string helpLongName, int behaviourOnError, bool useCurrentCulture = false)
+	/// <param name="emitMcpManifest">The EmitMcpManifest setting.</param>
+	/// <param name="emitJsonBinder">The EmitJsonBinder setting.</param>
+	public NodeSettings(
+		int helpTextGeneration,
+		string helpShortName,
+		string helpLongName,
+		int behaviourOnError,
+		bool useCurrentCulture = false,
+		bool emitMcpManifest = false,
+		bool emitJsonBinder = false)
 	{
 		HelpTextGeneration = helpTextGeneration;
 		HelpShortName = helpShortName ?? "";
 		HelpLongName = helpLongName ?? "";
 		BehaviourOnError = behaviourOnError;
 		UseCurrentCulture = useCurrentCulture;
+		EmitMcpManifest = emitMcpManifest;
+		EmitJsonBinder = emitJsonBinder;
 	}
 
 	/// <summary>
@@ -118,7 +145,9 @@ public sealed class NodeSettings : IEquatable<NodeSettings>
 			&& HelpShortName == other.HelpShortName
 			&& HelpLongName == other.HelpLongName
 			&& BehaviourOnError == other.BehaviourOnError
-			&& UseCurrentCulture == other.UseCurrentCulture;
+			&& UseCurrentCulture == other.UseCurrentCulture
+			&& EmitMcpManifest == other.EmitMcpManifest
+			&& EmitJsonBinder == other.EmitJsonBinder;
 	}
 
 	/// <inheritdoc/>
@@ -136,6 +165,8 @@ public sealed class NodeSettings : IEquatable<NodeSettings>
 		hash = hash * 23 + HelpLongName.GetHashCode();
 		hash = hash * 23 + BehaviourOnError;
 		hash = hash * 23 + (UseCurrentCulture ? 1 : 0);
+		hash = hash * 23 + (EmitMcpManifest ? 1 : 0);
+		hash = hash * 23 + (EmitJsonBinder ? 1 : 0);
 		return hash;
 	}
 }

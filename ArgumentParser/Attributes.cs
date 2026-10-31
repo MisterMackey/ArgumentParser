@@ -78,6 +78,21 @@ namespace ArgumentParser
 		/// When the class is a leaf of a tree of commands, the setting of the <see cref="CommandAppAttribute"/> of the tree is used instead.
 		/// </summary>
 		public bool UseCurrentCulture { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether the generator describes the arguments of the class as a JSON Schema,
+		/// for a server of the Model Context Protocol (MCP) that offers the class as a tool.
+		/// The keys of the schema are the names of the properties in camelCase; a property with <see cref="ExcludeFromManifestAttribute"/> is left out.
+		/// When the class is a leaf of a tree of commands, the setting of the <see cref="CommandAppAttribute"/> of the tree is used for the tree.
+		/// </summary>
+		public bool EmitMcpManifest { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether the generator adds a method that fills the class from a JSON object with the keys
+		/// of its JSON Schema, such as the arguments of a call to an MCP tool, instead of from command line arguments.
+		/// When the class is a leaf of a tree of commands, the setting of the <see cref="CommandAppAttribute"/> of the tree is used for the tree.
+		/// </summary>
+		public bool EmitJsonBinder { get; set; }
 	}
 
 	/// <summary>
@@ -159,6 +174,20 @@ namespace ArgumentParser
 		/// and only in forms that mean the same everywhere; see <see cref="ParameterCollectionAttribute.UseCurrentCulture"/>.
 		/// </summary>
 		public bool UseCurrentCulture { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether the generator describes the commands of the tree as tools of the Model Context Protocol (MCP),
+		/// one for every leaf, each with a JSON Schema of its arguments and of the options of the levels above it.
+		/// It applies to the whole tree, the leaves included; see <see cref="ParameterCollectionAttribute.EmitMcpManifest"/>.
+		/// </summary>
+		public bool EmitMcpManifest { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether the generator adds a method that fills the tree from the name of a tool and a JSON object
+		/// with the keys of its JSON Schema, such as a call to an MCP tool, instead of from command line arguments.
+		/// It applies to the whole tree, the leaves included; see <see cref="ParameterCollectionAttribute.EmitJsonBinder"/>.
+		/// </summary>
+		public bool EmitJsonBinder { get; set; }
 	}
 
 	/// <summary>
@@ -350,5 +379,18 @@ namespace ArgumentParser
 		/// Gets the name of the method used to parse the arguments.
 		/// </summary>
 		public string MethodName { get; }
+	}
+
+	/// <summary>
+	/// This attribute leaves an option, flag or positional argument out of the JSON Schema and the JSON binding of its class
+	/// (see <see cref="ParameterCollectionAttribute.EmitMcpManifest"/> and <see cref="ParameterCollectionAttribute.EmitJsonBinder"/>),
+	/// for an argument that the program sets itself instead of the caller of a tool, such as the path of a database.
+	/// A JSON object that has the key of the argument is then rejected, as for any unknown key. The command line is not affected.
+	/// An argument that is required cannot be excluded, because a tool call could never give it (ARG033).
+	/// In a tree of commands, an excluded option of the root or a group is left out of the schema of every command below it.
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Property, Inherited = false)]
+	public sealed class ExcludeFromManifestAttribute : Attribute
+	{
 	}
 }

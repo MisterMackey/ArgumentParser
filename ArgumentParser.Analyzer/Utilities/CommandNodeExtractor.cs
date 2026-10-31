@@ -103,12 +103,12 @@ public static class CommandNodeExtractor
 				declarations));
 		}
 		// a leaf keeps its positionals for its help text in the tree; on a group or the root they cannot be used
-		var leafPositionals = kind == CommandNodeKind.Leaf ? factories.SelectMany(f => f.GetPositionalAttributes()) : [];
+		var leafPositionals = kind == CommandNodeKind.Leaf ? factories.SelectMany(f => f.GetPositionalAttributes()).ToList() : [];
 		var arguments = new NodeArguments(
 			new EquatableArray<PropertyAndAttributeInfo>(options),
 			new EquatableArray<PropertyAndAttributeInfo>(flags),
 			new EquatableArray<PropertyAndAttributeInfo>(leafPositionals));
-		var argumentLocations = options.Concat(flags)
+		var argumentLocations = options.Concat(flags).Concat(leafPositionals)
 			.Select(a => new PropertyLocation(a.PropertyName, LocationInfo.From(ArgumentLocation(declarations, a.PropertyName))));
 		diagnostics.AddRange(Validation.ValidateNodeDeclaration(
 			node,
@@ -143,7 +143,7 @@ public static class CommandNodeExtractor
 	}
 
 	// HelpTextGeneration, the short and long help names and BehaviourOnError, in this order from the given index;
-	// Roslyn fills in the defaults of the arguments the user left out. UseCurrentCulture is a named argument of both attributes.
+	// Roslyn fills in the defaults of the arguments the user left out. UseCurrentCulture, EmitMcpManifest and EmitJsonBinder are named arguments of both attributes.
 	private static NodeSettings SettingsArguments(AttributeData? data, int first)
 	{
 		var defaults = NodeSettings.Default;
@@ -156,7 +156,9 @@ public static class CommandNodeExtractor
 			AttributeReader.StringArgument(data, first + 1),
 			AttributeReader.StringArgument(data, first + 2),
 			AttributeReader.IntArgument(data, first + 3, defaults.BehaviourOnError),
-			data.NamedArguments.Any(a => a.Key == "UseCurrentCulture" && a.Value.Value is true));
+			AttributeReader.NamedBoolArgument(data, "UseCurrentCulture"),
+			AttributeReader.NamedBoolArgument(data, "EmitMcpManifest"),
+			AttributeReader.NamedBoolArgument(data, "EmitJsonBinder"));
 	}
 
 	// Annotations is a named argument of ParameterCollection, so it is only there when the user wrote it; otherwise it has the default

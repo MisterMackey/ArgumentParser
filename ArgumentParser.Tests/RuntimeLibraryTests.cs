@@ -28,6 +28,18 @@ public class RuntimeLibraryTests
 	}
 
 	[Fact]
+	public void ParameterCollection_ToolSettings_AreOffByDefaultAndCanBeSet()
+	{
+		Assert.False(new ParameterCollectionAttribute().EmitMcpManifest);
+		Assert.False(new ParameterCollectionAttribute().EmitJsonBinder);
+
+		var attribute = new ParameterCollectionAttribute { EmitMcpManifest = true, EmitJsonBinder = true };
+
+		Assert.True(attribute.EmitMcpManifest);
+		Assert.True(attribute.EmitJsonBinder);
+	}
+
+	[Fact]
 	public void ParameterCollection_StoresAnnotations()
 	{
 		var attribute = new ParameterCollectionAttribute { Annotations = CommandAnnotations.ReadOnly };
@@ -206,6 +218,7 @@ public class RuntimeLibraryTests
 	[InlineData(typeof(PositionalAttribute))]
 	[InlineData(typeof(FlagAttribute))]
 	[InlineData(typeof(ParsedWithMethodAttribute))]
+	[InlineData(typeof(ExcludeFromManifestAttribute))]
 	public void PropertyAttributes_AreRestrictedToProperties_AndNotInherited(Type attributeType)
 	{
 		var usage = GetUsage(attributeType);
@@ -252,6 +265,18 @@ public class RuntimeLibraryTests
 		Assert.Equal(collection.HelpArgumentShortName, app.HelpArgumentShortName);
 		Assert.Equal(collection.HelpArgumentLongName, app.HelpArgumentLongName);
 		Assert.Equal(collection.BehaviourOnError, app.BehaviourOnError);
+	}
+
+	[Fact]
+	public void CommandApp_ToolSettings_AreOffByDefaultAndCanBeSet()
+	{
+		Assert.False(new CommandAppAttribute("calories").EmitMcpManifest);
+		Assert.False(new CommandAppAttribute("calories").EmitJsonBinder);
+
+		var app = new CommandAppAttribute("calories") { EmitMcpManifest = true, EmitJsonBinder = true };
+
+		Assert.True(app.EmitMcpManifest);
+		Assert.True(app.EmitJsonBinder);
 	}
 
 	[Fact]

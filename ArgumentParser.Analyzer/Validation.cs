@@ -392,7 +392,67 @@ public static class Validation
 				prop.UnderlyingType));
 		}
 
+		// A tool call could never give an argument that is left out of the schema, so it cannot be required (a flag never is).
+		// This holds whether or not the class emits a schema: the attribute says the argument is set by the program, required says it is not.
+		foreach (var prop in options.Concat(positionals).Where(x => x.ExcludeFromManifest && x.Attribute.Required))
+		{
+			diagnostics.Add(DiagnosticInfo.Create(
+				GeneratorDiagnostics.ARG033,
+				GetLocation(prop, classDeclarations),
+				prop.PropertyName));
+		}
+
 		return diagnostics.AsReadOnly();
+	}
+
+	/// <summary>
+	/// Validates that no two arguments of a class have the same key in its JSON Schema (ARG034). The keys are the property names in camelCase,
+	/// so <c>Name</c> and <c>name</c> are the same key. Only checked when the class emits a schema or a binder; in a tree,
+	/// <see cref="CommandTreeLinker"/> also compares the keys with those of the commands above.
+	/// </summary>
+	/// <param name="options">The option arguments to validate.</param>
+	/// <param name="flags">The flag arguments to validate.</param>
+	/// <param name="positionals">The positional arguments to validate.</param>
+	/// <param name="className">The name of the class, for the message.</param>
+	/// <param name="classDeclarations">The parts of the class that declares the arguments, which is where the diagnostics are located.</param>
+	/// <returns>A diagnostic for every argument whose key an earlier argument already has.</returns>
+	public static ReadOnlyCollection<DiagnosticInfo> ValidateManifestKeys(
+		IReadOnlyList<PropertyAndAttributeInfo> options,
+		IReadOnlyList<PropertyAndAttributeInfo> flags,
+		IReadOnlyList<PropertyAndAttributeInfo> positionals,
+		string className,
+		IReadOnlyList<ClassDeclarationSyntax> classDeclarations)
+	{
+		if (classDeclarations is null)
+		{
+			throw new ArgumentNullException(nameof(classDeclarations));
+		}
+		var diagnostics = new List<DiagnosticInfo>();
+		foreach (var (argument, first) in DuplicateKeys(ToolSpecProvider.FieldArguments(options, flags, positionals).Select(item => item.Argument)))
+		{
+			diagnostics.Add(DiagnosticInfo.Create(
+				GeneratorDiagnostics.ARG034,
+				GetLocation(argument, classDeclarations),
+				argument.PropertyName,
+				className,
+				ToolSpecProvider.Key(argument.PropertyName),
+				first.PropertyName,
+				className));
+		}
+		return diagnostics.AsReadOnly();
+	}
+
+	/// <summary>
+	/// Finds the arguments whose key an earlier argument of the same sequence already has.
+	/// </summary>
+	/// <param name="arguments">The arguments, in the order of the fields.</param>
+	/// <returns>Every such argument, with the first argument that has its key.</returns>
+	internal static IEnumerable<(PropertyAndAttributeInfo Argument, PropertyAndAttributeInfo First)> DuplicateKeys(IEnumerable<PropertyAndAttributeInfo> arguments)
+	{
+		return arguments
+			.GroupBy(a => ToolSpecProvider.Key(a.PropertyName), StringComparer.Ordinal)
+			.Where(g => g.Count() > 1)
+			.SelectMany(g => g.Skip(1).Select(a => (a, g.First())));
 	}
 
 	/// <summary>

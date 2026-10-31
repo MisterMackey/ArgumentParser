@@ -204,6 +204,11 @@ namespace ArgumentParser.Internal
 				argumentProvider.GetFlagArguments(),
 				argumentProvider.GetPositionalArguments(),
 				declarations);
+			// the keys of the JSON Schema only matter when there is one; in a tree the linker checks the keys along the path (with the settings of the root)
+			if (config.DescribesTool)
+			{
+				attributeDiagnostics = attributeDiagnostics.Concat(Validation.ValidateManifestKeys(options, flags, positionals, className, declarations)).ToList().AsReadOnly();
+			}
 			if (attributeDiagnostics.Count > 0)
 			{
 				return Rejected(attributeDiagnostics);

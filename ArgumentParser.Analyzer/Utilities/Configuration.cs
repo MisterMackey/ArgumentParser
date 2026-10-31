@@ -30,6 +30,19 @@ public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 	/// Gets or sets a value indicating whether numbers, dates and times are read with the current culture instead of the invariant culture.
 	/// </summary>
 	public bool UseCurrentCulture { get; set; }
+	/// <summary>
+	/// Gets or sets a value indicating whether the JSON Schema of the class is generated.
+	/// </summary>
+	public bool EmitMcpManifest { get; set; }
+	/// <summary>
+	/// Gets or sets a value indicating whether the JSON binder of the class is generated.
+	/// </summary>
+	public bool EmitJsonBinder { get; set; }
+	/// <summary>
+	/// Gets a value indicating whether the class is described as a tool, by its JSON Schema, its JSON binder or both.
+	/// The rules about the keys of the schema only apply then.
+	/// </summary>
+	public bool DescribesTool => EmitMcpManifest || EmitJsonBinder;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="GeneratorConfiguration"/> class by extracting configuration values from the <see cref="ClassDeclarationSyntax"/>.
@@ -110,11 +123,17 @@ public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 				BehaviourOnError = errBehaviour;
 			}
 		}
-		// a property of the attribute, set with Name = value
-		var useCurrentCulture = attribute.ArgumentList?.Arguments
-			.FirstOrDefault(arg => arg.NameEquals?.Name.Identifier.ValueText == "UseCurrentCulture");
-		UseCurrentCulture = useCurrentCulture is not null
-			&& semanticModel.GetConstantValue(useCurrentCulture.Expression).Value is true;
+		UseCurrentCulture = NamedBool(attribute, semanticModel, "UseCurrentCulture");
+		EmitMcpManifest = NamedBool(attribute, semanticModel, "EmitMcpManifest");
+		EmitJsonBinder = NamedBool(attribute, semanticModel, "EmitJsonBinder");
+	}
+
+	// a property of the attribute, set with Name = value
+	private static bool NamedBool(AttributeSyntax attribute, SemanticModel semanticModel, string name)
+	{
+		var argument = attribute.ArgumentList?.Arguments
+			.FirstOrDefault(arg => arg.NameEquals?.Name.Identifier.ValueText == name);
+		return argument is not null && semanticModel.GetConstantValue(argument.Expression).Value is true;
 	}
 
 	// Strings are taken from their constant value, so literals and constants both work.
@@ -141,7 +160,9 @@ public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 			&& string.Equals(HelpArgumentShortName, other.HelpArgumentShortName, StringComparison.Ordinal)
 			&& string.Equals(HelpArgumentLongName, other.HelpArgumentLongName, StringComparison.Ordinal)
 			&& string.Equals(BehaviourOnError, other.BehaviourOnError, StringComparison.Ordinal)
-			&& UseCurrentCulture == other.UseCurrentCulture;
+			&& UseCurrentCulture == other.UseCurrentCulture
+			&& EmitMcpManifest == other.EmitMcpManifest
+			&& EmitJsonBinder == other.EmitJsonBinder;
 	}
 
 	/// <inheritdoc/>
@@ -159,6 +180,8 @@ public class GeneratorConfiguration : IEquatable<GeneratorConfiguration>
 		hash = hash * 23 + (HelpArgumentLongName?.GetHashCode() ?? 0);
 		hash = hash * 23 + (BehaviourOnError?.GetHashCode() ?? 0);
 		hash = hash * 23 + (UseCurrentCulture ? 1 : 0);
+		hash = hash * 23 + (EmitMcpManifest ? 1 : 0);
+		hash = hash * 23 + (EmitJsonBinder ? 1 : 0);
 		return hash;
 	}
 

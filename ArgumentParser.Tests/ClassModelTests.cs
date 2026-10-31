@@ -209,6 +209,9 @@ public class ClassModelTests
 		Assert.NotEqual(baseline, Configuration("[ParameterCollection(UseCurrentCulture = true)]"));
 		Assert.NotEqual(baseline.GetHashCode(), Configuration("[ParameterCollection(UseCurrentCulture = true)]").GetHashCode());
 		Assert.Equal(baseline, Configuration("[ParameterCollection(UseCurrentCulture = false)]"));
+		Assert.NotEqual(baseline, Configuration("[ParameterCollection(EmitMcpManifest = true)]"));
+		Assert.NotEqual(baseline, Configuration("[ParameterCollection(EmitJsonBinder = true)]"));
+		Assert.NotEqual(baseline.GetHashCode(), Configuration("[ParameterCollection(EmitJsonBinder = true)]").GetHashCode());
 		Assert.False(baseline.Equals(null));
 		Assert.False(baseline.Equals("[ParameterCollection]"));
 	}
@@ -340,6 +343,12 @@ public class ClassModelTests
 		Assert.NotEqual(baseline, new NodeSettings(0, "h", "Help", 2));
 		Assert.NotEqual(baseline, new NodeSettings(0, "h", "Help", 0, useCurrentCulture: true));
 		Assert.NotEqual(baseline.GetHashCode(), new NodeSettings(0, "h", "Help", 0, useCurrentCulture: true).GetHashCode());
+		Assert.NotEqual(baseline, new NodeSettings(0, "h", "Help", 0, emitMcpManifest: true));
+		Assert.NotEqual(baseline, new NodeSettings(0, "h", "Help", 0, emitJsonBinder: true));
+		Assert.NotEqual(baseline.GetHashCode(), new NodeSettings(0, "h", "Help", 0, emitMcpManifest: true).GetHashCode());
+		Assert.NotEqual(new NodeSettings(0, "h", "Help", 0, emitMcpManifest: true), new NodeSettings(0, "h", "Help", 0, emitJsonBinder: true));
+		Assert.False(baseline.DescribesTools);
+		Assert.True(new NodeSettings(0, "h", "Help", 0, emitJsonBinder: true).DescribesTools);
 		Assert.Equal(new NodeSettings(0, "", "", 0), new NodeSettings(0, null!, null!, 0));
 	}
 

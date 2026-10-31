@@ -16,6 +16,7 @@ internal static class AttributeReader
 	internal const string Flag = "ArgumentParser.FlagAttribute";
 	internal const string Positional = "ArgumentParser.PositionalAttribute";
 	internal const string ParsedWithMethod = "ArgumentParser.ParsedWithMethodAttribute";
+	internal const string ExcludeFromManifest = "ArgumentParser.ExcludeFromManifestAttribute";
 
 	internal static AttributeData? Find(ISymbol? symbol, string attributeName)
 	{
@@ -44,6 +45,20 @@ internal static class AttributeReader
 		return type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable
 			? nullable.TypeArguments[0]
 			: type;
+	}
+
+	// The names of the members of an enum (or of the enum a nullable enum is of), in the order they are declared; empty for any other type.
+	internal static IEnumerable<string> EnumMemberNames(ITypeSymbol? type)
+	{
+		return type is not null && UnwrapNullable(type) is { TypeKind: TypeKind.Enum } enumType
+			? enumType.GetMembers().OfType<IFieldSymbol>().Where(f => f.HasConstantValue).Select(f => f.Name)
+			: [];
+	}
+
+	// a property set by name (UseCurrentCulture = true), which is only there when the user wrote it
+	internal static bool NamedBoolArgument(AttributeData? data, string name)
+	{
+		return data is not null && data.NamedArguments.Any(a => a.Key == name && a.Value.Value is true);
 	}
 
 	// List<T> (and List<T>?, which is the same type): the argument can be given several times and the type that is read and parsed is T.

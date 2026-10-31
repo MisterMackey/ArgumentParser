@@ -19,7 +19,9 @@ ARG025 | CommandDeclaration | Error | Required member on a command group
 ARG026 | CommandDeclaration | Error | Argument of a command class type
 ARG027 | CommandDeclaration | Error | Argument name used by a parent command
 ARG028 | CommandDeclaration | Error | Help setting not supported by a command tree
-ARG029 | CommandDeclaration | Warning | Help, error and culture settings of a leaf are not used by its command tree
+ARG029 | CommandDeclaration | Warning | Help, error, culture and tool settings of a leaf are not used by its command tree
 ARG030 | AttributeDeclaration | Error | Parse method not found
 ARG031 | AttributeDeclaration | Error | A list positional must be the last positional
 ARG032 | AttributeDeclaration | Error | The elements of a list cannot be nullable value types
+ARG033 | AttributeDeclaration | Error | A required argument cannot be excluded from the manifest
+ARG034 | AttributeDeclaration | Error | Two arguments have the same key in a JSON Schema

@@ -450,6 +450,34 @@ public class AttributeExtractionTests
 	}
 
 	[Fact]
+	public void ExcludeFromManifest_IsReadOnEveryAttributeKind()
+	{
+		var factory = Factory("""
+			[Option("o"), ExcludeFromManifest] public string Opt { get; set; }
+			[ExcludeFromManifest, Positional(0, "files")] public string Pos { get; set; }
+			[Flag("f")] [ExcludeFromManifest] public bool Flg { get; set; }
+			[Option("k")] public string Kept { get; set; }
+			""");
+
+		Assert.Equal([("Opt", true), ("Kept", false)], factory.GetOptionAttributes().Select(o => (o.PropertyName, o.ExcludeFromManifest)));
+		Assert.True(Assert.Single(factory.GetPositionalAttributes()).ExcludeFromManifest);
+		Assert.True(Assert.Single(factory.GetFlagAttributes()).ExcludeFromManifest);
+	}
+
+	[Theory]
+	[InlineData("Colour", new[] { "Red", "Green" })]
+	[InlineData("Colour?", new[] { "Red", "Green" })]
+	[InlineData("List<Colour>", new[] { "Red", "Green" })]
+	[InlineData("string", new string[0])]
+	[InlineData("List<string>", new string[0])]
+	public void EnumMembers_AreTheNamesOfTheMembersInDeclarationOrder(string declared, string[] expected)
+	{
+		var option = Assert.Single(Factory($"[Option(\"o\")] public {declared} Value {{ get; set; }}").GetOptionAttributes());
+
+		Assert.Equal(expected, option.EnumMembers.AsReadOnly());
+	}
+
+	[Fact]
 	public void ParsedWithMethod_MethodThatDoesNotExist_HasNoOwner()
 	{
 		var option = Assert.Single(Factory("""[Option("o"), ParsedWithMethod("Read")] public int? Value { get; set; }""", ParseMethodTypes).GetOptionAttributes());
@@ -671,6 +699,10 @@ public class AttributeExtractionTests
 		Assert.NotEqual(baseline, Info(required: true));
 		Assert.NotEqual(baseline, Info(parseMethod: "TryParse"));
 		Assert.NotEqual(baseline, Info(isEnum: true));
+		Assert.NotEqual(baseline, Info() with { ExcludeFromManifest = true });
+		Assert.NotEqual(baseline.GetHashCode(), (Info() with { ExcludeFromManifest = true }).GetHashCode());
+		Assert.NotEqual(baseline, Info() with { EnumMembers = new EquatableArray<string>(["Red"]) });
+		Assert.Equal(baseline, Info() with { EnumMembers = new EquatableArray<string>([]) });
 	}
 
 	[Fact]
@@ -772,6 +804,20 @@ public class AttributeExtractionTests
 			"",
 			"public static class Settings { public const bool Lenient = true; }");
 		Assert.True(new GeneratorConfiguration(declaration, model).UseCurrentCulture);
+	}
+
+	[Fact]
+	public void Configuration_ToolSettings_AreReadFromTheNamedProperties()
+	{
+		var plain = Configuration("[ParameterCollection]");
+		var manifest = Configuration("[ParameterCollection(EmitMcpManifest = true)]");
+		var binder = Configuration("[ParameterCollection(HelpTextGeneration.None, EmitJsonBinder = true)]");
+
+		Assert.Equal((false, false, false), (plain.EmitMcpManifest, plain.EmitJsonBinder, plain.DescribesTool));
+		Assert.Equal((true, false, true), (manifest.EmitMcpManifest, manifest.EmitJsonBinder, manifest.DescribesTool));
+		Assert.Equal((false, true, true), (binder.EmitMcpManifest, binder.EmitJsonBinder, binder.DescribesTool));
+		Assert.Equal("None", binder.HelpTextGenerationMode);
+		Assert.False(Configuration("[ParameterCollection(EmitMcpManifest = false)]").DescribesTool);
 	}
 
 	[Fact]

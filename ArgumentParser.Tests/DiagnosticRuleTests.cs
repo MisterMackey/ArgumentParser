@@ -828,6 +828,99 @@ public class DiagnosticRuleTests
 	}
 	#endregion
 
+	#region tools (ARG033 and ARG034)
+
+	private const string ManifestAttribute = "[ParameterCollection(HelpTextGeneration.GenerateTextOnly, \"h\", \"Help\", BehaviourOnError.ThrowNever, EmitMcpManifest = true)]";
+
+	[Theory]
+	[InlineData(SafeAttribute)]
+	[InlineData(ManifestAttribute)]
+	public void ARG033_RequiredArgumentThatIsExcluded_IsReportedWhetherOrNotASchemaIsEmitted(string attribute)
+	{
+		var result = Diagnose(
+			Join(
+				"[ExcludeFromManifest] " + Option("d", "db", "Db", required: true),
+				"[ExcludeFromManifest] [Positional(0, \"desc\", true)] public string Target { get; set; }"),
+			attribute);
+
+		Assert.Equal(["ARG033", "ARG033"], result.Ids);
+		Assert.All(result.Diagnostics, d => Assert.Equal(DiagnosticSeverity.Error, d.Severity));
+		Assert.Contains(result.Diagnostics, d => d.GetMessage().Contains("Property 'Db' is required", StringComparison.Ordinal));
+		Assert.Contains(result.Diagnostics, d => result.TextAt(d).Contains("public string Target", StringComparison.Ordinal));
+		Assert.Empty(result.Output);
+	}
+
+	[Fact]
+	public void ARG033_ExcludedArgumentsThatAreNotRequired_AreNotReported()
+	{
+		var result = Diagnose(
+			Join(
+				"[ExcludeFromManifest] " + Option("d", "db", "Db"),
+				"[ExcludeFromManifest] " + Flag("v", "verbose", "Verbose"),
+				"[ExcludeFromManifest] " + Positional(0, "Target"),
+				Option("n", "name", "Name", required: true)),
+			ManifestAttribute);
+
+		Assert.Empty(result.Diagnostics);
+		Assert.NotEmpty(result.Output);
+	}
+
+	[Theory]
+	[InlineData("Name", "name")]
+	[InlineData("URL", "Url")]
+	[InlineData("@Class", "Class")]
+	public void ARG034_TwoPropertiesWithTheSameKey_AreReportedOnTheLaterOne(string first, string second)
+	{
+		var result = Diagnose(Join(Option("a", "first", first), Positional(0, second)), ManifestAttribute);
+
+		var diagnostic = Assert.Single(result.Diagnostics);
+		Assert.Equal("ARG034", diagnostic.Id);
+		Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+		// the positional comes first in the schema, so the option is the later one
+		Assert.Contains($"public string {first} ", result.TextAt(diagnostic), StringComparison.Ordinal);
+		Assert.Contains($"Property '{first}' of 'TestClass' has the key", diagnostic.GetMessage(), StringComparison.Ordinal);
+		Assert.Contains($"which property '{second}' of 'TestClass' already has", diagnostic.GetMessage(), StringComparison.Ordinal);
+		Assert.Empty(result.Output);
+	}
+
+	[Theory]
+	[InlineData("[ParameterCollection(HelpTextGeneration.GenerateTextOnly, \"h\", \"Help\", BehaviourOnError.ThrowNever, EmitJsonBinder = true)]", true)]
+	[InlineData(ManifestAttribute, true)]
+	[InlineData(SafeAttribute, false)]
+	[InlineData("[ParameterCollection(HelpTextGeneration.GenerateTextOnly, \"h\", \"Help\", BehaviourOnError.ThrowNever, EmitMcpManifest = false)]", false)]
+	public void ARG034_IsOnlyReportedWhenASchemaOrABinderIsEmitted(string attribute, bool reported)
+	{
+		var result = Diagnose(Join(Option("a", "first", "Name"), Option("b", "second", "name")), attribute);
+
+		Assert.Equal(reported ? ["ARG034"] : Array.Empty<string>(), result.Ids);
+	}
+
+	[Fact]
+	public void ARG034_AnExcludedPropertyHasNoKey()
+	{
+		var result = Diagnose(Join(Option("a", "first", "Name"), "[ExcludeFromManifest] " + Option("b", "second", "name")), ManifestAttribute);
+
+		Assert.Empty(result.Diagnostics);
+	}
+
+	[Fact]
+	public void ARG034_KeysAreThePropertyNamesNotTheLongNames()
+	{
+		// the keys are the property names: a flag without a long name and an option with that long name are fine
+		var result = Diagnose(Join(Flag("l", "", "Level", "Colour"), Option("", "Level", "LevelOption", "Colour")), ManifestAttribute);
+
+		Assert.Empty(result.Diagnostics);
+	}
+
+	[Fact]
+	public void ARG034_KeysInOtherPartsOfTheClassAreCompared()
+	{
+		var result = Diagnose(Option("a", "first", "Name"), ManifestAttribute, otherPart: Option("b", "second", "name"));
+
+		Assert.Equal(["ARG034"], result.Ids);
+	}
+	#endregion
+
 	#region lists (ARG031 and ARG032)
 	[Theory]
 	[InlineData("List<Custom>")]

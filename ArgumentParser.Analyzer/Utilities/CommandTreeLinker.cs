@@ -9,7 +9,7 @@ namespace ArgumentParser.Internal.Utilities;
 /// Links the nodes of a compilation into trees. A property whose type is a node is a child command of the class that declares it.
 /// Linking works on plain data without locations, so an edit that only moves code does not link again.
 /// The rules that need the whole tree (duplicate names, a command with two parents, unreachable commands, argument names
-/// that a command above uses) are checked here
+/// that a command above uses, keys of the JSON Schema that a command above uses) are checked here
 /// and described as <see cref="LinkProblem"/>s, which <see cref="ToDiagnostics"/> turns into diagnostics with their locations.
 /// </summary>
 public static class CommandTreeLinker
@@ -149,7 +149,15 @@ public static class CommandTreeLinker
 				{
 					Error(problem);
 				}
-				// the settings of a leaf (help, error and culture) only apply to its own Parse, parsing through the tree uses those of the root
+				// the schema of a leaf holds the fields of every level above it, so their keys must differ along the path
+				if (root.Node.Settings.DescribesTools)
+				{
+					foreach (var problem in KeysUsedAbove(node, ancestors).Where(p => !problems.Contains(p)))
+					{
+						Error(problem);
+					}
+				}
+				// the settings of a leaf (help, error, culture and tools) only apply to its own Parse, the tree uses those of the root
 				var unusedSettings = new LinkProblem(GeneratorDiagnostics.ARG029, node.Node.TypeName, null, Args(node.Node.ClassName, root.Node.ClassName));
 				if (node.Node.Kind == CommandNodeKind.Leaf && !node.Node.Settings.Equals(NodeSettings.Default) && !problems.Contains(unusedSettings))
 				{
@@ -260,6 +268,46 @@ public static class CommandTreeLinker
 				}
 			}
 		}
+	}
+
+	// The key of a field must not be used by another field of the same command, nor by a field of a command above (siblings may share keys).
+	// A leaf whose own settings describe it as a tool is checked on its own by the ParameterCollection pipeline (ARG034 too), so only
+	// the keys above it are compared here. The nearest command above that uses the key is the one reported.
+	private static IEnumerable<LinkProblem> KeysUsedAbove(CommandNodeSource node, IReadOnlyList<CommandNodeSource> ancestors)
+	{
+		var fields = FieldsOf(node).ToList();
+		if (node.Node.Kind != CommandNodeKind.Leaf || !node.Node.Settings.DescribesTools)
+		{
+			foreach (var (argument, first) in Validation.DuplicateKeys(fields))
+			{
+				yield return KeyProblem(node, argument, first, node);
+			}
+		}
+		foreach (var argument in fields)
+		{
+			var key = ToolSpecProvider.Key(argument.PropertyName);
+			var owner = ancestors.LastOrDefault(a => FieldsOf(a).Any(other => ToolSpecProvider.Key(other.PropertyName) == key));
+			if (owner is not null)
+			{
+				yield return KeyProblem(node, argument, FieldsOf(owner).First(other => ToolSpecProvider.Key(other.PropertyName) == key), owner);
+			}
+		}
+	}
+
+	private static LinkProblem KeyProblem(CommandNodeSource node, PropertyAndAttributeInfo argument, PropertyAndAttributeInfo other, CommandNodeSource owner)
+	{
+		return new LinkProblem(
+			GeneratorDiagnostics.ARG034,
+			node.Node.TypeName,
+			argument.PropertyName,
+			Args(argument.PropertyName, node.Node.ClassName, ToolSpecProvider.Key(argument.PropertyName), other.PropertyName, owner.Node.ClassName));
+	}
+
+	private static IEnumerable<PropertyAndAttributeInfo> FieldsOf(CommandNodeSource node)
+	{
+		var arguments = node.Arguments;
+		return ToolSpecProvider.FieldArguments(arguments.Options.AsReadOnly(), arguments.Flags.AsReadOnly(), arguments.Positionals.AsReadOnly())
+			.Select(item => item.Argument);
 	}
 
 	private static IEnumerable<PropertyAndAttributeInfo> ArgumentsOf(CommandNodeSource node)

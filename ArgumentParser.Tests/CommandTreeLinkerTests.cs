@@ -816,6 +816,9 @@ public class CommandTreeLinkerTests
 	[InlineData("[ParameterCollection(behaviourOnError: BehaviourOnError.ThrowNever)]", true)]
 	[InlineData("[ParameterCollection(UseCurrentCulture = false)]", false)]
 	[InlineData("[ParameterCollection(UseCurrentCulture = true)]", true)]
+	[InlineData("[ParameterCollection(EmitMcpManifest = true)]", true)]
+	[InlineData("[ParameterCollection(EmitJsonBinder = true)]", true)]
+	[InlineData("[ParameterCollection(EmitJsonBinder = false)]", false)]
 	public void ARG029_LeafInATreeWithSettingsOfItsOwn_IsAWarningOnTheLeaf(string parameterCollection, bool reported)
 	{
 		var linked = Link($$"""
@@ -845,6 +848,125 @@ public class CommandTreeLinkerTests
 		var linked = Link("[ParameterCollection(behaviourOnError: BehaviourOnError.ThrowNever)] [Command(\"lonely\")] public partial class Lonely { }");
 
 		Assert.Equal(["ARG019"], linked.RuleIds);
+	}
+	#endregion
+
+	#region ARG034 keys of the JSON Schema used by a command above
+
+	private const string KeysTree = """
+		[CommandApp("app", EmitMcpManifest = true)]
+		public partial class App
+		{
+			[Option("n", "name", "root")] public string Name { get; set; } = "";
+			[Option("d", "db", "root")] public string Db { get; set; } = "";
+			public Group? Group { get; private set; }
+			public Other? Other { get; private set; }
+		}
+
+		[Command("group")]
+		public partial class Group
+		{
+			[Flag("x", "", "group")] public bool Db { get; set; }
+			public Leaf? Leaf { get; private set; }
+		}
+
+		[ParameterCollection]
+		[Command("leaf")]
+		public partial class Leaf
+		{
+			[Positional(0, "leaf", true)] public string name { get; set; } = "";
+			[Option("o", "out", "leaf")] public string Out { get; set; } = "";
+		}
+
+		[ParameterCollection]
+		[Command("other")]
+		public partial class Other
+		{
+			[Option("o", "out", "other")] public string Out { get; set; } = "";
+		}
+		""";
+
+	[Fact]
+	public void ARG034_KeyUsedByACommandAbove_IsReportedOnTheLowerPropertyWithTheNearestOwner()
+	{
+		var linked = Link(KeysTree);
+
+		var problems = linked.Problems.Select(p => (p.RuleId, p.TypeName, p.PropertyName, Other: p.Arguments[3], Owner: p.Arguments[4])).ToList();
+		Assert.Equal(
+			[
+				("ARG034", "Tree.Group", "Db", "Db", "App"),
+				("ARG034", "Tree.Leaf", "name", "Name", "App"),
+			],
+			problems);
+		Assert.True(Assert.Single(linked.Trees).HasErrors);
+		var diagnostic = linked.Diagnostics().Single(d => linked.TextAt(d).Contains("public string name", StringComparison.Ordinal));
+		Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+		Assert.Contains("Property 'name' of 'Leaf' has the key 'name' in the JSON Schema, which property 'Name' of 'App' already has", diagnostic.ToDiagnostic().GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+	}
+
+	[Theory]
+	[InlineData("[CommandApp(\"app\", EmitJsonBinder = true)]", 2)]
+	[InlineData("[CommandApp(\"app\")]", 0)]
+	[InlineData("[CommandApp(\"app\", EmitMcpManifest = false)]", 0)]
+	public void ARG034_IsOnlyReportedWhenTheRootEmitsASchemaOrABinder(string commandApp, int count)
+	{
+		var linked = Link(KeysTree.Replace("[CommandApp(\"app\", EmitMcpManifest = true)]", commandApp, StringComparison.Ordinal));
+
+		Assert.Equal(Enumerable.Repeat("ARG034", count), linked.RuleIds);
+	}
+
+	[Fact]
+	public void ARG034_ExcludedPropertiesHaveNoKey()
+	{
+		var linked = Link(KeysTree
+			.Replace("[Option(\"n\", \"name\", \"root\")]", "[Option(\"n\", \"name\", \"root\"), ExcludeFromManifest]", StringComparison.Ordinal)
+			.Replace("[Flag(\"x\", \"\", \"group\")]", "[Flag(\"x\", \"\", \"group\"), ExcludeFromManifest]", StringComparison.Ordinal));
+
+		Assert.Empty(linked.RuleIds);
+	}
+
+	[Fact]
+	public void ARG034_TwoKeysInOneGroup_AreReportedByTheLinker()
+	{
+		var linked = Link("""
+			[CommandApp("app", EmitMcpManifest = true)]
+			public partial class App { public Group? Group { get; private set; } }
+
+			[Command("group")]
+			public partial class Group
+			{
+				[Option("a", "first", "group")] public string Name { get; set; } = "";
+				[Option("b", "second", "group")] public string name { get; set; } = "";
+				public Leaf? Leaf { get; private set; }
+			}
+
+			[ParameterCollection] [Command("leaf")] public partial class Leaf { }
+			""");
+
+		var problem = Assert.Single(linked.Problems);
+		Assert.Equal(("ARG034", "Tree.Group", "name", "Group"), (problem.RuleId, problem.TypeName, problem.PropertyName, problem.Arguments[4]));
+	}
+
+	[Theory]
+	[InlineData("[ParameterCollection]", new[] { "ARG034" })]
+	// the leaf's own pipeline reports the keys within the leaf when its own settings emit a schema; the tree warns about those settings
+	[InlineData("[ParameterCollection(EmitMcpManifest = true)]", new[] { "ARG029" })]
+	public void ARG034_TwoKeysInOneLeaf_AreReportedByTheLinkerUnlessTheLeafChecksThemItself(string parameterCollection, string[] expected)
+	{
+		var linked = Link($$"""
+			[CommandApp("app", EmitMcpManifest = true)]
+			public partial class App { public Leaf? Leaf { get; private set; } }
+
+			{{parameterCollection}}
+			[Command("leaf")]
+			public partial class Leaf
+			{
+				[Option("a", "first", "leaf")] public string Name { get; set; } = "";
+				[Option("b", "second", "leaf")] public string name { get; set; } = "";
+			}
+			""");
+
+		Assert.Equal(expected, linked.RuleIds);
 	}
 	#endregion
 
