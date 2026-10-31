@@ -20,14 +20,14 @@
     <PackageId>Aot.ArgumentParser</PackageId>
     <Version>2.0.0</Version>
     <Authors>Jasper Ris</Authors>
-    <Description>A source generator that generates an AoT-Friendly Parse method for an annotated class containing CLI arguments.</Description>
+    <Description>A source generator that generates AoT compatible parsing code for a given command line interface. Supports tool schema generation and json binding for MCP servers and tool calls.</Description>
     <PackageTags>source-generator;analyzer;CLI;arguments;commandline;parser;AoT</PackageTags>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/MisterMackey/ArgumentParser</PackageProjectUrl>
     <RepositoryUrl>https://github.com/MisterMackey/ArgumentParser</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Copyright>Copyright 2025</Copyright>
+    <Copyright>Copyright 2026</Copyright>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
