@@ -20,6 +20,11 @@ Licensed under the Apache License, Version 2.0
 		- [Annotations](#annotations)
 		- [Generated members](#generated-members)
 		- [Rules of a tree](#rules-of-a-tree)
+	- [MCP tools and JSON Schema](#mcp-tools-and-json-schema)
+		- [The schema of a class](#the-schema-of-a-class)
+		- [The manifest of a tree](#the-manifest-of-a-tree)
+		- [How arguments are described](#how-arguments-are-described)
+		- [Leaving an argument out](#leaving-an-argument-out)
 	- [Inspecting the generated code](#inspecting-the-generated-code)
 	- [Default behaviour](#default-behaviour)
 		- [Behaviour on error](#behaviour-on-error)
@@ -422,12 +427,14 @@ The root also gets a static `Commands` list, with a `CommandInfo` for every leaf
 | `HelpText` | The help text of the command, as the tree shows it (empty with `HelpTextGeneration.None`). |
 | `Parse(string[] args)` | Parses the arguments that come after the path into the class of the leaf, and returns it with the errors. It does not include the options of the levels above, and it never prints, exits or throws because of the arguments. The help argument is accepted but does nothing; show `HelpText` instead. |
 
-With it, the commands can be offered somewhere else without listing them by hand, for example as tools for an AI agent:
+| `InputSchema` | The JSON Schema of the arguments of the command, with the options of the levels above it; `null` unless the root sets `EmitMcpManifest`, see [MCP tools and JSON Schema](#mcp-tools-and-json-schema). |
+
+With it, the commands can be offered somewhere else without listing them by hand, for example as tools for an AI agent (for MCP the generator can also write the whole tool list, see [The manifest of a tree](#the-manifest-of-a-tree)):
 ```C#
 foreach (var command in FileTool.Commands)
 {
-	var toolName = string.Join("_", command.Path); // directories_list
-	RegisterTool(toolName, command.Description, command.Annotations);
+	var toolName = string.Join("__", command.Path); // directories__list
+	RegisterTool(toolName, command.Description, command.Annotations, command.InputSchema);
 }
 
 var list = FileTool.Commands.Single(c => c.ToString() == "directories list");
@@ -451,14 +458,14 @@ A flag that is set states that its hint is true and a flag that is not set state
 In a tree of commands, every leaf hands its annotations on to its entry in the `Commands` list (`CommandInfo.Annotations`).
 
 ### Generated members
-Besides `Parse`, `Commands`, `Selected` and `SelectedCommand` on the root, the generator adds `ParseCommand`, `CommandHelpText` and `CommandHelpArgument` to every class of the tree, and `commandFlags` to every leaf. Do not declare members with these names in those classes; there is no diagnostic for it yet, the code just does not compile.
+Besides `Parse`, `Commands`, `Selected` and `SelectedCommand` on the root (and `McpManifest` with `EmitMcpManifest`), the generator adds `ParseCommand`, `CommandHelpText` and `CommandHelpArgument` to every class of the tree, and `commandFlags` to every leaf. Do not declare members with these names in those classes; there is no diagnostic for it yet, the code just does not compile.
 
 A tree is only generated when it has no errors, including the errors of its leaves: fix the reported problems first.
 
 ### Rules of a tree
 | Rule | Problem |
 |---|---|
-| [ARG014](ArgumentParser.Analyzer/docs/rules/ARG014.md) | A command name is empty, contains whitespace or starts with `-`. |
+| [ARG014](ArgumentParser.Analyzer/docs/rules/ARG014.md) | A command name is empty, longer than 127 characters, starts with `-`, contains `__` or a character other than ASCII letters, digits, `_`, `-` and `.`. |
 | [ARG015](ArgumentParser.Analyzer/docs/rules/ARG015.md) | A group or the root has positional arguments. |
 | [ARG016](ArgumentParser.Analyzer/docs/rules/ARG016.md) | `CommandApp` is combined with `Command` or `ParameterCollection`. |
 | [ARG017](ArgumentParser.Analyzer/docs/rules/ARG017.md) | Two children of one command have the same name. |
@@ -473,7 +480,83 @@ A tree is only generated when it has no errors, including the errors of its leav
 | [ARG026](ArgumentParser.Analyzer/docs/rules/ARG026.md) | An `Option`, `Flag` or `Positional` property has a command class as its type. |
 | [ARG027](ArgumentParser.Analyzer/docs/rules/ARG027.md) | An option or flag uses a name of a command above it, or of the help argument. |
 | [ARG028](ArgumentParser.Analyzer/docs/rules/ARG028.md) | `CommandApp` uses a help mode a tree cannot use, or `None` with `DisplayHelpAndExit`. |
-| [ARG029](ArgumentParser.Analyzer/docs/rules/ARG029.md) (warning) | A leaf in a tree sets help, error or culture settings that the tree does not use. |
+| [ARG029](ArgumentParser.Analyzer/docs/rules/ARG029.md) (warning) | A leaf in a tree sets help, error, culture or tool settings that the tree does not use. |
+
+## MCP tools and JSON Schema
+A program that also serves its commands as tools of the [Model Context Protocol](https://modelcontextprotocol.io) (MCP), for an AI agent, can have the generator describe the arguments as JSON Schema, from the same attributes as the command line. Nothing is emitted unless asked for: set `EmitMcpManifest = true` on `[ParameterCollection]` or `[CommandApp]`. The schema is a `const string`, so it costs nothing at run time; the generator cannot write files.
+
+(`EmitJsonBinder`, the other setting, is for binding a tool call back to the class. It is not implemented yet and does nothing for now.)
+
+### The schema of a class
+A class on its own gets a `JsonSchema` constant:
+```C#
+[ParameterCollection(EmitMcpManifest = true)]
+public partial class MyArgs
+{
+	[Positional(0, "the amount of times to repeat", required: true)]
+	public int RepeatTimes { get; set; }
+
+	[Option("o", "Target", "Where to write the output")]
+	public string? Output { get; set; }
+
+	[Flag("v", "Verbose", "Enable verbose output")]
+	public bool Verbose { get; set; }
+}
+```
+`MyArgs.JsonSchema` is (written compactly in the constant, formatted here):
+```json
+{
+	"type": "object",
+	"properties": {
+		"repeatTimes": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647, "description": "the amount of times to repeat" },
+		"output": { "type": ["string", "null"], "description": "Where to write the output" },
+		"verbose": { "type": "boolean", "description": "Enable verbose output" }
+	},
+	"required": ["repeatTimes"],
+	"additionalProperties": false
+}
+```
+- The keys are the names of the properties in camelCase, the way System.Text.Json writes them (`FilePath` is `filePath`, `URL` is `url`), not the long names of the attributes. Two arguments with the same key are an error ([ARG034](ArgumentParser.Analyzer/docs/rules/ARG034.md)), for example `Name` and `name`.
+- The positional arguments come first (by position), then the options, then the flags.
+- A key is required when its argument is `required: true`, as on the command line. Being nullable does not make an argument optional; a required nullable argument must be given, but may be `null`.
+- Other keys are not allowed (`additionalProperties: false`).
+- The schema has no `$schema`; MCP reads such a schema as JSON Schema 2020-12. It has no defaults either, as the generator does not know the initializers of the properties.
+
+### The manifest of a tree
+With `EmitMcpManifest = true` on `[CommandApp]`, the root gets an `McpManifest` constant: the result of an MCP `tools/list` request, `{"tools": [...]}`, which a server can return as it is. Every leaf is a tool, in the order of `Commands`:
+- `name` is the path of the command joined with `__`: `directories__list`. [ARG014](ArgumentParser.Analyzer/docs/rules/ARG014.md) keeps command names to the characters MCP allows in a tool name (ASCII letters, digits, `_`, `-` and `.`), at most 127 of them and without `__`, so every tree has valid and different tool names.
+- `description` is the description of the command (left out when it is empty).
+- `inputSchema` is the schema of the leaf, with the options and flags of the root and of the groups above it first, because they are given on the command line too. A key that is also used above is an error ([ARG034](ArgumentParser.Analyzer/docs/rules/ARG034.md)); commands side by side may share keys.
+- `annotations` are the [annotations](#annotations) of the command as the four MCP hints, each `true` or `false`.
+
+The `CommandInfo` of every command in `Commands` carries the same schema in `InputSchema`. The setting of `[CommandApp]` applies to the whole tree. Set on the `[ParameterCollection]` of a leaf, it only gives that class a `JsonSchema` of its own arguments, and ARG029 warns that the tree ignores it.
+
+### How arguments are described
+| Argument | Schema |
+|---|---|
+| `int`, `long`, `short`, `byte` and the other integer types | `"type": "integer"` with the `minimum` and `maximum` of the type |
+| `double`, `float`, `decimal` | `"type": "number"` |
+| `bool` flag | `"type": "boolean"` |
+| `string` | `"type": "string"` |
+| `char` | `"type": "string"`, `minLength` and `maxLength` 1 |
+| `Guid` | `"type": "string"`, `"format": "uuid"` |
+| `Uri` | `"type": "string"`, `"format": "uri-reference"` (relative URIs are accepted) |
+| `DateTime` | `"type": "string"`, and the description says the ISO 8601 forms that are accepted (not `"format": "date-time"`, which needs a time and a zone) |
+| `TimeSpan` | `"type": "string"`, and the description says the form: `[-][d.]hh:mm[:ss[.fffffff]]` (not the ISO 8601 durations of `"format": "duration"`) |
+| an enum option or positional | `"type": "string"` with the names of the members in `enum` |
+| an enum flag | the name of a member or the level as a number: `oneOf` a string `enum` and an integer from 0 |
+| `[ParsedWithMethod]` | `"type": "string"`, in whatever form the method reads (no `enum`, range or format) |
+| nullable (`int?`, `Level?`, ...) | `null` is allowed as well: `"type": ["integer", "null"]` |
+| `List<T>` | `"type": "array"` with the schema of `T` in `items`; `required: true` adds `"minItems": 1` |
+
+The description of an argument is its `description`. The help argument is never in the schema.
+
+### Leaving an argument out
+An argument that the program sets itself, such as the path of a database or a token, can be left out of the schema with `[ExcludeFromManifest]`. The command line is not affected. A required argument cannot be left out, since a tool call could never give it ([ARG033](ArgumentParser.Analyzer/docs/rules/ARG033.md)).
+```C#
+[Option("d", "database", "The database to use"), ExcludeFromManifest]
+public string Database { get; set; } = "app.db";
+```
 
 ## Inspecting the generated code
 

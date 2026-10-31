@@ -1270,31 +1270,31 @@ public class GeneratedCommandTreeTests
 	[Fact]
 	public void Generator_NamesAndDescriptionsWithQuotesAndBackslashes_AreEscaped()
 	{
-		// ARG014 only forbids whitespace and a leading dash, so a command word may hold quotes and backslashes too
+		// ARG014 keeps quotes and backslashes out of command words, but the name of the application and the descriptions can hold them
 		var parser = GeneratedParser.Compile("""
 			using ArgumentParser;
 			namespace ArgumentParser.Tests;
 
-			[CommandApp("app")]
+			[CommandApp("my \"app\" \\ x", "The \"app\"")]
 			public partial class App
 			{
 				[Option("d", "dir", "the \"dir\" \\ here")] public string Dir { get; set; } = "";
 				public Group? Group { get; private set; }
 			}
 
-			[Command("g\"r\\p", "A \"group\"")]
+			[Command("grp", "A \"group\"")]
 			public partial class Group { public Run? Run { get; private set; } }
 
 			[ParameterCollection]
-			[Command("r\\un\"", "Runs \"it\" \\ now")]
+			[Command("run", "Runs \"it\" \\ now")]
 			public partial class Run { }
 			""", "App");
 
 		var command = Assert.Single(parser.GetStaticProperty<IReadOnlyList<CommandInfo>>("Commands")!);
-		var outcome = parser.ParseCommand("-d", "x", "g\"r\\p", "r\\un\"");
+		var outcome = parser.ParseCommand("-d", "x", "grp", "run");
 
 		Assert.Equal("Runs \"it\" \\ now", command.Description);
-		Assert.Equal(["g\"r\\p", "r\\un\""], command.Path);
+		Assert.Contains("my \"app\" \\ x grp run", command.HelpText, StringComparison.Ordinal);
 		Assert.Empty(outcome.Errors);
 		Assert.NotNull(outcome.GetPath<object>("Group.Run"));
 	}

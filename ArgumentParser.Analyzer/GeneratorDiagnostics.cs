@@ -69,7 +69,7 @@ public static class GeneratorDiagnostics
 
 	private const string ARG014_Id = "ARG014";
 	private const string ARG014_Title = "Invalid command name";
-	private const string ARG014_Message = "Command name '{0}' on class '{1}' is not valid. A name must not be empty, contain whitespace or start with '-'.";
+	private const string ARG014_Message = "Command name '{0}' on class '{1}' is not valid. A name must be 1 to 127 characters long, of ASCII letters, digits, '_', '-' and '.' only, must not start with '-' and must not contain '__'.";
 
 	private const string ARG015_Id = "ARG015";
 	private const string ARG015_Title = "Positional argument on a class with child commands";
@@ -338,7 +338,7 @@ public static class GeneratorDiagnostics
 	);
 
 	/// <summary>
-	/// Diagnostic descriptor for ARG014: A command name must not be empty, contain whitespace or start with '-'.
+	/// Diagnostic descriptor for ARG014: A command name must be 1 to 127 characters of ASCII letters, digits, '_', '-' and '.', not start with '-' and not contain '__'.
 	/// </summary>
 	public static readonly DiagnosticDescriptor ARG014 = new DiagnosticDescriptor(
 	    ARG014_Id,

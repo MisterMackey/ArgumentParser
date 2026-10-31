@@ -117,7 +117,7 @@ public static class Validation
 				diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG028, attributeLocation, node.ClassName, unsupported));
 			}
 		}
-		else if (node.Name.Length == 0 || node.Name.Any(char.IsWhiteSpace) || node.Name[0] == '-')
+		else if (!IsValidCommandName(node.Name))
 		{
 			diagnostics.Add(DiagnosticInfo.Create(GeneratorDiagnostics.ARG014, attributeLocation, node.Name, node.ClassName));
 		}
@@ -132,6 +132,27 @@ public static class Validation
 		}
 
 		return diagnostics.AsReadOnly();
+	}
+
+	/// <summary>
+	/// The longest command name: a tool name of the Model Context Protocol has at most 128 characters.
+	/// </summary>
+	public const int MaxCommandNameLength = 127;
+
+	/// <summary>
+	/// Tells whether a command name is valid: not empty, at most <see cref="MaxCommandNameLength"/> characters, not starting with '-',
+	/// and only the characters a tool name of the Model Context Protocol may have (ASCII letters, digits, '_', '-' and '.'),
+	/// without "__", which separates the commands in the name of a tool.
+	/// </summary>
+	/// <param name="name">The name of the command.</param>
+	/// <returns>True when the name is valid.</returns>
+	public static bool IsValidCommandName(string name)
+	{
+		return !string.IsNullOrEmpty(name)
+			&& name.Length <= MaxCommandNameLength
+			&& name[0] != '-'
+			&& name.All(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_' or '-' or '.')
+			&& name.IndexOf(ToolSpecProvider.ToolNameSeparator, StringComparison.Ordinal) < 0;
 	}
 
 	/// <summary>

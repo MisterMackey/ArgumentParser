@@ -92,10 +92,17 @@ public static class CommandTreeSourceGenerator
 
 		if (info.Kind == CommandNodeKind.Root)
 		{
+			// the tools of the tree, one for every leaf in the order of Commands
+			var tools = settings.EmitMcpManifest ? ToolSpecProvider.ForTree(tree) : null;
+			if (tools is not null)
+			{
+				writer.WriteLine();
+				writer.WriteLine($"public const string McpManifest = {SourceTextGenerator.Literal(JsonSchemaProvider.Manifest(tools))};");
+			}
 			writer.WriteLine();
 			WriteParse(writer, className, settings);
 			writer.WriteLine();
-			WriteCommands(writer, tree, settings);
+			WriteCommands(writer, tree, settings, tools);
 			writer.WriteLine();
 			WriteSelected(writer, tree);
 		}
@@ -196,13 +203,16 @@ public static class CommandTreeSourceGenerator
 		writer.WriteLine("}");
 	}
 
-	private static void WriteCommands(IndentedTextWriter writer, CommandTree tree, NodeSettings settings)
+	private static void WriteCommands(IndentedTextWriter writer, CommandTree tree, NodeSettings settings, IReadOnlyList<ToolSpec>? tools)
 	{
 		writer.WriteLine("public static IReadOnlyList<global::ArgumentParser.CommandInfo> Commands { get; } = new global::ArgumentParser.CommandInfo[] {");
 		writer.Indent++;
+		var index = 0;
 		foreach (var leaf in Leaves(tree))
 		{
 			var info = leaf.Source.Node;
+			var inputSchema = tools is null ? "null" : SourceTextGenerator.Literal(JsonSchemaProvider.InputSchema(tools[index]));
+			index++;
 			var path = string.Join(", ", leaf.Path.AsReadOnly().Select(item => SourceTextGenerator.Literal(item)));
 			var annotations = info.Annotations == 0
 				? "global::ArgumentParser.CommandAnnotations.None"
@@ -213,6 +223,7 @@ public static class CommandTreeSourceGenerator
 			writer.WriteLine($"{SourceTextGenerator.Literal(info.Description)},");
 			writer.WriteLine($"{annotations},");
 			writer.WriteLine(settings.GeneratesHelpText ? $"global::{info.TypeName}.{HelpTextName}," : "\"\",");
+			writer.WriteLine($"{inputSchema},");
 			writer.WriteLine("args =>");
 			writer.WriteLine("{");
 			writer.Indent++;

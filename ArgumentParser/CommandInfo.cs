@@ -35,6 +35,13 @@ namespace ArgumentParser
 		public string HelpText { get; }
 
 		/// <summary>
+		/// Gets the JSON Schema of the arguments of the command as a tool of the Model Context Protocol (MCP): the <c>inputSchema</c> of its entry
+		/// in the <c>McpManifest</c> of the application, with the options and flags of the commands above it.
+		/// Null when the application does not emit the manifest (<c>EmitMcpManifest</c> on the CommandApp attribute).
+		/// </summary>
+		public string? InputSchema { get; }
+
+		/// <summary>
 		/// Initializes a new instance of the <see cref="CommandInfo"/> class.
 		/// </summary>
 		/// <param name="path">The words that select the command.</param>
@@ -48,6 +55,26 @@ namespace ArgumentParser
 			CommandAnnotations annotations,
 			string helpText,
 			Func<string[], (object Result, IReadOnlyList<ArgumentParserException> Errors)> parse)
+			: this(path, description, annotations, helpText, null, parse)
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="CommandInfo"/> class.
+		/// </summary>
+		/// <param name="path">The words that select the command.</param>
+		/// <param name="description">The description of the command.</param>
+		/// <param name="annotations">The annotations that describe what the command does.</param>
+		/// <param name="helpText">The help text of the command.</param>
+		/// <param name="inputSchema">The JSON Schema of the arguments of the command, or null when there is none.</param>
+		/// <param name="parse">Parses the arguments of the command into its parameter collection.</param>
+		public CommandInfo(
+			IReadOnlyList<string> path,
+			string description,
+			CommandAnnotations annotations,
+			string helpText,
+			string? inputSchema,
+			Func<string[], (object Result, IReadOnlyList<ArgumentParserException> Errors)> parse)
 		{
 			if (path is null)
 			{
@@ -57,6 +84,7 @@ namespace ArgumentParser
 			Description = description ?? string.Empty;
 			Annotations = annotations;
 			HelpText = helpText ?? string.Empty;
+			InputSchema = inputSchema;
 			this.parse = parse ?? throw new ArgumentNullException(nameof(parse));
 		}
 

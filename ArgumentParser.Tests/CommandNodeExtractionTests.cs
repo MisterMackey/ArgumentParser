@@ -808,6 +808,12 @@ public class CommandNodeExtractionTests
 	[InlineData("add\\t")]
 	[InlineData("-add")]
 	[InlineData("--add")]
+	// the characters, separator and length of a tool name of the Model Context Protocol
+	[InlineData("é")]
+	[InlineData("add/item")]
+	[InlineData("add:item")]
+	[InlineData("a__b")]
+	[InlineData("add__")]
 	public void ARG014_InvalidCommandName_IsReported(string name)
 	{
 		var model = Extract($"[Command(\"{name}\")] public partial class Group {{ }}", "Group");
@@ -822,12 +828,24 @@ public class CommandNodeExtractionTests
 	[InlineData("a-b")]
 	[InlineData("x_y")]
 	[InlineData("add2")]
-	[InlineData("é")]
+	[InlineData("v1.2")]
+	[InlineData("_add_")]
+	[InlineData("ADD")]
 	public void ARG014_ValidCommandName_IsNotReported(string name)
 	{
 		var model = Extract($"[Command(\"{name}\")] public partial class Group {{ }}", "Group");
 
 		Assert.Empty(Ids(model));
+	}
+
+	[Theory]
+	[InlineData(127, false)]
+	[InlineData(128, true)]
+	public void ARG014_ANameHasAtMost127Characters(int length, bool reported)
+	{
+		var model = Extract($"[Command(\"{new string('a', length)}\")] public partial class Group {{ }}", "Group");
+
+		Assert.Equal(reported ? ["ARG014"] : Array.Empty<string>(), Ids(model));
 	}
 
 	[Fact]

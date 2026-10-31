@@ -252,7 +252,8 @@ namespace ArgumentParser.Internal
 				helptextProvider,
 				config,
 				model.ContainingTypes,
-				model.IsCommand
+				model.IsCommand,
+				config.EmitMcpManifest ? JsonSchemaProvider.InputSchema(ToolSpecProvider.ForClass(model)) : null
 			);
 			var sourceText = textGenerator.GenerateSourceText();
 			// the namespace and the types the class is nested in are part of the name: command classes with the same name (an Add below each of two groups) are common

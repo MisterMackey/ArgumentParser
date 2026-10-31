@@ -25,6 +25,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 	private readonly HelptextProvider HelptextProvider;
 	private readonly GeneratorConfiguration Config;
 	private readonly bool IsCommand;
+	private readonly string? JsonSchema;
 
 	/// <summary>
 	/// The table of the flags of a leaf of a tree of commands without the leaf's own help argument.
@@ -42,6 +43,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 	/// <param name="config">The configuration settings for code generation and help text.</param>
 	/// <param name="containingTypes">The types the class is nested in, the outermost first.</param>
 	/// <param name="isCommand">Whether the class is a leaf of a tree of commands, which parses it with the help argument of the tree.</param>
+	/// <param name="jsonSchema">The JSON Schema of the class, emitted as the JsonSchema constant; null for none.</param>
 	public SourceTextGenerator(
 		string className,
 		string? namespaceName,
@@ -49,7 +51,8 @@ public class SourceTextGenerator : ISourceTextGenerator
 		HelptextProvider helptextProvider,
 		GeneratorConfiguration config,
 		EquatableArray<ContainingType> containingTypes = default,
-		bool isCommand = false
+		bool isCommand = false,
+		string? jsonSchema = null
 	)
 	{
 		if (argumentProvider == null)
@@ -65,6 +68,7 @@ public class SourceTextGenerator : ISourceTextGenerator
 		HelptextProvider = helptextProvider ?? throw new ArgumentNullException(nameof(helptextProvider));
 		Config = config ?? throw new ArgumentNullException(nameof(config));
 		IsCommand = isCommand;
+		JsonSchema = jsonSchema;
 	}
 
 	/// <summary>
@@ -89,6 +93,12 @@ public class SourceTextGenerator : ISourceTextGenerator
 		{
 			var helpText = HelptextProvider.GenerateHelpText();
 			writer.Write(helpText);
+			writer.WriteLine();
+		}
+
+		if (JsonSchema is not null)
+		{
+			writer.WriteLine($"public const string JsonSchema = {Literal(JsonSchema)};");
 			writer.WriteLine();
 		}
 

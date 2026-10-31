@@ -10,7 +10,7 @@
   - `ParameterCollection` has an `Annotations` property (`CommandAnnotations` flags: `ReadOnly`, `Destructive`, `Idempotent`, `OpenWorld`), which a leaf hands on to its `CommandInfo` so a tool list (for example for an MCP server) can be built from `Commands`. The flags are the MCP tool hints: a flag that is set states that its hint is true, one that is not set that it is false, and the default is the MCP default, `Destructive | OpenWorld`. A value that is given replaces the default as a whole (`ReadOnly` alone also states that the command does not reach outside of the application). The annotations do not change parsing or help text.
   - The tree adds members to its classes: `ParseCommand`, `CommandHelpText` and `CommandHelpArgument` on every level, and `commandFlags` on a leaf (besides `Parse`, `Commands`, `Selected` and `SelectedCommand` on the root). A class of the tree that declares a member with one of these names does not compile; there is no rule for it yet.
   - A tree with a leaf that has errors of its own (an ARG rule about the class or its arguments) is not generated, so those errors are not followed by compiler errors in the generated code of the tree.
-  - ARG014: a command name must not be empty, contain whitespace or start with `-`.
+  - ARG014: a command name must be 1 to 127 characters of ASCII letters, digits, `_`, `-` and `.`, must not start with `-` and must not contain `__`. The characters and the length are those of a tool name of the Model Context Protocol, and `__` joins the commands of a path in a tool name, so every tree can be described as tools.
   - ARG015: a command group or the root cannot have positional arguments, since the first positional argument is the name of the next command.
   - ARG016: `CommandApp` cannot be combined with `Command` or `ParameterCollection`.
   - ARG017: the children of one command must have different names.
@@ -37,13 +37,18 @@
   - `ArgumentTokenizer.TokenizeArguments` has an overload with `lastPositionalRepeats`, which gives every positional value after the ones before the last positional that last position.
 - ARG030: the method named by `ParsedWithMethod` must exist. It used to surface as a compiler error in the generated code.
 - `ValueParser`, the runtime class that the generated parsers call to convert the text of numbers, dates and times, with a `TryParse(string, bool useCurrentCulture, out T)` overload per type.
-- The groundwork for describing a class or the commands of a tree as tools of the Model Context Protocol (MCP), with a JSON Schema and a JSON binder generated from the same attributes as the parser. The generator does not emit the schema or the binder yet.
+- The groundwork for describing a class or the commands of a tree as tools of the Model Context Protocol (MCP), with a JSON Schema and a JSON binder generated from the same attributes as the parser. The schema is emitted (see the next entry); the binder is not implemented yet, so `EmitJsonBinder` does nothing for now.
   - `EmitMcpManifest` and `EmitJsonBinder` on `ParameterCollection` and `CommandApp` (both off by default) ask for the schema and the binder. On `CommandApp` they apply to the whole tree; a leaf that sets them in a tree gets ARG029.
   - The `ExcludeFromManifest` attribute leaves an argument out of the schema and the binding, for an argument that the program sets itself (such as the path of a database). The command line is not affected.
   - The keys of the schema are the property names in camelCase (as System.Text.Json writes them). The schema of a command in a tree also holds the options and flags of the root and of the groups above it. A tool is named after the path of its command, joined with `__` (`ingredient__add`).
   - ARG033: a required argument cannot have `ExcludeFromManifest`, as a tool call could never give it.
   - ARG034: two arguments of one schema cannot have the same key, in one class or along the path from the root of a tree to a leaf. Only reported when `EmitMcpManifest` or `EmitJsonBinder` is on.
   - ARG029 now also covers `EmitMcpManifest` and `EmitJsonBinder` on the `ParameterCollection` of a leaf in a tree.
+- The JSON Schema of a class and the MCP manifest of a tree, written from the same attributes as the parser (`EmitMcpManifest = true`). See "MCP tools and JSON Schema" in the README.
+  - A class with `[ParameterCollection(EmitMcpManifest = true)]` gets a `JsonSchema` constant: an object schema with a property per argument (keyed by the property name in camelCase), the required arguments, and `additionalProperties: false`.
+  - A root with `[CommandApp(..., EmitMcpManifest = true)]` gets an `McpManifest` constant, the result of an MCP `tools/list` request (`{"tools": [...]}`) with the name, description, input schema and annotations of every command, and `CommandInfo` has a new `InputSchema` property with the schema of its command (`null` without the setting). A new `CommandInfo` constructor takes it; the old one is kept.
+  - Integers get the range of their type, `Guid` the `uuid` format, `Uri` the `uri-reference` format, `char` a length of 1, dates and time spans a description of the text they take, enums the names of their members (a flag also its level as a number), nullable arguments also accept `null`, and lists are arrays.
+  - A class that declares a member named `JsonSchema` or `McpManifest` does not compile with the setting on; there is no rule for it.
 - `ParseOutcomePolicy.Apply` applies a `BehaviourOnError` setting and the help text to the outcome of a parse. An overload takes the `TextWriter` to write to and the `Action<int>` to call instead of `Environment.Exit`, so the policy can be used and tested without ending the process.
 
 ### Changed
