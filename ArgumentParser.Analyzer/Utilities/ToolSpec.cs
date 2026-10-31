@@ -40,8 +40,8 @@ public sealed class ToolField
 	/// <param name="target">The property names that lead from the class of the tool (the root of a tree) to the property, the property last.</param>
 	/// <param name="kind">The kind of argument the field comes from.</param>
 	/// <param name="jsonType">The JSON type of a value: string, integer, number or boolean.</param>
-	/// <param name="valueType">The type that a value is converted to, as the generator writes it (the element type for a list).</param>
-	/// <param name="enumMembers">The names of the members of an enum, empty for any other type.</param>
+	/// <param name="valueType">The type that a value is converted to, as Roslyn displays it, without <c>global::</c> (the element type for a list).</param>
+	/// <param name="enumMembers">The names of the members of an enum, empty for any other type and for an enum with a ParsedWithMethod attribute.</param>
 	/// <param name="isArray">Whether the value is an array of values (a list argument).</param>
 	/// <param name="required">Whether the key must be in the JSON object.</param>
 	/// <param name="nullable">Whether the value can be JSON null.</param>
@@ -106,13 +106,15 @@ public sealed class ToolField
 	public string JsonType { get; }
 
 	/// <summary>
-	/// Gets the type that a value is converted to, as the generator writes it (<c>int</c>, <c>System.DateTime</c>), without the question mark
-	/// of a nullable type; for a list it is the type of the elements.
+	/// Gets the type that a value is converted to, as Roslyn displays it (<c>int</c>, <c>System.DateTime</c>, <c>MyApp.Level</c>), without the question mark
+	/// of a nullable type; for a list it is the type of the elements. It is not qualified with <c>global::</c>: code that writes it into generated code
+	/// must add that for any type that is not a keyword, or a user namespace (<c>MyApp.System</c>) could capture the name.
 	/// </summary>
 	public string ValueType { get; }
 
 	/// <summary>
 	/// Gets the names of the members of an enum, in the order they are declared; empty for any other type.
+	/// It is also empty for an enum option or positional with a ParsedWithMethod attribute: the method decides which text it takes.
 	/// </summary>
 	public ReadOnlyCollection<string> EnumMembers { get; }
 
@@ -134,6 +136,7 @@ public sealed class ToolField
 
 	/// <summary>
 	/// Gets a value indicating whether the value can be JSON null, because the property is nullable.
+	/// A field can be both <see cref="Required"/> and nullable: the key must be given, but its value can be null.
 	/// </summary>
 	public bool Nullable { get; }
 

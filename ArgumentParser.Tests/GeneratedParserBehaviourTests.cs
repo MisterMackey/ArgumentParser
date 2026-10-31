@@ -344,6 +344,47 @@ public class GeneratedParserBehaviourTests
 		Assert.IsType<InvalidArgumentValueException>(Assert.Single(result.Errors));
 	}
 
+	private const string LevelParseMethodMembers = """
+		[Option("l", "Level", "level"), ParsedWithMethod("ReadLevel")]
+		public Level Level { get; set; }
+		[Option("s", "levels", "levels"), ParsedWithMethod("ReadLevel")]
+		public List<Level>? Levels { get; set; }
+		[Positional(0, "level")]
+		[ParsedWithMethod("ReadLevel")]
+		public Level First { get; set; }
+
+		private static bool ReadLevel(string input, out Level value)
+		{
+			value = input switch { "lo" => Level.Low, "hi" => Level.High, _ => Level.None };
+			return input is "lo" or "hi";
+		}
+		""";
+
+	[Fact]
+	public void Enum_WithParseMethod_TheMethodWinsOverTheNamesOfTheMembers()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(LevelParseMethodMembers, extraTypes: EnumType));
+
+		var result = parser.Parse("hi", "--Level", "lo", "-s", "hi", "-s", "lo");
+
+		Assert.Empty(result.Errors);
+		Assert.Equal("Low", result.Get<object>("Level")!.ToString());
+		Assert.Equal("High", result.Get<object>("First")!.ToString());
+		Assert.Equal(["High", "Low"], Values(result, "Levels"));
+	}
+
+	[Fact]
+	public void Enum_WithParseMethod_ANameTheMethodRejectsIsAnError()
+	{
+		var parser = GeneratedParser.Compile(ParserSource.Build(LevelParseMethodMembers, extraTypes: EnumType));
+
+		// High is a member of the enum, but the method only knows hi and lo
+		var result = parser.Parse("lo", "--Level", "High", "-s", "2");
+
+		Assert.Equal(2, result.Errors.Count);
+		Assert.All(result.Errors, e => Assert.IsType<InvalidArgumentValueException>(e));
+	}
+
 	[Fact]
 	public void Positionals_AreAssignedInOrderWhereverTheyAppear()
 	{

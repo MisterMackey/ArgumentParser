@@ -510,14 +510,15 @@ public class SourceTextGenerator : ISourceTextGenerator
 		// the value of a list is added to the local list for the property, any other value is the value of the property
 		string Assign(string parsed) => propertyInfo.IsList ? $"{ListLocal(propertyInfo)}.Add({parsed});" : $"instance.{propertyName} = {parsed};";
 		string tryParse;
-		if (propertyInfo.IsEnum)
-		{
-			tryParse = $"Enum.TryParse<{propertyType}>({value}, out var parsedValue)";
-		}
-		else if (propertyInfo.HasParseMethod)
+		// a method of the user wins over every built-in conversion, the one of an enum included
+		if (propertyInfo.HasParseMethod)
 		{
 			// out var takes the type from the method: an out parameter that is nullable lets it answer null
 			tryParse = $"{propertyInfo.ParseMethodOwner}.{propertyInfo.ParseMethodName}({value}, out var parsedValue)";
+		}
+		else if (propertyInfo.IsEnum)
+		{
+			tryParse = $"Enum.TryParse<{propertyType}>({value}, out var parsedValue)";
 		}
 		else if (CultureSensitiveTypes.Contains(propertyType))
 		{

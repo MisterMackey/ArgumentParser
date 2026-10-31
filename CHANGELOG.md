@@ -57,6 +57,7 @@
 - Diagnostics are now reported at a file path and span instead of a syntax node. Because of this, `#pragma warning disable` and `.editorconfig` severity settings no longer silence the ARG008 warning; use `<NoWarn>ARG008</NoWarn>` in the project file.
 
 ### Fixed
+- `ParsedWithMethod` was ignored on an enum option or positional (also on the elements of a `List<MyEnum>`): the names and numbers of the members were read with `Enum.TryParse` and the method was never called. The method is called now, as for any other type, so an enum takes the text the method accepts.
 - A `ParameterCollection` class declared in several parts (in one file or in several) only had the `Option`, `Flag` and `Positional` properties of the part with the attribute. The arguments of every part are read now, and the checks for an existing `Parse`, constructors, `HelpText` and `DisplayHelp` look at every part too.
 - An `internal` (or otherwise not public) `ParameterCollection` class did not compile, because the generated part was always declared `public`. The generated part now has no access modifier and takes the one of the class.
 - A class in a namespace with a segment named `ArgumentParser` (such as `MyApp.ArgumentParser`) did not compile, because the generated code named the library types `ArgumentParser.X`, which then pointed into that namespace. The generated code uses `global::ArgumentParser.X` now.

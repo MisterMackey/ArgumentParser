@@ -166,7 +166,8 @@ public static class ToolSpecProvider
 			kind,
 			parseMethod ? "string" : JsonType(argument),
 			argument.UnderlyingType,
-			argument.EnumMembers.AsReadOnly(),
+			// the method decides which text it takes, also for an enum, so the names of the members are no longer the only values
+			parseMethod ? Enumerable.Empty<string>() : argument.EnumMembers.AsReadOnly(),
 			argument.IsList,
 			argument.Attribute.Required,
 			argument.IsNullable,

@@ -919,6 +919,78 @@ public class DiagnosticRuleTests
 
 		Assert.Equal(["ARG034"], result.Ids);
 	}
+
+	// a whole tree, with every rule of the class pipeline and of the linker
+	private static IReadOnlyList<string> DiagnoseTree(string commandApp, string leafAttribute, string rootMembers, string leafMembers)
+	{
+		var (diagnostics, _) = TestHelper.GetGeneratedOutput($$"""
+			using ArgumentParser;
+
+			namespace Tools;
+
+			{{commandApp}}
+			public partial class App
+			{
+			{{rootMembers}}
+				public Leaf? Leaf { get; private set; }
+			}
+
+			{{leafAttribute}}
+			[Command("leaf")]
+			public partial class Leaf
+			{
+			{{leafMembers}}
+			}
+			""");
+		return diagnostics.Where(d => d.Id.StartsWith("ARG", StringComparison.Ordinal)).Select(d => d.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+	}
+
+	[Theory]
+	[InlineData("[CommandApp(\"app\")]")]
+	[InlineData("[CommandApp(\"app\", EmitMcpManifest = true)]")]
+	public void ARG033_ARequiredExcludedArgumentOfALeafInATree_IsReportedOnce(string commandApp)
+	{
+		var ids = DiagnoseTree(commandApp, "[ParameterCollection]", "", "[ExcludeFromManifest] " + Option("d", "db", "Db", required: true));
+
+		Assert.Equal(["ARG033"], ids);
+	}
+
+	[Fact]
+	public void ARG034_ALeafWithItsOwnSettingsInATreeWithout_ChecksItsOwnKeysOnly()
+	{
+		// the root emits nothing, so the linker compares no keys; the leaf's own settings still make its own pipeline compare them (ARG029 says the tree ignores those settings)
+		var ids = DiagnoseTree(
+			"[CommandApp(\"app\")]",
+			"[ParameterCollection(EmitMcpManifest = true)]",
+			Option("n", "root", "Name"),
+			Join(Option("a", "first", "Id"), Option("b", "second", "ID"), Option("c", "third", "name")));
+
+		Assert.Equal(["ARG029", "ARG034"], ids);
+	}
+
+	[Fact]
+	public void ARG034_ALeafWithItsOwnSettingsInATreeThatEmits_AKeyOfTheRootIsReportedByTheLinker()
+	{
+		var ids = DiagnoseTree(
+			"[CommandApp(\"app\", EmitMcpManifest = true)]",
+			"[ParameterCollection(EmitMcpManifest = true)]",
+			Option("n", "root", "Name"),
+			Option("c", "leaf", "name"));
+
+		Assert.Equal(["ARG029", "ARG034"], ids);
+	}
+
+	[Fact]
+	public void ARG034_ARootThatIsAlsoAParameterCollection_IsStillChecked()
+	{
+		// ARG016 forbids the combination, but the keys are compared all the same
+		var result = Diagnose(
+			Join(Option("a", "first", "Name"), Option("b", "second", "name")),
+			attribute: "[CommandApp(\"app\", EmitMcpManifest = true)]\n" + ManifestAttribute);
+
+		Assert.Contains("ARG016", result.Ids);
+		Assert.Contains("ARG034", result.Ids);
+	}
 	#endregion
 
 	#region lists (ARG031 and ARG032)

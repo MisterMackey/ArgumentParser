@@ -228,6 +228,8 @@ public List<string>? Files { get; set; }
 
 The generator reports [ARG030](ArgumentParser.Analyzer/docs/rules/ARG030.md) when it finds neither.
 
+The method replaces the built-in conversion for every type, enums included: an enum option or positional with `[ParsedWithMethod]` takes only the text the method accepts, not the names or numbers of the members. On a flag the attribute does nothing, as a flag has no text to read.
+
 When the property is nullable, `T` can be nullable too, so the method can turn some text into `null`. For example, to send the output of a program to a file descriptor, where the default is 1 and `NULL` means that there should be no output at all:
 ```C#
 [Option("r", "redirectOutputStream", "File descriptor to send the output to, NULL for none")]

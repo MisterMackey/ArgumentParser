@@ -198,6 +198,53 @@ public class ToolSpecProviderTests
 	}
 
 	[Fact]
+	public void ForClass_AParseMethodOnAnEnumWins_SoTheNamesOfTheMembersAreNotTheOnlyValues()
+	{
+		var spec = ForClass("""
+			[Option("m", "mode", "A mode"), ParsedWithMethod("ReadLevel")] public Level Mode { get; set; }
+			[Option("s", "modes", "Modes"), ParsedWithMethod("ReadLevel")] public List<Level>? Modes { get; set; }
+			[Flag("l", "level", "A level"), ParsedWithMethod("ReadLevel")] public Level Level { get; set; }
+			private static bool ReadLevel(string input, out Level value) { value = Level.Loud; return true; }
+			""");
+
+		Assert.Equal(("string", "global::Spec.Args", "ReadLevel"), (Field(spec, "mode").JsonType, Field(spec, "mode").ParseMethodOwner, Field(spec, "mode").ParseMethodName));
+		Assert.Empty(Field(spec, "mode").EnumMembers);
+		Assert.Equal(("string", "ReadLevel", true), (Field(spec, "modes").JsonType, Field(spec, "modes").ParseMethodName, Field(spec, "modes").IsArray));
+		Assert.Empty(Field(spec, "modes").EnumMembers);
+		// a flag reads no text, so it keeps counting into the enum
+		Assert.Equal(("", true), (Field(spec, "level").ParseMethodName, Field(spec, "level").AcceptsEnumNumber));
+		Assert.Equal(["Quiet", "Normal", "Loud"], Field(spec, "level").EnumMembers);
+	}
+
+	[Fact]
+	public void ForClass_AListOfEnumsAndANullableEnumFlag()
+	{
+		var spec = ForClass("""
+			[Option("m", "modes", "Modes")] public List<Level>? Modes { get; set; }
+			[Flag("l", "level", "A level")] public Level? Level { get; set; }
+			""");
+
+		Assert.Equal(("string", "Spec.Level", true, true), (Field(spec, "modes").JsonType, Field(spec, "modes").ValueType, Field(spec, "modes").IsArray, Field(spec, "modes").Nullable));
+		Assert.Equal(["Quiet", "Normal", "Loud"], Field(spec, "modes").EnumMembers);
+		Assert.False(Field(spec, "modes").AcceptsEnumNumber);
+		Assert.Equal(("string", "Spec.Level", true, true), (Field(spec, "level").JsonType, Field(spec, "level").ValueType, Field(spec, "level").Nullable, Field(spec, "level").AcceptsEnumNumber));
+		Assert.Equal(["Quiet", "Normal", "Loud"], Field(spec, "level").EnumMembers);
+	}
+
+	[Fact]
+	public void ForClass_ARequiredNullableArgumentMustBeGivenButCanBeNull()
+	{
+		// as on the command line, where a required argument counts as given when it is there, even when a parse method turns it into null
+		var spec = ForClass("""
+			[Option("r", "retries", "Retries", required: true)] public int? Retries { get; set; }
+			[Positional(0, "Name", true)] public string? Name { get; set; }
+			""");
+
+		Assert.Equal((true, true), (Field(spec, "retries").Required, Field(spec, "retries").Nullable));
+		Assert.Equal((true, true), (Field(spec, "name").Required, Field(spec, "name").Nullable));
+	}
+
+	[Fact]
 	public void ForClass_AnExcludedArgumentIsNoField()
 	{
 		var spec = ForClass("""
@@ -330,5 +377,41 @@ public class ToolSpecProviderTests
 		Assert.Equal("run", tool.Name);
 		Assert.Equal(CommandNodeInfo.DefaultAnnotations, tool.Annotations);
 		Assert.Equal([("verbose", new[] { "Verbose" }), ("times", new[] { "Run", "Times" })], tool.Fields.Select(f => (f.Key, f.Target.ToArray())));
+	}
+
+	[Fact]
+	public void ForTree_ClassesNestedInOtherTypes_TheTargetIsThePathOfChildProperties()
+	{
+		// the target follows the child properties, not the types the classes are declared in
+		var tool = Assert.Single(ForTree("""
+			public static partial class Outer
+			{
+				[CommandApp("app")]
+				public partial class App
+				{
+					[Option("r", "root", "Root")] public string Root { get; set; } = "";
+					public Group? Things { get; private set; }
+				}
+
+				[Command("things", "Things")]
+				public partial class Group
+				{
+					public Inner.Add? Adding { get; private set; }
+				}
+
+				public partial class Inner
+				{
+					[ParameterCollection]
+					[Command("add", "Add one")]
+					public partial class Add
+					{
+						[Positional(0, "Name", true)] public string Name { get; set; } = "";
+					}
+				}
+			}
+			"""));
+
+		Assert.Equal("things__add", tool.Name);
+		Assert.Equal([("root", new[] { "Root" }), ("name", new[] { "Things", "Adding", "Name" })], tool.Fields.Select(f => (f.Key, f.Target.ToArray())));
 	}
 }
